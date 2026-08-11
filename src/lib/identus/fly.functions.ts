@@ -139,9 +139,18 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
       await fly(`/apps/${data.appName}/machines`, {
         method: "POST",
         body: JSON.stringify(
-          agentMachineConfig(data.region, pgHost, prismHost, password, adminKey, data.appName),
+          agentMachineConfig(
+            data.region,
+            pgHost,
+            prismHost,
+            password,
+            adminKey,
+            data.appName,
+            guest,
+          ),
         ),
       });
+
       steps.push(step("Start Identus Cloud Agent", "ok", `${data.appName}.fly.dev`));
       await persist("provisioning");
 

@@ -1,24 +1,156 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "Identus Companion — build with Hyperledger Identus" },
+      {
+        name: "description",
+        content:
+          "A developer hub for Hyperledger Identus: simulated, Docker-local or Fly.io Cloud Agent, DID management, credential issuance and verification.",
+      },
+      { property: "og:title", content: "Identus Companion — build with Hyperledger Identus" },
+      {
+        property: "og:description",
+        content:
+          "Three agent modes, a full credential lifecycle demo and a docs portal for Hyperledger Identus.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: Landing,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+const modes = [
+  {
+    name: "Simulated",
+    tag: "Zero setup",
+    body: "A deterministic in-app agent that mirrors the Cloud Agent REST semantics. Issue, hold and verify credentials instantly.",
+  },
+  {
+    name: "Docker local",
+    tag: "Your machine",
+    body: "Point the app at a Cloud Agent running from the Identus Docker Compose stack on localhost and drive it over REST.",
+  },
+  {
+    name: "Fly.io",
+    tag: "Real deployment",
+    body: "Provision Postgres, a PRISM node and the Cloud Agent as Fly machines with your organisation token, straight from the wizard.",
+  },
+];
+
+const capabilities = [
+  ["DID registrar", "Create and publish did:prism identifiers with issuer, holder or verifier roles."],
+  ["DIDComm connections", "Generate out-of-band invitations and walk the connection state machine."],
+  ["Credential issuance", "Offer, accept and store W3C JWT verifiable credentials against a schema."],
+  ["Presentation & proof", "Request a presentation and inspect each verification check individually."],
+  ["Schema registry", "Define credential schemas with versioned attribute sets."],
+  ["Activity trail", "Every protocol step is logged so you can trace exactly what the agent did."],
+];
+
+function Landing() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
+    <main className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border/60">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+          <span className="font-display text-lg font-semibold tracking-tight">
+            Identus<span className="text-primary">.</span>Companion
+          </span>
+          <nav className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/docs">Docs</Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link to="/auth">Open console</Link>
+            </Button>
+          </nav>
+        </div>
+      </header>
+
+      <section
+        className="relative overflow-hidden border-b border-border/60"
+        style={{ backgroundImage: "var(--gradient-hero)" }}
+      >
+        <div className="mx-auto max-w-6xl px-6 py-24">
+          <Badge variant="outline" className="mb-6 border-primary/40 text-primary">
+            Self-sovereign identity toolkit
+          </Badge>
+          <h1 className="font-display max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-6xl">
+            Learn and operate Hyperledger Identus without the setup tax.
+          </h1>
+          <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
+            Run the full decentralised identity lifecycle — DIDs, DIDComm connections, verifiable
+            credentials and proofs — against a simulated agent, your local Docker stack, or a real
+            Cloud Agent you deploy to Fly.io in a few clicks.
+          </p>
+          <div className="mt-10 flex flex-wrap gap-3">
+            <Button asChild size="lg">
+              <Link to="/auth">Start with the simulated agent</Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link to="/docs">Read the primer</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-6 py-20">
+        <h2 className="font-display text-2xl font-semibold tracking-tight">Three agent modes</h2>
+        <p className="mt-2 max-w-2xl text-muted-foreground">
+          Switch mode at any time — the console keeps the same workflows, only the backing agent
+          changes.
+        </p>
+        <div className="mt-8 grid gap-5 md:grid-cols-3">
+          {modes.map((mode) => (
+            <Card key={mode.name} className="border-border/60 bg-card/60">
+              <CardHeader>
+                <Badge variant="secondary" className="w-fit font-mono text-xs">
+                  {mode.tag}
+                </Badge>
+                <CardTitle className="font-display pt-2">{mode.name}</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">{mode.body}</CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section className="border-t border-border/60 bg-card/30">
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <h2 className="font-display text-2xl font-semibold tracking-tight">
+            What you can do in the console
+          </h2>
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {capabilities.map(([title, body]) => (
+              <div key={title} className="border-l-2 border-primary/50 pl-4">
+                <h3 className="font-mono text-sm font-medium text-primary">{title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-border/60">
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-6 py-10 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            Community project — not affiliated with the Hyperledger Foundation or the Linux
+            Foundation.
+          </span>
+          <a
+            className="text-primary hover:underline"
+            href="https://identus.io/documentation/develop/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            identus.io documentation
+          </a>
+        </div>
+      </footer>
+    </main>
   );
 }

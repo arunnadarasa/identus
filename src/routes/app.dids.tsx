@@ -1,0 +1,220 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
+import { toast } from "sonner";
+import {
+  getWorkspace,
+  createDid,
+  createPeerConnection,
+  acceptPeerConnection,
+} from "@/lib/identus.functions";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+export const Route = createFileRoute("/app/dids")({
+  ssr: false,
+  component: Dids,
+});
+
+function Dids() {
+  const qc = useQueryClient();
+  const fetchWorkspace = useServerFn(getWorkspace);
+  const addDid = useServerFn(createDid);
+  const addPeer = useServerFn(createPeerConnection);
+  const acceptPeer = useServerFn(acceptPeerConnection);
+
+  const { data } = useQuery({ queryKey: ["workspace"], queryFn: () => fetchWorkspace() });
+  const [alias, setAlias] = useState("");
+  const [role, setRole] = useState<"issuer" | "holder" | "verifier">("issuer");
+  const [label, setLabel] = useState("");
+  const [busy, setBusy] = useState(false);
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["workspace"] });
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">
+          DIDs & DIDComm connections
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Create decentralised identifiers and establish peer connections through out-of-band
+          invitations.
+        </p>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="border-border/60">
+          <CardHeader>
+            <CardTitle className="font-display text-lg">Create a DID</CardTitle>
+            <CardDescription>
+              Registers a did:prism identifier with the active agent's DID registrar.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="alias">Alias</Label>
+              <Input
+                id="alias"
+                placeholder="Acme University"
+                value={alias}
+                onChange={(e) => setAlias(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="issuer">Issuer</SelectItem>
+                  <SelectItem value="holder">Holder</SelectItem>
+                  <SelectItem value="verifier">Verifier</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              disabled={busy || !alias}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  await addDid({ data: { alias, role } });
+                  setAlias("");
+                  invalidate();
+                  toast.success("DID created");
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Could not create the DID");
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              Create DID
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/60">
+          <CardHeader>
+            <CardTitle className="font-display text-lg">New DIDComm invitation</CardTitle>
+            <CardDescription>
+              Generates an out-of-band invitation another agent can accept.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="label">Connection label</Label>
+              <Input
+                id="label"
+                placeholder="Student wallet"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+              />
+            </div>
+            <Button
+              disabled={busy || !label}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  await addPeer({ data: { label } });
+                  setLabel("");
+                  invalidate();
+                  toast.success("Invitation created");
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error ? error.message : "Could not create the invitation",
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              Create invitation
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="border-border/60">
+        <CardHeader>
+          <CardTitle className="font-display text-lg">Your DIDs</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {(data?.dids ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">No DIDs yet.</p>
+          ) : (
+            (data?.dids ?? []).map((did: any) => (
+              <div
+                key={did.id}
+                className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-3 last:border-0"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{did.alias}</p>
+                  <p className="truncate font-mono text-xs text-muted-foreground">{did.did}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs">
+                    {did.role}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {did.status}
+                  </Badge>
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/60">
+        <CardHeader>
+          <CardTitle className="font-display text-lg">Connections</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {(data?.peers ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">No connections yet.</p>
+          ) : (
+            (data?.peers ?? []).map((peer: any) => (
+              <div
+                key={peer.id}
+                className="space-y-2 border-b border-border/50 pb-3 last:border-0"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium">{peer.label}</p>
+                    <p className="font-mono text-xs text-muted-foreground">{peer.state}</p>
+                  </div>
+                  {peer.state !== "ConnectionResponseSent" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        await acceptPeer({ data: { id: peer.id } });
+                        invalidate();
+                        toast.success("Connection established");
+                      }}
+                    >
+                      Accept as peer
+                    </Button>
+                  ) : (
+                    <Badge className="text-xs">connected</Badge>
+                  )}
+                </div>
+                {peer.invitation_url ? (
+                  <p className="break-all rounded-md bg-secondary/40 p-2 font-mono text-[11px] text-muted-foreground">
+                    {peer.invitation_url}
+                  </p>
+                ) : null}
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

@@ -85,9 +85,10 @@ export async function checkHealth(conn: {
   if (!base) return { healthy: false, message: "No base URL configured for this agent." };
   try {
     const res = await fetch(`${base}/_system/health`, {
-      headers: conn.api_key ? { apikey: conn.api_key } : undefined,
+      headers: conn.api_key ? { apikey: conn.api_key } : {},
       signal: AbortSignal.timeout(10000),
     });
+
     const text = (await res.text()).trim();
     if (!res.ok) return { healthy: false, message: `Agent replied ${res.status}: ${text.slice(0, 200)}` };
     let version = text;

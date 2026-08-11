@@ -10,7 +10,9 @@ import {
   setActiveConnection,
   testConnection,
 } from "@/lib/identus.functions";
-import { flyOrganizations, provisionFlyAgent, flyAppStatus, destroyFlyApp } from "@/lib/identus/fly.functions";
+import { flyAppStatus, destroyFlyApp } from "@/lib/identus/fly.functions";
+import { FlyDeployPanel } from "@/components/FlyDeployPanel";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,8 +36,6 @@ function Agents() {
   const removeConnection = useServerFn(deleteConnection);
   const activate = useServerFn(setActiveConnection);
   const health = useServerFn(testConnection);
-  const orgs = useServerFn(flyOrganizations);
-  const provision = useServerFn(provisionFlyAgent);
   const status = useServerFn(flyAppStatus);
   const destroy = useServerFn(destroyFlyApp);
 
@@ -43,15 +43,12 @@ function Agents() {
     queryKey: ["connections"],
     queryFn: () => fetchConnections(),
   });
-  const orgQuery = useQuery({ queryKey: ["fly-orgs"], queryFn: () => orgs() });
 
   const [dockerUrl, setDockerUrl] = useState("http://localhost:8085/cloud-agent");
   const [dockerKey, setDockerKey] = useState("");
   const [simName, setSimName] = useState("Simulated agent");
-  const [appName, setAppName] = useState("");
-  const [orgSlug, setOrgSlug] = useState("");
-  const [region, setRegion] = useState("lhr");
   const [busy, setBusy] = useState(false);
+
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["connections"] });
@@ -267,75 +264,10 @@ function Agents() {
               </Button>
             </TabsContent>
 
-            <TabsContent value="fly" className="space-y-4 pt-4">
-              {orgQuery.data && !orgQuery.data.ok ? (
-                <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
-                  Fly API token not usable yet: {orgQuery.data.message}
-                </p>
-              ) : null}
-              <p className="text-sm text-muted-foreground">
-                Deploys three machines — Postgres, a PRISM node and the Identus Cloud Agent — into
-                your Fly organisation, then wires the connection with a generated API key.
-              </p>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="fly-app">App name</Label>
-                  <Input
-                    id="fly-app"
-                    placeholder="my-identus-agent"
-                    value={appName}
-                    onChange={(e) => setAppName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Organisation</Label>
-                  <Select value={orgSlug} onValueChange={setOrgSlug}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select organisation" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(orgQuery.data?.orgs ?? []).map((org: any) => (
-                        <SelectItem key={org.id} value={org.slug}>
-                          {org.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Region</Label>
-                  <Select value={region} onValueChange={setRegion}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {REGIONS.map((r) => (
-                        <SelectItem key={r} value={r}>
-                          {r}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button
-                disabled={busy || !appName || !orgSlug}
-                onClick={async () => {
-                  setBusy(true);
-                  toast.message("Provisioning on Fly.io — this takes a minute…");
-                  const result = await provision({
-                    data: { appName, orgSlug, region },
-                  });
-                  setBusy(false);
-                  invalidate();
-                  result.ok
-                    ? toast.success(`${appName} deployed. Test it once the agent boots.`)
-                    : toast.error(result.message ?? "Provisioning failed");
-                }}
-              >
-                Deploy Cloud Agent
-              </Button>
+            <TabsContent value="fly">
+              <FlyDeployPanel onChanged={invalidate} />
             </TabsContent>
+
           </Tabs>
         </CardContent>
       </Card>

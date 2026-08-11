@@ -76,6 +76,26 @@ export async function allocateSharedIpv4(appName: string) {
   );
 }
 
+export interface Guest {
+  cpus: number;
+  memoryMb: number;
+}
+
+export async function appExists(appName: string) {
+  try {
+    await fly(`/apps/${appName}`);
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("404")) return false;
+    throw error;
+  }
+}
+
+export function suggestAppName() {
+  return `identus-agent-${Math.random().toString(16).slice(2, 6)}`;
+}
+
 export function postgresMachineConfig(region: string, password: string) {
   return {
     name: "identus-postgres",
@@ -130,6 +150,7 @@ export function agentMachineConfig(
   password: string,
   adminKey: string,
   appName: string,
+  guest: Guest = { cpus: 2, memoryMb: 2048 },
 ) {
   return {
     name: "identus-cloud-agent",
@@ -157,7 +178,7 @@ export function agentMachineConfig(
         DIDCOMM_SERVICE_URL: `https://${appName}.fly.dev/didcomm`,
         SECRET_STORAGE_BACKEND: "postgres",
       },
-      guest: { cpu_kind: "shared", cpus: 2, memory_mb: 2048 },
+      guest: { cpu_kind: "shared", cpus: guest.cpus, memory_mb: guest.memoryMb },
       services: [
         {
           ports: [
@@ -182,3 +203,4 @@ export function agentMachineConfig(
     },
   };
 }
+

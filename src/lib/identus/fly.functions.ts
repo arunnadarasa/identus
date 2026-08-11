@@ -18,6 +18,32 @@ export const flyOrganizations = createServerFn({ method: "GET" })
     }
   });
 
+export const flyPreflight = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ appName: z.string().trim().optional() }).parse(input ?? {}),
+  )
+  .handler(async ({ data }) => {
+    const { listOrganizations, appExists, suggestAppName } = await import("./fly.server");
+    try {
+      const orgs = await listOrganizations();
+      let taken = false;
+      const suggested = suggestAppName();
+      if (data.appName && /^[a-z0-9-]{4,40}$/.test(data.appName)) {
+        taken = await appExists(data.appName);
+      }
+      return { ok: true as const, orgs, taken, suggested, message: "" };
+    } catch (error) {
+      return {
+        ok: false as const,
+        orgs: [] as { id: string; slug: string; name: string }[],
+        taken: false,
+        suggested: "",
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
+
 export const provisionFlyAgent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -29,6 +55,10 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
           .regex(/^[a-z0-9-]{4,40}$/, "Use lowercase letters, numbers and dashes only."),
         orgSlug: z.string().trim().min(1),
         region: z.string().trim().min(2),
+        adminKey: z.string().trim().min(8).max(200).optional(),
+        pgPassword: z.string().trim().min(8).max(200).optional(),
+        cpus: z.number().int().min(1).max(8).optional(),
+        memoryMb: z.number().int().min(512).max(8192).optional(),
       })
       .parse(input),
   )
@@ -44,10 +74,12 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
     const { logActivity } = await import("./agent.server");
 
     const steps: Awaited<ReturnType<typeof step>>[] = [];
-    const password = crypto.randomUUID().replace(/-/g, "");
-    const adminKey = crypto.randomUUID().replace(/-/g, "");
+    const password = data.pgPassword ?? crypto.randomUUID().replace(/-/g, "");
+    const adminKey = data.adminKey ?? crypto.randomUUID().replace(/-/g, "");
+    const guest = { cpus: data.cpus ?? 2, memoryMb: data.memoryMb ?? 2048 };
     const pgHost = `identus-postgres.process.${data.appName}.internal`;
     const prismHost = `identus-prism-node.process.${data.appName}.internal`;
+
 
     const { data: conn, error: insertError } = await context.supabase
       .from("agent_connections")

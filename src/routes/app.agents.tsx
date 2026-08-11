@@ -10,7 +10,9 @@ import {
   setActiveConnection,
   testConnection,
 } from "@/lib/identus.functions";
-import { flyOrganizations, provisionFlyAgent, flyAppStatus, destroyFlyApp } from "@/lib/identus/fly.functions";
+import { flyAppStatus, destroyFlyApp } from "@/lib/identus/fly.functions";
+import { FlyDeployPanel } from "@/components/FlyDeployPanel";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

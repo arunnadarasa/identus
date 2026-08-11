@@ -8,13 +8,14 @@ export const POSTGRES_IMAGE = "postgres:16-alpine";
 export interface Step {
   step: string;
   status: "ok" | "error" | "running";
-  detail?: string;
+  detail?: string | undefined;
   at: string;
 }
 
 export function step(name: string, status: Step["status"], detail?: string): Step {
   return { step: name, status, detail, at: new Date().toISOString() };
 }
+
 
 function token() {
   const value = process.env["FLY_API_TOKEN"];

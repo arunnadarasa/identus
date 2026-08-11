@@ -159,7 +159,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     setPhase("idle");
     setSteps([]);
     setConnectionId(null);
-    setAppName(randomKey().slice(0, 4) ? `identus-agent-${randomKey().slice(0, 4)}` : "");
+    setAppName(`identus-agent-${randomKey().slice(0, 4)}`);
     onChanged();
     toast.success("Fly app cleaned up");
   };

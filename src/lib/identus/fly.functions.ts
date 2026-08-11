@@ -5,7 +5,7 @@ import { z } from "zod";
 export const flyOrganizations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
-    const { listOrganizations } = await import("./identus/fly.server");
+    const { listOrganizations } = await import("./fly.server");
     try {
       const orgs = await listOrganizations();
       return { ok: true as const, orgs };
@@ -40,8 +40,8 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
       postgresMachineConfig,
       prismNodeMachineConfig,
       agentMachineConfig,
-    } = await import("./identus/fly.server");
-    const { logActivity } = await import("./identus/agent.server");
+    } = await import("./fly.server");
+    const { logActivity } = await import("./agent.server");
 
     const steps: Awaited<ReturnType<typeof step>>[] = [];
     const password = crypto.randomUUID().replace(/-/g, "");
@@ -69,7 +69,7 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
     const persist = async (status: string) => {
       await context.supabase
         .from("agent_connections")
-        .update({ provision_status: status, provision_log: steps as unknown as object })
+        .update({ provision_status: status, provision_log: steps as unknown as never })
         .eq("id", conn.id);
     };
 
@@ -155,8 +155,8 @@ export const flyAppStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { fly } = await import("./identus/fly.server");
-    const { checkHealth } = await import("./identus/agent.server");
+    const { fly } = await import("./fly.server");
+    const { checkHealth } = await import("./agent.server");
     const { data: conn, error } = await context.supabase
       .from("agent_connections")
       .select("*")
@@ -193,8 +193,8 @@ export const destroyFlyApp = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { fly } = await import("./identus/fly.server");
-    const { logActivity } = await import("./identus/agent.server");
+    const { fly } = await import("./fly.server");
+    const { logActivity } = await import("./agent.server");
     const { data: conn, error } = await context.supabase
       .from("agent_connections")
       .select("*")

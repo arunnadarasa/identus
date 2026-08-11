@@ -36,8 +36,6 @@ function Agents() {
   const removeConnection = useServerFn(deleteConnection);
   const activate = useServerFn(setActiveConnection);
   const health = useServerFn(testConnection);
-  const orgs = useServerFn(flyOrganizations);
-  const provision = useServerFn(provisionFlyAgent);
   const status = useServerFn(flyAppStatus);
   const destroy = useServerFn(destroyFlyApp);
 
@@ -45,15 +43,12 @@ function Agents() {
     queryKey: ["connections"],
     queryFn: () => fetchConnections(),
   });
-  const orgQuery = useQuery({ queryKey: ["fly-orgs"], queryFn: () => orgs() });
 
   const [dockerUrl, setDockerUrl] = useState("http://localhost:8085/cloud-agent");
   const [dockerKey, setDockerKey] = useState("");
   const [simName, setSimName] = useState("Simulated agent");
-  const [appName, setAppName] = useState("");
-  const [orgSlug, setOrgSlug] = useState("");
-  const [region, setRegion] = useState("lhr");
   const [busy, setBusy] = useState(false);
+
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["connections"] });

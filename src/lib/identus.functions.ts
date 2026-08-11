@@ -351,7 +351,7 @@ export const acceptCredential = createServerFn({ method: "POST" })
     const jwt = makeCredentialJwt({
       issuer: record.issuer_did ?? "did:prism:unknown",
       subject: record.holder_did ?? "did:prism:unknown",
-      claims: record.claims ?? {},
+      claims: (record.claims ?? {}) as Record<string, string>,
       schema: record.schema_name ?? "VerifiableCredential",
     });
 

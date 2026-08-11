@@ -175,7 +175,14 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
         "fly.provisioned",
         `Provisioned Fly app ${data.appName}`,
       );
-      return { ok: true as const, connectionId: conn.id as string, steps };
+      return {
+        ok: true as const,
+        connectionId: conn.id as string,
+        steps,
+        adminKey,
+        baseUrl: `https://${data.appName}.fly.dev/cloud-agent`,
+      };
+
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       steps.push(step("Provisioning failed", "error", message));

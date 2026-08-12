@@ -50,7 +50,7 @@ function Credentials() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight">
+        <h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">
           Verifiable credentials
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -130,6 +130,7 @@ function Credentials() {
               />
             </div>
             <Button
+              className="h-11 w-full sm:h-10 sm:w-auto"
               disabled={busy || !issuerDid || !holderDid || !subject || !schemaName}
               onClick={async () => {
                 let claims: Record<string, string>;
@@ -196,6 +197,7 @@ function Credentials() {
             </div>
             <Button
               variant="outline"
+              className="h-11 w-full sm:h-10 sm:w-auto"
               disabled={busy || !schemaTitle}
               onClick={async () => {
                 setBusy(true);
@@ -246,16 +248,16 @@ function Credentials() {
                 key={record.id}
                 className="space-y-2 border-b border-border/50 pb-4 last:border-0"
               >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                  <div className="min-w-0">
                     <p className="text-sm font-medium">
                       {record.schema_name} · {record.subject}
                     </p>
-                    <p className="font-mono text-xs text-muted-foreground">
+                    <p className="break-all font-mono text-xs text-muted-foreground">
                       {record.record_id} · {record.protocol_state}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     {record.verified ? (
                       <Badge className="bg-success text-success-foreground text-xs">verified</Badge>
                     ) : null}
@@ -291,7 +293,7 @@ function Credentials() {
                     )}
                   </div>
                 </div>
-                <p className="font-mono text-xs text-muted-foreground">
+                <p className="break-all font-mono text-xs text-muted-foreground">
                   {Object.entries(record.claims ?? {})
                     .map(([k, v]) => `${k}=${v}`)
                     .join("  ")}

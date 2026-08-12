@@ -124,8 +124,13 @@ function AuthPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full" onClick={google}>
-              Continue with Google
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={google}
+              disabled={googleBusy}
+            >
+              {googleBusy ? "Signing in…" : "Continue with Google"}
             </Button>
             <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
               <span className="h-px flex-1 bg-border" />

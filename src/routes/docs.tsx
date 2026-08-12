@@ -64,6 +64,39 @@ const endpoints = [
   ["GET", "/_system/health", "Agent health and version"],
 ];
 
+const hostingComparison = [
+  {
+    feature: "Container image execution",
+    fly: "Yes — runs identus/identus-cloud-agent and identus/prism-node images",
+    docker: "Yes — full Docker Compose stack on localhost",
+    sprites: "No — sprites.dev runs a single Linux box, not container images",
+  },
+  {
+    feature: "Multi-service composition",
+    fly: "Yes — separate Machines for Postgres, PRISM node and Cloud Agent",
+    docker: "Yes — Compose orchestrates all services",
+    sprites: "No — one command at a time, no Compose-like service grouping",
+  },
+  {
+    feature: "Managed Postgres + private network",
+    fly: "Yes — Fly Postgres with internal 6PN IPs and 4 databases",
+    docker: "Yes — local Postgres on the Docker network",
+    sprites: "No — no managed Postgres or private service networking",
+  },
+  {
+    feature: "Long-running agent service",
+    fly: "Yes — Machines stay up and expose HTTPS endpoints",
+    docker: "Yes — containers run continuously while Docker is active",
+    sprites: "No — exec commands are short-lived; no persistent service model",
+  },
+  {
+    feature: "SDK snippet sandbox",
+    fly: "Not designed for ad-hoc code",
+    docker: "Possible but manual",
+    sprites: "Yes — per-user Node box with the Identus TypeScript SDK",
+  },
+];
+
 function Docs() {
   return (
     <main className="min-h-screen bg-background text-foreground">

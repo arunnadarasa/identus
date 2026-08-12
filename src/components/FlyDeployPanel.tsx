@@ -77,21 +77,24 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     if (!orgSlug && data.orgs.length) setOrgSlug(data.orgs[0]!.slug);
   }, [preflightQuery.data]);
 
-  // Live progress: while deploying, poll the connection row for provisioning steps.
-  const progressQuery = useQuery({
+  // The provisioning row is inserted before the first Fly call, so while the deploy
+  // request is still in flight we discover its id by app name and hand it to the
+  // log viewer, which then streams the steps itself.
+  const discoveryQuery = useQuery({
     queryKey: ["connections"],
     queryFn: () => fetchConnections(),
-    refetchInterval: phase === "deploying" ? 2500 : false,
-    enabled: phase === "deploying",
+    refetchInterval: phase === "deploying" && !connectionId ? 2500 : false,
+    enabled: phase === "deploying" && !connectionId,
   });
 
-  const liveSteps = useMemo(() => {
-    const rows = (progressQuery.data ?? []) as any[];
+  useEffect(() => {
+    if (connectionId) return;
+    const rows = (discoveryQuery.data ?? []) as { id: string; fly_app_name?: string | null }[];
     const row = rows.find((r) => r.fly_app_name === appName);
-    return Array.isArray(row?.provision_log) ? (row.provision_log as StepEntry[]) : [];
-  }, [progressQuery.data, appName]);
+    if (row) setConnectionId(row.id);
+  }, [discoveryQuery.data, appName, connectionId]);
 
-  const shown = phase === "deploying" && liveSteps.length > steps.length ? liveSteps : steps;
+
   const orgs = preflightQuery.data?.ok ? preflightQuery.data.orgs : [];
   const tokenProblem = preflightQuery.data && !preflightQuery.data.ok ? preflightQuery.data.message : "";
   const nameValid = /^[a-z0-9-]{4,40}$/.test(appName);

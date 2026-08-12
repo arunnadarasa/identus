@@ -107,6 +107,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     setSteps([]);
     setError("");
     setAgentState("");
+    setDeployedAt(null);
     const size = SIZES[sizeIndex]!;
     const result = await provision({
       data: {

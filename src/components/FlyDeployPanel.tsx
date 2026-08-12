@@ -305,8 +305,9 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <Button
+          className="h-11 w-full sm:h-10 sm:w-auto"
           disabled={phase === "deploying" || !nameValid || !orgSlug || !!tokenProblem}
           onClick={deploy}
         >
@@ -369,14 +370,14 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
           </p>
           <div className="space-y-2 font-mono text-xs">
             <div className="flex items-center justify-between gap-2 rounded border border-border/60 bg-background/60 px-3 py-2">
-              <span className="truncate">{baseUrl}</span>
-              <Button size="sm" variant="ghost" onClick={() => copy(baseUrl, "Agent URL")}>
+              <span className="min-w-0 truncate">{baseUrl}</span>
+              <Button size="sm" variant="ghost" className="shrink-0" onClick={() => copy(baseUrl, "Agent URL")}>
                 <Copy className="h-3.5 w-3.5" />
               </Button>
             </div>
             <div className="flex items-center justify-between gap-2 rounded border border-border/60 bg-background/60 px-3 py-2">
-              <span className="truncate">{adminKey}</span>
-              <Button size="sm" variant="ghost" onClick={() => copy(adminKey, "Admin API key")}>
+              <span className="min-w-0 truncate">{adminKey}</span>
+              <Button size="sm" variant="ghost" className="shrink-0" onClick={() => copy(adminKey, "Admin API key")}>
                 <Copy className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -404,7 +405,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
               <ul className="grid gap-1 sm:grid-cols-2">
                 {readiness.probe.checks.map((c) => (
                   <li key={c.id} className="flex items-center justify-between gap-2 font-mono">
-                    <span className="text-muted-foreground">{c.label}</span>
+                    <span className="min-w-0 truncate text-muted-foreground">{c.label}</span>
                     <span className={c.ok ? "text-primary" : "text-destructive"}>
                       {c.ok ? `${c.ms}ms` : (c.status ?? "down")}
                     </span>
@@ -422,6 +423,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
 
           <Button
             size="sm"
+            className="h-11 w-full sm:h-9 sm:w-auto"
             disabled={readiness.status !== "ready"}
             onClick={async () => {
               if (!connectionId) return;

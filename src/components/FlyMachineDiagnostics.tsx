@@ -1,0 +1,157 @@
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { AlertTriangle, Check, Cpu, RefreshCw, Stethoscope } from "lucide-react";
+import { flyMachineDiagnostics } from "@/lib/identus/fly.functions";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+
+/**
+ * Reads the deployed machines' real state: Fly health-check output, exit codes
+ * and OOM kills. This is what tells you whether an agent that reports "started"
+ * is actually crash-looping, still migrating, or simply unreachable.
+ */
+export function FlyMachineDiagnostics({
+  connectionId,
+  autoRefresh = false,
+}: {
+  connectionId: string;
+  autoRefresh?: boolean;
+}) {
+  const load = useServerFn(flyMachineDiagnostics);
+  const query = useQuery({
+    queryKey: ["fly-diagnostics", connectionId],
+    queryFn: () => load({ data: { id: connectionId } }),
+    refetchInterval: autoRefresh ? 20_000 : false,
+    staleTime: 10_000,
+  });
+
+  const machines = query.data?.machines ?? [];
+
+  return (
+    <Collapsible>
+      <div className="flex flex-wrap items-center gap-2">
+        <CollapsibleTrigger asChild>
+          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs">
+            <Stethoscope className="mr-2 h-3.5 w-3.5" />
+            Machine diagnostics
+          </Button>
+        </CollapsibleTrigger>
+        {query.data?.fatal ? (
+          <Badge variant="outline" className="border-destructive/50 text-xs text-destructive">
+            needs attention
+          </Badge>
+        ) : null}
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-8 px-2 text-xs text-muted-foreground"
+          onClick={() => query.refetch()}
+          disabled={query.isFetching}
+        >
+          <RefreshCw className={`mr-2 h-3 w-3 ${query.isFetching ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
+      </div>
+
+      <CollapsibleContent className="pt-2">
+        <div className="space-y-2 rounded-md border border-border/60 bg-card/40 p-3 text-xs">
+          {query.isLoading ? <p className="text-muted-foreground">Reading machines…</p> : null}
+          {query.data && !query.data.ok ? (
+            <p className="text-destructive">{query.data.message}</p>
+          ) : null}
+          {query.data?.ok && machines.length === 0 ? (
+            <p className="text-muted-foreground">No machines found in this app.</p>
+          ) : null}
+
+          {machines.map((m) => (
+            <div key={m.id} className="space-y-2 border-b border-border/40 pb-2 last:border-0 last:pb-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-foreground">{m.name}</span>
+                <Badge
+                  variant="outline"
+                  className={
+                    m.state === "started"
+                      ? "border-success/50 text-success"
+                      : "border-border text-muted-foreground"
+                  }
+                >
+                  {m.state}
+                </Badge>
+                <span className="text-muted-foreground">{m.region}</span>
+                {m.memoryMb ? (
+                  <span className="flex items-center gap-1 text-muted-foreground">
+                    <Cpu className="h-3 w-3" />
+                    {m.cpus ?? "?"} cpu · {Math.round(m.memoryMb / 1024)} GB
+                  </span>
+                ) : null}
+              </div>
+
+              <p
+                className={`flex items-start gap-2 ${
+                  m.fatal ? "text-destructive" : "text-muted-foreground"
+                }`}
+              >
+                {m.fatal ? (
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                ) : (
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                )}
+                <span>{m.diagnosis}</span>
+              </p>
+
+              {m.privateIp ? (
+                <p className="break-all font-mono text-muted-foreground">
+                  private ip {m.privateIp}
+                </p>
+              ) : null}
+              {m.image ? (
+                <p className="break-all font-mono text-muted-foreground">{m.image}</p>
+              ) : null}
+
+              {m.checks.length ? (
+                <ul className="space-y-1">
+                  {m.checks.map((c) => (
+                    <li key={c.name} className="font-mono">
+                      <span className="text-muted-foreground">{c.name}</span>{" "}
+                      <span className={c.status === "passing" ? "text-primary" : "text-destructive"}>
+                        {c.status || "unknown"}
+                      </span>
+                      {c.output ? (
+                        <pre className="mt-1 whitespace-pre-wrap break-all rounded bg-background/60 p-2 text-[11px] text-muted-foreground">
+                          {c.output.slice(0, 600)}
+                        </pre>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {m.events.length ? (
+                <ul className="space-y-0.5 font-mono text-[11px] text-muted-foreground">
+                  {m.events.map((e, i) => (
+                    <li key={`${e.at}-${i}`}>
+                      {e.at.slice(11, 19)} {e.type}
+                      {e.status ? ` · ${e.status}` : ""}
+                      {e.exitCode !== null ? (
+                        <span className={e.exitCode === 0 ? "" : "text-destructive"}>
+                          {" "}
+                          · exit {e.exitCode}
+                        </span>
+                      ) : null}
+                      {e.oomKilled ? <span className="text-destructive"> · out of memory</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}

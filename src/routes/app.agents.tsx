@@ -94,26 +94,12 @@ function Agents() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={async () => {
-                      await activate({ data: { id: conn.id } });
-                      invalidate();
-                      toast.success(`${conn.name} is now the active agent`);
-                    }}
+                    disabled={switching === conn.id}
+                    onClick={() => useAgent(conn)}
                   >
-                    Use
+                    {switching === conn.id ? "Checking…" : "Use"}
                   </Button>
                 ) : null}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={async () => {
-                    const result = await health({ data: { id: conn.id } });
-                    invalidate();
-                    result.healthy ? toast.success(result.message) : toast.error(result.message);
-                  }}
-                >
-                  Test
-                </Button>
                 {conn.mode === "fly" ? (
                   <>
                     <Button

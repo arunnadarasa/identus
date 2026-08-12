@@ -92,7 +92,7 @@ function Agents() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight">Agents</h1>
+        <h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">Agents</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Simulated, Docker-local or a real Cloud Agent deployed to Fly.io.
         </p>
@@ -101,13 +101,13 @@ function Agents() {
       <div className="grid gap-4">
         {(connections ?? []).map((conn: any) => (
           <Card key={conn.id} className="border-border/60">
-            <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-              <div>
-                <CardTitle className="font-display flex items-center gap-2 text-base">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <CardTitle className="font-display flex flex-wrap items-center gap-2 text-base">
                   {conn.name}
                   {conn.is_active ? <Badge className="text-xs">active</Badge> : null}
                 </CardTitle>
-                <CardDescription className="pt-1 font-mono text-xs">
+                <CardDescription className="break-all pt-1 font-mono text-xs">
                   {MODE_LABELS[conn.mode as AgentMode]}
                   {conn.base_url ? ` · ${conn.base_url}` : ""}
                   {conn.provision_status ? ` · ${conn.provision_status}` : ""}
@@ -217,7 +217,7 @@ function Agents() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="simulated">
-            <TabsList>
+            <TabsList className="grid w-full grid-cols-3 sm:inline-flex sm:w-auto">
               <TabsTrigger value="simulated">Simulated</TabsTrigger>
               <TabsTrigger value="docker">Docker local</TabsTrigger>
               <TabsTrigger value="fly">Fly.io</TabsTrigger>

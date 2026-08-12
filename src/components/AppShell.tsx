@@ -16,6 +16,7 @@ const nav = [
   { to: "/app/agents", label: "Agents" },
   { to: "/app/dids", label: "DIDs" },
   { to: "/app/credentials", label: "Credentials" },
+  { to: "/app/sandbox", label: "Sandbox" },
   { to: "/app/activity", label: "Activity" },
   { to: "/docs", label: "Docs" },
 ] as const;

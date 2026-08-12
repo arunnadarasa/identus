@@ -154,14 +154,20 @@ export function defaultBundle() {
 export function runCommands() {
   return [
     "# unzip / copy the bundle, then from its folder:",
-    "docker compose config          # sanity check",
-    "docker compose up -d",
-    "docker compose logs -f cloud-agent",
+    "docker compose version                 # needs the Compose v2 plugin",
+    "docker compose config                  # sanity check: interpolated stack",
+    "docker compose up -d --wait            # blocks until services report healthy",
+    "docker compose ps                      # status + published ports",
+    "docker compose logs -f cloud-agent     # follow the agent's JVM logs",
     "",
     "# agent REST API:  http://localhost:8085/cloud-agent",
     "# health:          curl http://localhost:8085/cloud-agent/_system/health",
+    "",
+    "docker compose down                    # stop, keep the Postgres volume",
+    "docker compose down -v                 # stop and DELETE all wallet data",
   ].join("\n");
 }
+
 
 /**
  * Python validator. Prints a single JSON object so the server can render

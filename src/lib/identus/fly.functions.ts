@@ -71,7 +71,9 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
       postgresMachineConfig,
       prismNodeMachineConfig,
       agentMachineConfig,
+      waitForMachineState,
     } = await import("./fly.server");
+
     type Step = import("./fly.server").Step;
     const { logActivity } = await import("./agent.server");
 

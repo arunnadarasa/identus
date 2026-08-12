@@ -80,7 +80,7 @@ export function AgentHealthPanel({ connectionId, lastProbe, lastCheckedAt, onChe
                 ) : (
                   <X className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 )}
-                <span className="flex-1">
+                <span className="min-w-0 flex-1 break-words">
                   {check.label}
                   {check.detail ? ` — ${check.detail}` : ""}
                 </span>

@@ -20,7 +20,7 @@ import {
 
 interface Props {
   connection: any;
-  onChanged?: () => void;
+  onChanged?: (() => void) | undefined;
   size?: "sm" | "default";
   variant?: "outline" | "ghost";
 }

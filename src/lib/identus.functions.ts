@@ -581,3 +581,47 @@ export const revealConnectionKey = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { apiKey: (row.api_key as string | null) ?? null };
   });
+
+/** Stores a pasted API key for a docker-local agent and re-probes it. */
+export const setConnectionKey = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), apiKey: z.string().trim().min(1).max(200) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { probeAgent, logActivity } = await import("./identus/agent.server");
+    const { data: conn, error } = await context.supabase
+      .from("agent_connections")
+      .select("*")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+    if (error) throw new Error(error.message);
+
+    const probe = await probeAgent({
+      mode: conn.mode as string,
+      base_url: conn.base_url as string | null,
+      fly_app_name: conn.fly_app_name as string | null,
+      api_key: data.apiKey,
+    });
+
+    const { error: updateError } = await context.supabase
+      .from("agent_connections")
+      .update({
+        api_key: data.apiKey,
+        last_probe: probe as unknown as never,
+        last_health: probe.healthy ? "healthy" : "unreachable",
+        last_checked_at: new Date().toISOString(),
+      })
+      .eq("id", data.id);
+    if (updateError) throw new Error(updateError.message);
+
+    await logActivity(
+      context.supabase,
+      context.userId,
+      data.id,
+      "connection.key_updated",
+      `Updated API key for ${conn.name}`,
+    );
+    return { healthy: probe.healthy, message: probe.message };
+  });

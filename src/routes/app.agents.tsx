@@ -18,6 +18,7 @@ import { AgentReadinessStatus } from "@/components/AgentReadinessWatcher";
 import { ProvisionLogViewer } from "@/components/ProvisionLogViewer";
 import { FlyAgentPicker } from "@/components/FlyAgentPicker";
 import { ActiveAgentCard } from "@/components/ActiveAgentCard";
+import { RotateKeyDialog } from "@/components/RotateKeyDialog";
 
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -141,6 +142,9 @@ function Agents() {
                   >
                     {switching === conn.id ? "Checking…" : "Use"}
                   </Button>
+                ) : null}
+                {conn.mode !== "simulated" ? (
+                  <RotateKeyDialog connection={conn} onChanged={invalidate} variant="ghost" />
                 ) : null}
                 {conn.mode === "fly" ? (
                   <>

@@ -325,3 +325,55 @@ export function agentMachineConfig(
   };
 }
 
+
+export interface FlyMachineDetail {
+  id: string;
+  name: string;
+  state: string;
+  region: string;
+  config: Record<string, any>;
+}
+
+export async function getMachine(appName: string, machineId: string): Promise<FlyMachineDetail> {
+  const raw = (await fly(`/apps/${appName}/machines/${machineId}`)) as any;
+  return {
+    id: raw.id,
+    name: raw.name,
+    state: raw.state,
+    region: raw.region,
+    config: (raw.config ?? {}) as Record<string, any>,
+  };
+}
+
+/**
+ * Rewrites a machine with a merged env block. Fly replaces the whole config on
+ * update, so the current config is read first and only `env` is patched.
+ */
+export async function updateMachineEnv(
+  appName: string,
+  machineId: string,
+  env: Record<string, string>,
+) {
+  const machine = await getMachine(appName, machineId);
+  const config = {
+    ...machine.config,
+    env: { ...(machine.config["env"] ?? {}), ...env },
+  };
+  const updated = (await fly(`/apps/${appName}/machines/${machineId}`, {
+    method: "POST",
+    body: JSON.stringify({ config }),
+  })) as any;
+  return { previousEnv: (machine.config["env"] ?? {}) as Record<string, string>, machine: updated };
+}
+
+/** Blocks until the machine reaches `state` (Fly long-polls up to `timeout` seconds). */
+export async function waitForMachineState(
+  appName: string,
+  machineId: string,
+  state: "started" | "stopped" = "started",
+  timeoutSeconds = 60,
+) {
+  return fly(
+    `/apps/${appName}/machines/${machineId}/wait?state=${state}&timeout=${timeoutSeconds}`,
+  );
+}

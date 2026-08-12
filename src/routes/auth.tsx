@@ -83,8 +83,15 @@ function AuthPage() {
   async function google() {
     setGoogleBusy(true);
     try {
+      // Remember where the user meant to go, then return to a public callback
+      // route that waits for the session before entering the console.
+      try {
+        sessionStorage.setItem("identus:post-auth", "/app");
+      } catch {
+        /* storage unavailable — the callback falls back to /app */
+      }
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+        redirect_uri: `${window.location.origin}/auth/callback`,
       });
       if (result.error) {
         console.error("Google sign-in error", result.error);

@@ -1,4 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,6 +55,19 @@ const capabilities = [
 ];
 
 function Landing() {
+  // Signed-in visitors should be pointed at the console, not back at sign-in.
+  const { session, signOut } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const signedIn = Boolean(session);
+
+  async function handleSignOut() {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await signOut();
+    navigate({ to: "/auth", replace: true });
+  }
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border/60">
@@ -64,9 +79,20 @@ function Landing() {
             <Button asChild variant="ghost" size="sm">
               <Link to="/docs">Docs</Link>
             </Button>
-            <Button asChild size="sm">
-              <Link to="/auth">Open console</Link>
-            </Button>
+            {signedIn ? (
+              <>
+                <Button asChild size="sm">
+                  <Link to="/app">Open console</Link>
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                  Sign out
+                </Button>
+              </>
+            ) : (
+              <Button asChild size="sm">
+                <Link to="/auth">Open console</Link>
+              </Button>
+            )}
           </nav>
         </div>
       </header>
@@ -89,7 +115,9 @@ function Landing() {
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
             <Button asChild size="lg">
-              <Link to="/auth">Start with the simulated agent</Link>
+              <Link to={signedIn ? "/app" : "/auth"}>
+                {signedIn ? "Go to your console" : "Start with the simulated agent"}
+              </Link>
             </Button>
             <Button asChild size="lg" variant="outline">
               <Link to="/docs">Read the primer</Link>
@@ -97,6 +125,7 @@ function Landing() {
           </div>
         </div>
       </section>
+
 
       <section className="mx-auto max-w-6xl px-6 py-20">
         <h2 className="font-display text-2xl font-semibold tracking-tight">Three agent modes</h2>

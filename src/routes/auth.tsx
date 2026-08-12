@@ -80,15 +80,33 @@ function AuthPage() {
   }
 
   async function google() {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      toast.error("Google sign-in failed. Try email instead.");
-      return;
+    setGoogleBusy(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        console.error("Google sign-in error", result.error);
+        toast.error(result.error.message || "Google sign-in failed.");
+        return;
+      }
+      if (result.redirected) return;
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        navigate({ to: "/app" });
+        return;
+      }
+      toast.error(
+        "Google sign-in didn't complete — the popup was closed or blocked. Allow popups and try again, or use email below.",
+      );
+    } catch (err) {
+      console.error("Google sign-in threw", err);
+      toast.error(
+        err instanceof Error ? err.message : "Google sign-in failed unexpectedly.",
+      );
+    } finally {
+      setGoogleBusy(false);
     }
-    if (result.redirected) return;
-    navigate({ to: "/app" });
   }
 
   return (

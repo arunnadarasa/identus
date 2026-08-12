@@ -194,11 +194,14 @@ cd cloud-agent/infrastructure/local
                 image, a shared internal network and a volume-backed Postgres.
               </p>
               <p className="mt-2">
-                Lighter sandbox hosts such as sprites.dev were considered and rejected: they run a
+                Lighter sandbox hosts such as sprites.dev cannot host the agent itself: they run a
                 single Linux box with long-running commands, with no container image execution, no
-                multi-service composition and no managed Postgres, so the Identus stack cannot be
-                expressed on them.
+                multi-service composition and no managed Postgres. They are a good fit for code
+                though, so the SDK sandbox uses one: each account gets a private box with Node and
+                the Identus TypeScript SDK installed, and snippets run there with the active agent's
+                base URL and admin key injected as environment variables.
               </p>
+
             </div>
 
           </div>

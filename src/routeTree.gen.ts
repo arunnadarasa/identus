@@ -18,6 +18,7 @@ import { Route as AppActivityRouteImport } from './routes/app.activity'
 import { Route as AppAgentsRouteImport } from './routes/app.agents'
 import { Route as AppCredentialsRouteImport } from './routes/app.credentials'
 import { Route as AppDidsRouteImport } from './routes/app.dids'
+import { Route as AppSandboxRouteImport } from './routes/app.sandbox'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 
 const IndexRoute = IndexRouteImport.update({
@@ -65,6 +66,11 @@ const AppDidsRoute = AppDidsRouteImport.update({
   path: '/dids',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSandboxRoute = AppSandboxRouteImport.update({
+  id: '/sandbox',
+  path: '/sandbox',
+  getParentRoute: () => AppRoute,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/app/agents': typeof AppAgentsRoute
   '/app/credentials': typeof AppCredentialsRoute
   '/app/dids': typeof AppDidsRoute
+  '/app/sandbox': typeof AppSandboxRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/app/': typeof AppIndexRoute
 }
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/app/agents': typeof AppAgentsRoute
   '/app/credentials': typeof AppCredentialsRoute
   '/app/dids': typeof AppDidsRoute
+  '/app/sandbox': typeof AppSandboxRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/app': typeof AppIndexRoute
 }
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/app/agents': typeof AppAgentsRoute
   '/app/credentials': typeof AppCredentialsRoute
   '/app/dids': typeof AppDidsRoute
+  '/app/sandbox': typeof AppSandboxRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/app/': typeof AppIndexRoute
 }
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/app/agents'
     | '/app/credentials'
     | '/app/dids'
+    | '/app/sandbox'
     | '/auth/callback'
     | '/app/'
   fileRoutesByTo: FileRoutesByTo
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/app/agents'
     | '/app/credentials'
     | '/app/dids'
+    | '/app/sandbox'
     | '/auth/callback'
     | '/app'
   id:
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/app/agents'
     | '/app/credentials'
     | '/app/dids'
+    | '/app/sandbox'
     | '/auth/callback'
     | '/app/'
   fileRoutesById: FileRoutesById
@@ -217,6 +229,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDidsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/sandbox': {
+      id: '/app/sandbox'
+      path: '/sandbox'
+      fullPath: '/app/sandbox'
+      preLoaderRoute: typeof AppSandboxRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/callback'
@@ -232,6 +251,7 @@ interface AppRouteChildren {
   AppAgentsRoute: typeof AppAgentsRoute
   AppCredentialsRoute: typeof AppCredentialsRoute
   AppDidsRoute: typeof AppDidsRoute
+  AppSandboxRoute: typeof AppSandboxRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
@@ -240,6 +260,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAgentsRoute: AppAgentsRoute,
   AppCredentialsRoute: AppCredentialsRoute,
   AppDidsRoute: AppDidsRoute,
+  AppSandboxRoute: AppSandboxRoute,
   AppIndexRoute: AppIndexRoute,
 }
 
@@ -264,13 +285,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

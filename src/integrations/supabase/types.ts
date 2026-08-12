@@ -66,6 +66,7 @@ export type Database = {
           is_active: boolean
           last_checked_at: string | null
           last_health: string | null
+          last_probe: Json | null
           mode: string
           name: string
           provision_log: Json
@@ -84,6 +85,7 @@ export type Database = {
           is_active?: boolean
           last_checked_at?: string | null
           last_health?: string | null
+          last_probe?: Json | null
           mode?: string
           name: string
           provision_log?: Json
@@ -102,6 +104,7 @@ export type Database = {
           is_active?: boolean
           last_checked_at?: string | null
           last_health?: string | null
+          last_probe?: Json | null
           mode?: string
           name?: string
           provision_log?: Json

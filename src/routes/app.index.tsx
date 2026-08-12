@@ -72,6 +72,15 @@ function Overview() {
             </Button>
           </div>
         </CardHeader>
+        {active ? (
+          <CardContent>
+            <AgentHealthPanel
+              connectionId={active.id}
+              lastProbe={active.last_probe ?? null}
+              lastCheckedAt={active.last_checked_at ?? null}
+            />
+          </CardContent>
+        ) : null}
       </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

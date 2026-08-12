@@ -62,6 +62,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
   const [connectionId, setConnectionId] = useState<string | null>(null);
   const [baseUrl, setBaseUrl] = useState("");
   const [agentState, setAgentState] = useState<"booting" | "healthy" | "">("");
+  const [deployedAt, setDeployedAt] = useState<string | null>(null);
 
   const preflightQuery = useQuery({
     queryKey: ["fly-preflight"],

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { getSandbox, ensureSandbox, destroySandbox } from "@/lib/sprites/sandbox.functions";
 import { SnippetRunner } from "@/components/SnippetRunner";
+import { ModeRecommendation } from "@/components/ModeRecommendation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

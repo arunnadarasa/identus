@@ -19,7 +19,7 @@ import { ProvisionLogViewer } from "@/components/ProvisionLogViewer";
 import { FlyAgentPicker } from "@/components/FlyAgentPicker";
 import { ActiveAgentCard } from "@/components/ActiveAgentCard";
 import { RotateKeyDialog } from "@/components/RotateKeyDialog";
-
+import { ModeRecommendation } from "@/components/ModeRecommendation";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

@@ -130,7 +130,7 @@ export const diagnoseConnection = createServerFn({ method: "POST" })
       .update({
         last_health: result.healthy ? "healthy" : "unreachable",
         last_checked_at: new Date().toISOString(),
-        last_probe: result as unknown as Record<string, unknown>,
+        last_probe: JSON.parse(JSON.stringify(result)),
       })
       .eq("id", data.id);
     await logActivity(

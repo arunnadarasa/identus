@@ -39,9 +39,13 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) navigate({ to: "/app" });
+    });
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/app" });
     });
+    return () => sub.subscription.unsubscribe();
   }, [navigate]);
 
   async function signIn(event: React.FormEvent) {

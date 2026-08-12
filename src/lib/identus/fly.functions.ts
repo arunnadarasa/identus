@@ -66,6 +66,7 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
     const {
       fly,
       FlyApiError,
+      describeFlyError,
       allocateSharedIpv4,
       postgresMachineConfig,
       prismNodeMachineConfig,
@@ -136,7 +137,7 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
         entry.status = "error";
         entry.durationMs = Date.now() - started;
         if (error instanceof FlyApiError) {
-          entry.detail = `Fly API ${error.status}`;
+          entry.detail = describeFlyError(error);
           entry.httpStatus = error.status;
           entry.raw = error.body.slice(0, 4000);
         } else {

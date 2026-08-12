@@ -1,8 +1,12 @@
 export const FLY_API = "https://api.machines.dev/v1";
 export const FLY_GRAPHQL = "https://api.fly.io/graphql";
 
-export const AGENT_IMAGE = "ghcr.io/hyperledger-identus/cloud-agent:latest";
-export const PRISM_NODE_IMAGE = "ghcr.io/hyperledger-identus/prism-node:latest";
+// The hyperledger-identus GHCR packages are not anonymously pullable, which Fly
+// reports as `failed to get manifest ...: unauthorized`. The project publishes
+// public images on Docker Hub instead — pin them so upstream releases can't
+// silently break provisioning.
+export const AGENT_IMAGE = "docker.io/identus/identus-cloud-agent:1.40.0";
+export const PRISM_NODE_IMAGE = "docker.io/identus/prism-node:2.5.0";
 export const POSTGRES_IMAGE = "postgres:16-alpine";
 
 export interface Step {
@@ -33,6 +37,18 @@ export class FlyApiError extends Error {
     this.status = status;
     this.body = body;
   }
+}
+
+/** Turn opaque Fly registry failures into something actionable in the log. */
+export function describeFlyError(error: FlyApiError) {
+  const manifest = /failed to get manifest ([^\s"]+)/.exec(error.body);
+  if (manifest) {
+    return `Image ${manifest[1]} is not publicly pullable — Fly could not fetch its manifest`;
+  }
+  if (/unauthorized|denied/i.test(error.body) && error.status < 500) {
+    return `Fly API ${error.status} — registry or token rejected the request`;
+  }
+  return `Fly API ${error.status}`;
 }
 
 function token() {
@@ -143,9 +159,27 @@ export function postgresMachineConfig(region: string, password: string) {
       env: {
         POSTGRES_USER: "postgres",
         POSTGRES_PASSWORD: password,
-        POSTGRES_DB: "agent",
+        POSTGRES_DB: "postgres",
         PGDATA: "/var/lib/postgresql/data/pgdata",
       },
+      // The Cloud Agent keeps its components in separate databases; create all
+      // three on first boot so schema migrations don't collide.
+      files: [
+        {
+          guest_path: "/docker-entrypoint-initdb.d/00-identus-databases.sh",
+          raw_value: Buffer.from(
+            [
+              "#!/bin/bash",
+              "set -e",
+              'for db in pollux connect agent; do',
+              '  psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \\',
+              "    -c \"CREATE DATABASE $db\"",
+              "done",
+              "",
+            ].join("\n"),
+          ).toString("base64"),
+        },
+      ],
       mounts: [{ volume: "", path: "/var/lib/postgresql/data" }],
       guest: { cpu_kind: "shared", cpus: 1, memory_mb: 1024 },
       services: [
@@ -168,6 +202,7 @@ export function prismNodeMachineConfig(region: string, pgHost: string, password:
       env: {
         NODE_PSQL_HOST: `${pgHost}:5432`,
         NODE_PSQL_DATABASE: "agent",
+        NODE_PSQL_SCHEMA: "public",
         NODE_PSQL_USERNAME: "postgres",
         NODE_PSQL_PASSWORD: password,
         NODE_LEDGER: "in-memory",
@@ -200,9 +235,21 @@ export function agentMachineConfig(
         POSTGRES_PORT: "5432",
         POSTGRES_USER: "postgres",
         POSTGRES_PASSWORD: password,
-        POLLUX_DB_NAME: "agent",
-        CONNECT_DB_NAME: "agent",
+        POLLUX_DB_NAME: "pollux",
+        POLLUX_DB_HOST: pgHost,
+        POLLUX_DB_PORT: "5432",
+        POLLUX_DB_USER: "postgres",
+        POLLUX_DB_PASSWORD: password,
+        CONNECT_DB_NAME: "connect",
+        CONNECT_DB_HOST: pgHost,
+        CONNECT_DB_PORT: "5432",
+        CONNECT_DB_USER: "postgres",
+        CONNECT_DB_PASSWORD: password,
         AGENT_DB_NAME: "agent",
+        AGENT_DB_HOST: pgHost,
+        AGENT_DB_PORT: "5432",
+        AGENT_DB_USER: "postgres",
+        AGENT_DB_PASSWORD: password,
         PRISM_NODE_HOST: prismHost,
         PRISM_NODE_PORT: "50053",
         API_KEY_ENABLED: "true",

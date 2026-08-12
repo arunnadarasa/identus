@@ -386,7 +386,45 @@ export const flyAppStatus = createServerFn({ method: "POST" })
     return { machines, health, message };
   });
 
+/**
+ * Machine state, Fly health-check output and event history (exit codes, OOM
+ * kills) for a Fly deployment, plus a plain-language diagnosis per machine.
+ */
+export const flyMachineDiagnostics = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { getAppDiagnostics } = await import("./fly.server");
+    const { data: conn, error } = await context.supabase
+      .from("agent_connections")
+      .select("id, fly_app_name")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+    if (error) throw new Error(error.message);
+    if (!conn.fly_app_name) throw new Error("This connection is not a Fly.io deployment.");
+    try {
+      const machines = await getAppDiagnostics(conn.fly_app_name);
+      return {
+        ok: true as const,
+        appName: conn.fly_app_name,
+        machines,
+        message: "",
+        fatal: machines.some((m) => m.fatal),
+      };
+    } catch (flyError) {
+      return {
+        ok: false as const,
+        appName: conn.fly_app_name,
+        machines: [] as Awaited<ReturnType<typeof getAppDiagnostics>>,
+        message: flyError instanceof Error ? flyError.message : String(flyError),
+        fatal: false,
+      };
+    }
+  });
+
 export const destroyFlyApp = createServerFn({ method: "POST" })
+
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {

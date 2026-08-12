@@ -137,15 +137,28 @@ function Sandbox() {
     <div className="space-y-8">
       <div>
         <h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">
-          SDK sandbox
+          Sandbox
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           A private Linux box with Node and the Identus TypeScript SDK installed, so you can write
-          and run snippets without deploying an agent stack.
+          and run snippets — or author and lint a Docker Compose stack — without deploying an agent.
         </p>
       </div>
 
+      <Tabs defaultValue="sdk" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 sm:inline-flex sm:w-auto">
+          <TabsTrigger value="sdk">SDK snippets</TabsTrigger>
+          <TabsTrigger value="docker">Docker local</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="docker" className="space-y-6">
+          <ComposeLabPanel />
+        </TabsContent>
+
+        <TabsContent value="sdk" className="space-y-8">
       <ModeRecommendation variant="sdk-sandbox" />
+
+
 
       {!data.hasToken ? (
         <Card className="border-destructive/50">

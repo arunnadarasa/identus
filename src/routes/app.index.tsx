@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MODE_LABELS, type AgentMode } from "@/lib/identus/types";
+import { AgentHealthPanel } from "@/components/AgentHealthPanel";
 
 export const Route = createFileRoute("/app/")({
   ssr: false,

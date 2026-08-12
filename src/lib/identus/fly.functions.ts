@@ -65,21 +65,21 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const {
       fly,
-      step,
+      FlyApiError,
       allocateSharedIpv4,
       postgresMachineConfig,
       prismNodeMachineConfig,
       agentMachineConfig,
     } = await import("./fly.server");
+    type Step = import("./fly.server").Step;
     const { logActivity } = await import("./agent.server");
 
-    const steps: Awaited<ReturnType<typeof step>>[] = [];
+    const steps: Step[] = [];
     const password = data.pgPassword ?? crypto.randomUUID().replace(/-/g, "");
     const adminKey = data.adminKey ?? crypto.randomUUID().replace(/-/g, "");
     const guest = { cpus: data.cpus ?? 2, memoryMb: data.memoryMb ?? 2048 };
     const pgHost = `identus-postgres.process.${data.appName}.internal`;
     const prismHost = `identus-prism-node.process.${data.appName}.internal`;
-
 
     const { data: conn, error: insertError } = await context.supabase
       .from("agent_connections")
@@ -105,66 +105,125 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
         .eq("id", conn.id);
     };
 
-    try {
-      await fly(`/apps`, {
-        method: "POST",
-        body: JSON.stringify({ app_name: data.appName, org_slug: data.orgSlug }),
-      });
-      steps.push(step("Create Fly app", "ok", data.appName));
+    /**
+     * Records the step as `running` before the call so a stalled or crashed step
+     * is visible in the live log, then rewrites it with the outcome, duration and
+     * — on failure — the full Fly response body.
+     */
+    const runStep = async <T>(
+      name: string,
+      endpoint: string,
+      fn: () => Promise<T>,
+      detail?: (result: T) => string,
+    ): Promise<T> => {
+      const entry: Step = {
+        step: name,
+        status: "running",
+        at: new Date().toISOString(),
+        endpoint,
+      };
+      steps.push(entry);
       await persist("provisioning");
-
-      const volume = await fly(`/apps/${data.appName}/volumes`, {
-        method: "POST",
-        body: JSON.stringify({ name: "pgdata", region: data.region, size_gb: 3 }),
-      });
-      steps.push(step("Create Postgres volume", "ok", `3 GB in ${data.region}`));
-      await persist("provisioning");
-
-      const pgConfig = postgresMachineConfig(data.region, password);
-      pgConfig.config.mounts = [{ volume: volume.id, path: "/var/lib/postgresql/data" }];
-      await fly(`/apps/${data.appName}/machines`, {
-        method: "POST",
-        body: JSON.stringify(pgConfig),
-      });
-      steps.push(step("Start Postgres machine", "ok", pgHost));
-      await persist("provisioning");
-
-      await fly(`/apps/${data.appName}/machines`, {
-        method: "POST",
-        body: JSON.stringify(prismNodeMachineConfig(data.region, pgHost, password)),
-      });
-      steps.push(step("Start PRISM node", "ok", prismHost));
-      await persist("provisioning");
-
-      await fly(`/apps/${data.appName}/machines`, {
-        method: "POST",
-        body: JSON.stringify(
-          agentMachineConfig(
-            data.region,
-            pgHost,
-            prismHost,
-            password,
-            adminKey,
-            data.appName,
-            guest,
-          ),
-        ),
-      });
-
-      steps.push(step("Start Identus Cloud Agent", "ok", `${data.appName}.fly.dev`));
-      await persist("provisioning");
-
+      const started = Date.now();
       try {
-        await allocateSharedIpv4(data.appName);
-        steps.push(step("Allocate public IPs", "ok"));
-      } catch (ipError) {
-        steps.push(
-          step(
-            "Allocate public IPs",
-            "error",
-            ipError instanceof Error ? ipError.message : String(ipError),
-          ),
+        const result = await fn();
+        entry.status = "ok";
+        entry.durationMs = Date.now() - started;
+        entry.detail = detail ? detail(result) : undefined;
+        await persist("provisioning");
+        return result;
+      } catch (error) {
+        entry.status = "error";
+        entry.durationMs = Date.now() - started;
+        if (error instanceof FlyApiError) {
+          entry.detail = `Fly API ${error.status}`;
+          entry.httpStatus = error.status;
+          entry.raw = error.body.slice(0, 4000);
+        } else {
+          entry.detail = error instanceof Error ? error.message : String(error);
+          entry.raw = error instanceof Error ? (error.stack ?? undefined) : undefined;
+        }
+        await persist("provisioning");
+        throw error;
+      }
+    };
+
+    try {
+      await runStep(
+        "Create Fly app",
+        "POST /apps",
+        () =>
+          fly(`/apps`, {
+            method: "POST",
+            body: JSON.stringify({ app_name: data.appName, org_slug: data.orgSlug }),
+          }),
+        () => data.appName,
+      );
+
+      const volume = await runStep(
+        "Create Postgres volume",
+        `POST /apps/${data.appName}/volumes`,
+        () =>
+          fly(`/apps/${data.appName}/volumes`, {
+            method: "POST",
+            body: JSON.stringify({ name: "pgdata", region: data.region, size_gb: 3 }),
+          }),
+        () => `3 GB in ${data.region}`,
+      );
+
+      await runStep(
+        "Start Postgres machine",
+        `POST /apps/${data.appName}/machines`,
+        () => {
+          const pgConfig = postgresMachineConfig(data.region, password);
+          pgConfig.config.mounts = [{ volume: volume.id, path: "/var/lib/postgresql/data" }];
+          return fly(`/apps/${data.appName}/machines`, {
+            method: "POST",
+            body: JSON.stringify(pgConfig),
+          });
+        },
+        () => pgHost,
+      );
+
+      await runStep(
+        "Start PRISM node",
+        `POST /apps/${data.appName}/machines`,
+        () =>
+          fly(`/apps/${data.appName}/machines`, {
+            method: "POST",
+            body: JSON.stringify(prismNodeMachineConfig(data.region, pgHost, password)),
+          }),
+        () => prismHost,
+      );
+
+      await runStep(
+        "Start Identus Cloud Agent",
+        `POST /apps/${data.appName}/machines`,
+        () =>
+          fly(`/apps/${data.appName}/machines`, {
+            method: "POST",
+            body: JSON.stringify(
+              agentMachineConfig(
+                data.region,
+                pgHost,
+                prismHost,
+                password,
+                adminKey,
+                data.appName,
+                guest,
+              ),
+            ),
+          }),
+        () => `${data.appName}.fly.dev`,
+      );
+
+      // A missing public IP is recoverable — log it and keep going.
+      try {
+        await runStep("Allocate public IPs", "GraphQL allocateIpAddress", () =>
+          allocateSharedIpv4(data.appName),
         );
+      } catch {
+        /* already recorded as an error step */
       }
 
       await persist("ready");
@@ -193,10 +252,14 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
         adminKey,
         baseUrl: `https://${data.appName}.fly.dev/cloud-agent`,
       };
-
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      steps.push(step("Provisioning failed", "error", message));
+      steps.push({
+        step: "Provisioning failed",
+        status: "error",
+        detail: message,
+        at: new Date().toISOString(),
+      });
       await persist("failed");
       await logActivity(
         context.supabase,
@@ -209,6 +272,45 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
       return { ok: false as const, connectionId: conn.id as string, steps, message };
     }
   });
+
+/** Live provisioning log for one connection, plus current Fly machine states. */
+export const getProvisionLog = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), includeMachines: z.boolean().optional() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: conn, error } = await context.supabase
+      .from("agent_connections")
+      .select("id, fly_app_name, provision_status, provision_log")
+      .eq("id", data.id)
+      .single();
+    if (error) throw new Error(error.message);
+
+    const steps = Array.isArray(conn.provision_log)
+      ? (conn.provision_log as unknown as import("./types").ProvisionStep[])
+      : [];
+
+    let machines: { id: string; name: string; state: string; region: string }[] = [];
+    let machinesMessage = "";
+    if (data.includeMachines !== false && conn.fly_app_name) {
+      try {
+        const { listMachines } = await import("./fly.server");
+        machines = await listMachines(conn.fly_app_name);
+      } catch (flyError) {
+        machinesMessage = flyError instanceof Error ? flyError.message : String(flyError);
+      }
+    }
+
+    return {
+      status: (conn.provision_status ?? "unknown") as string,
+      appName: conn.fly_app_name as string | null,
+      steps,
+      machines,
+      machinesMessage,
+    };
+  });
+
 
 export const flyAppStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

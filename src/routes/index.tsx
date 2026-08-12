@@ -71,11 +71,11 @@ function Landing() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border/60">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <span className="font-display text-lg font-semibold tracking-tight">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
+          <span className="font-display truncate text-lg font-semibold tracking-tight">
             Identus<span className="text-primary">.</span>Companion
           </span>
-          <nav className="flex items-center gap-2">
+          <nav className="flex flex-wrap items-center gap-2">
             <Button asChild variant="ghost" size="sm">
               <Link to="/docs">Docs</Link>
             </Button>
@@ -101,30 +101,31 @@ function Landing() {
         className="relative overflow-hidden border-b border-border/60"
         style={{ backgroundImage: "var(--gradient-hero)" }}
       >
-        <div className="mx-auto max-w-6xl px-6 py-24">
-          <Badge variant="outline" className="mb-6 border-primary/40 text-primary">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-24">
+          <Badge variant="outline" className="mb-5 border-primary/40 text-primary sm:mb-6">
             Self-sovereign identity toolkit
           </Badge>
-          <h1 className="font-display max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-6xl">
+          <h1 className="font-display max-w-3xl text-3xl font-semibold leading-tight tracking-tight sm:text-6xl">
             Learn and operate Hyperledger Identus without the setup tax.
           </h1>
-          <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
+          <p className="mt-5 max-w-2xl text-base text-muted-foreground sm:mt-6 sm:text-lg">
             Run the full decentralised identity lifecycle — DIDs, DIDComm connections, verifiable
             credentials and proofs — against a simulated agent, your local Docker stack, or a real
             Cloud Agent you deploy to Fly.io in a few clicks.
           </p>
-          <div className="mt-10 flex flex-wrap gap-3">
-            <Button asChild size="lg">
+          <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap">
+            <Button asChild size="lg" className="w-full sm:w-auto">
               <Link to={signedIn ? "/app" : "/auth"}>
                 {signedIn ? "Go to your console" : "Start with the simulated agent"}
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
+            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
               <Link to="/docs">Read the primer</Link>
             </Button>
           </div>
         </div>
       </section>
+
 
 
       <section className="mx-auto max-w-6xl px-6 py-20">

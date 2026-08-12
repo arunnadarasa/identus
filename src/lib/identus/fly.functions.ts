@@ -168,6 +168,17 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
       }
 
       await persist("ready");
+      // The machines are created but the agent still needs to boot; the client polls
+      // awaitAgentReady until the readiness state flips to ready or times out.
+      await context.supabase
+        .from("agent_connections")
+        .update({
+          readiness_status: "waiting",
+          readiness_attempts: 0,
+          readiness_started_at: new Date().toISOString(),
+          ready_at: null,
+        })
+        .eq("id", conn.id);
       await logActivity(
         context.supabase,
         context.userId,

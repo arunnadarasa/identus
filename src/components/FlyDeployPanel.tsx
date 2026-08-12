@@ -128,7 +128,8 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
       setBaseUrl(result.baseUrl);
       setPhase("done");
       setAgentState("booting");
-      toast.success(`${appName} deployed — the agent is booting.`);
+      setDeployedAt(new Date().toISOString());
+      toast.success(`${appName} deployed — checking readiness automatically.`);
     } else {
       setError(result.message ?? "Provisioning failed");
       setPhase("failed");

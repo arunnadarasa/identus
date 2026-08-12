@@ -290,8 +290,11 @@ else:
                 for required in ("ADMIN_TOKEN", "PRISM_NODE_HOST", "POLLUX_DB_NAME", "CONNECT_DB_NAME", "AGENT_DB_NAME"):
                     if required not in agent_env:
                         errors.append("cloud-agent is missing required env '%s'." % required)
-                if str(agent_env.get("ADMIN_TOKEN", "")).strip() in ("", "local-admin-token"):
-                    warnings.append("ADMIN_TOKEN is empty or still the default — change it before exposing the agent.")
+                if str(agent_env.get("ADMIN_TOKEN", "")).strip() == "":
+                    warnings.append("ADMIN_TOKEN resolves to an empty value — the console cannot authenticate.")
+                if not agent.get("healthcheck"):
+                    warnings.append("cloud-agent has no healthcheck — 'docker compose up --wait' cannot tell when it is ready.")
+
         else:
             warnings.append("No 'cloud-agent' service found; the console expects one.")
 

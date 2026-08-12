@@ -39,6 +39,18 @@ export class FlyApiError extends Error {
   }
 }
 
+/** Turn opaque Fly registry failures into something actionable in the log. */
+function describeFlyError(error: FlyApiError) {
+  const manifest = /failed to get manifest ([^\s"]+)/.exec(error.body);
+  if (manifest) {
+    return `Image ${manifest[1]} is not publicly pullable — Fly could not fetch its manifest`;
+  }
+  if (/unauthorized|denied/i.test(error.body) && error.status < 500) {
+    return `Fly API ${error.status} — registry or token rejected the request`;
+  }
+  return `Fly API ${error.status}`;
+}
+
 function token() {
   const value = process.env["FLY_API_TOKEN"];
   if (!value) throw new Error("FLY_API_TOKEN is not configured for this project.");

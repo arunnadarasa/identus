@@ -2,18 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-/** Turn opaque Fly registry failures into something actionable in the log. */
-function describeFlyError(error: FlyApiError) {
-  const manifest = /failed to get manifest ([^\s"]+)/.exec(error.body);
-  if (manifest) {
-    return `Image ${manifest[1]} is not publicly pullable — Fly could not fetch its manifest`;
-  }
-  if (/unauthorized|denied/i.test(error.body) && error.status < 500) {
-    return `Fly API ${error.status} — registry or token rejected the request`;
-  }
-  return `Fly API ${error.status}`;
-}
-
 export const flyOrganizations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
@@ -78,6 +66,7 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
     const {
       fly,
       FlyApiError,
+      describeFlyError,
       allocateSharedIpv4,
       postgresMachineConfig,
       prismNodeMachineConfig,

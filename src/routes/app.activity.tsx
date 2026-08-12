@@ -18,7 +18,7 @@ function Activity() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight">Activity trail</h1>
+        <h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">Activity trail</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Every protocol step your agents performed, newest first.
         </p>
@@ -35,11 +35,11 @@ function Activity() {
             entries.map((entry) => (
               <div
                 key={entry.id}
-                className="flex flex-wrap items-start justify-between gap-3 border-b border-border/50 pb-3 last:border-0"
+                className="flex flex-col gap-1 border-b border-border/50 pb-3 last:border-0 sm:flex-row sm:items-start sm:justify-between sm:gap-3"
               >
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-primary">{entry.kind}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="break-all font-mono text-xs text-primary">{entry.kind}</span>
                     <Badge
                       variant="outline"
                       className={

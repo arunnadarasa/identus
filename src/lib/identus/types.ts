@@ -46,7 +46,13 @@ export interface ProvisionStep {
   status: "ok" | "error" | "running";
   detail?: string;
   at: string;
+  /** Optional diagnostics — absent on logs recorded before the viewer existed. */
+  durationMs?: number;
+  endpoint?: string;
+  httpStatus?: number;
+  raw?: string;
 }
+
 
 export interface DidRecord {
   id: string;

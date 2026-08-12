@@ -145,6 +145,8 @@ function Sandbox() {
         </p>
       </div>
 
+      <ModeRecommendation variant="sdk-sandbox" />
+
       {!data.hasToken ? (
         <Card className="border-destructive/50">
           <CardHeader>

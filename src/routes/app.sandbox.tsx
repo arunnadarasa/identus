@@ -285,6 +285,9 @@ function Sandbox() {
       </div>
 
       <SnippetRunner data={data} />
+        </TabsContent>
+      </Tabs>
     </div>
+
   );
 }

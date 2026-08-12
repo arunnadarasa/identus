@@ -180,6 +180,15 @@ function Agents() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
+              {conn.mode !== "simulated" && conn.readiness_status && conn.readiness_status !== "unknown" ? (
+                <AgentReadinessStatus
+                  connectionId={conn.id}
+                  status={conn.readiness_status}
+                  startedAt={conn.readiness_started_at ?? null}
+                  attempts={conn.readiness_attempts ?? 0}
+                  readyAt={conn.ready_at ?? null}
+                />
+              ) : null}
               <AgentHealthPanel
                 connectionId={conn.id}
                 lastProbe={conn.last_probe ?? null}

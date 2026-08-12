@@ -38,6 +38,7 @@ function Agents() {
   const removeConnection = useServerFn(deleteConnection);
   const activate = useServerFn(setActiveConnection);
   const health = useServerFn(testConnection);
+  const diagnose = useServerFn(diagnoseConnection);
   const status = useServerFn(flyAppStatus);
   const destroy = useServerFn(destroyFlyApp);
 

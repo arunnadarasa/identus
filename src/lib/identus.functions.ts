@@ -142,6 +142,7 @@ export const diagnoseConnection = createServerFn({ method: "POST" })
       result.healthy ? "ok" : "error",
       result.checks,
     );
+    return result;
   });
 
 /**

@@ -204,9 +204,10 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
             pgMachine.id,
             "started",
             180,
-            (attempt, elapsed) => {
+            (attempt: number, elapsed: number) => {
               pgWaitDetail = `waiting for boot (attempt ${attempt}, ${elapsed}s elapsed)`;
             },
+
           );
           await new Promise((r) => setTimeout(r, 8000));
           pgWaitDetail = "database accepting connections";

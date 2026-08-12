@@ -20,10 +20,12 @@ export const ENV_FILE = ".env";
 export const INIT_SQL_FILE = "postgres/init.sql";
 
 export const DEFAULT_COMPOSE = `# Identus Cloud Agent — local stack
-# Validated in the Compose Lab, run with:  docker compose up -d
+# Validated in the Compose Lab, run with:  docker compose up -d --wait
 services:
   postgres:
     image: ${POSTGRES_IMAGE}
+    restart: unless-stopped
+    networks: [identus]
     environment:
       POSTGRES_USER: \${POSTGRES_USER}
       POSTGRES_PASSWORD: \${POSTGRES_PASSWORD}
@@ -41,6 +43,8 @@ services:
 
   prism-node:
     image: ${NODE_IMAGE}
+    restart: unless-stopped
+    networks: [identus]
     environment:
       NODE_PSQL_HOST: postgres:5432
       NODE_PSQL_DATABASE: node
@@ -57,6 +61,8 @@ services:
 
   cloud-agent:
     image: ${AGENT_IMAGE}
+    restart: unless-stopped
+    networks: [identus]
     environment:
       POLLUX_DB_HOST: postgres
       POLLUX_DB_PORT: 5432
@@ -91,9 +97,21 @@ services:
     ports:
       - "\${AGENT_PORT}:8085"
       - "\${DIDCOMM_PORT}:8090"
+    healthcheck:
+      # 'docker compose up --wait' blocks until this reports healthy.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8085/_system/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+networks:
+  identus:
+    driver: bridge
 
 volumes:
   pgdata:
+
 `;
 
 export const DEFAULT_ENV = `# Ports exposed on your machine
@@ -136,14 +154,20 @@ export function defaultBundle() {
 export function runCommands() {
   return [
     "# unzip / copy the bundle, then from its folder:",
-    "docker compose config          # sanity check",
-    "docker compose up -d",
-    "docker compose logs -f cloud-agent",
+    "docker compose version                 # needs the Compose v2 plugin",
+    "docker compose config                  # sanity check: interpolated stack",
+    "docker compose up -d --wait            # blocks until services report healthy",
+    "docker compose ps                      # status + published ports",
+    "docker compose logs -f cloud-agent     # follow the agent's JVM logs",
     "",
     "# agent REST API:  http://localhost:8085/cloud-agent",
     "# health:          curl http://localhost:8085/cloud-agent/_system/health",
+    "",
+    "docker compose down                    # stop, keep the Postgres volume",
+    "docker compose down -v                 # stop and DELETE all wallet data",
   ].join("\n");
 }
+
 
 /**
  * Python validator. Prints a single JSON object so the server can render
@@ -225,9 +249,21 @@ else:
                     warnings.append("Service '%s' image '%s' has no tag — pin a version." % (name, image))
                 elif tag == "latest":
                     warnings.append("Service '%s' uses ':latest' — pin an explicit version." % name)
-            for dep in (svc.get("depends_on") or {}):
+            if not svc.get("restart"):
+                warnings.append("Service '%s' has no restart policy — add 'restart: unless-stopped'." % name)
+            deps = svc.get("depends_on") or {}
+            dep_names = list(deps.keys()) if isinstance(deps, dict) else [str(d) for d in deps]
+            for dep in dep_names:
                 if dep not in services:
                     errors.append("Service '%s' depends on unknown service '%s'." % (name, dep))
+                    continue
+                condition = deps.get(dep, {}).get("condition") if isinstance(deps, dict) and isinstance(deps.get(dep), dict) else None
+                target = services.get(dep) or {}
+                if condition == "service_healthy" and isinstance(target, dict) and not target.get("healthcheck"):
+                    errors.append("Service '%s' waits for '%s' to be healthy, but '%s' has no healthcheck." % (name, dep, dep))
+                elif condition is None and isinstance(target, dict) and target.get("healthcheck"):
+                    warnings.append("Service '%s' depends on '%s' without a condition — use 'condition: service_healthy'." % (name, dep))
+
             for mapping in (svc.get("ports") or []):
                 text = str(mapping)
                 parts = text.split(":")
@@ -254,13 +290,34 @@ else:
                 for required in ("ADMIN_TOKEN", "PRISM_NODE_HOST", "POLLUX_DB_NAME", "CONNECT_DB_NAME", "AGENT_DB_NAME"):
                     if required not in agent_env:
                         errors.append("cloud-agent is missing required env '%s'." % required)
-                if str(agent_env.get("ADMIN_TOKEN", "")).strip() in ("", "local-admin-token"):
-                    warnings.append("ADMIN_TOKEN is empty or still the default — change it before exposing the agent.")
+                if str(agent_env.get("ADMIN_TOKEN", "")).strip() == "":
+                    warnings.append("ADMIN_TOKEN resolves to an empty value — the console cannot authenticate.")
+                if not agent.get("healthcheck"):
+                    warnings.append("cloud-agent has no healthcheck — 'docker compose up --wait' cannot tell when it is ready.")
+
         else:
             warnings.append("No 'cloud-agent' service found; the console expects one.")
 
+INSECURE_DEFAULTS = {
+    "POSTGRES_PASSWORD": ("postgres", "password"),
+    "ADMIN_TOKEN": ("local-admin-token", "admin"),
+    "DEFAULT_WALLET_AUTH_API_KEY": ("local-admin-token", "admin"),
+}
+for key, bad in INSECURE_DEFAULTS.items():
+    value = env.get(key, "")
+    if value == "":
+        continue
+    if value in bad:
+        warnings.append(".env '%s' is still an insecure default — change it before exposing the stack." % key)
+    elif len(value) < 12 and key != "POSTGRES_PASSWORD":
+        warnings.append(".env '%s' is short (%d chars) — use a long random value." % (key, len(value)))
+
+if env.get("ADMIN_TOKEN") and env.get("DEFAULT_WALLET_AUTH_API_KEY") and env["ADMIN_TOKEN"] != env["DEFAULT_WALLET_AUTH_API_KEY"]:
+    warnings.append("ADMIN_TOKEN and DEFAULT_WALLET_AUTH_API_KEY differ — the console uses ADMIN_TOKEN as the API key.")
+
 for name in sorted(set(missing)):
     errors.append("Env var '%s' is referenced in the compose file but not set in .env." % name)
+
 
 if init_sql is None:
     warnings.append("postgres/init.sql is missing — the agent databases will not be created.")

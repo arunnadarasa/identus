@@ -68,7 +68,7 @@ const hostingComparison = [
   {
     feature: "Container image execution",
     fly: "Yes — runs identus/identus-cloud-agent and identus/prism-node images",
-    docker: "Yes — full Docker Compose stack on localhost",
+    docker: "Yes — the same pinned images, run locally by Compose",
     sprites: "No — sprites.dev runs a single Linux box, not container images",
   },
   {
@@ -86,7 +86,7 @@ const hostingComparison = [
   {
     feature: "Long-running agent service",
     fly: "Yes — Machines stay up and expose HTTPS endpoints",
-    docker: "Yes — containers run continuously while Docker is active",
+    docker: "Yes — but localhost only; external DIDComm peers need a tunnel",
     sprites: "No — exec commands are short-lived; no persistent service model",
   },
   {
@@ -96,6 +96,51 @@ const hostingComparison = [
     sprites: "Yes — per-user Node box with the Identus TypeScript SDK",
   },
 ];
+
+const dockerEnv: Array<[string, string, string]> = [
+  ["AGENT_PORT", "8085", "Host port for the Cloud Agent REST API (/cloud-agent)."],
+  ["DIDCOMM_PORT", "8090", "Host port for the agent's DIDComm endpoint."],
+  ["PRISM_NODE_PORT", "50053", "Host port for the PRISM node's gRPC API."],
+  ["POSTGRES_PORT", "5432", "Host port for Postgres — change it if you already run one."],
+  ["POSTGRES_USER", "postgres", "Owner of the pollux, connect, agent and node databases."],
+  ["POSTGRES_PASSWORD", "postgres", "Database password; change it for anything shared."],
+  ["ADMIN_TOKEN", "local-admin-token", "Admin API key. This is what the console stores."],
+  ["DEFAULT_WALLET_AUTH_API_KEY", "local-admin-token", "API key for the default wallet; keep it equal to ADMIN_TOKEN."],
+];
+
+const dockerTroubleshooting: Array<[string, string, string]> = [
+  [
+    'Error: bind: address already in use',
+    "Another process (often a local Postgres, or a previous stack) already holds that host port.",
+    "Change the host side in .env — e.g. POSTGRES_PORT=5433 — then docker compose up -d --wait. Find the culprit with lsof -i :5432.",
+  ],
+  [
+    "cloud-agent restarts in a loop",
+    "Its schema migration failed, usually because a database is missing or credentials changed.",
+    "Read docker compose logs cloud-agent for the Flyway/JDBC error, confirm all four databases exist with docker compose exec postgres psql -U postgres -l, then reset with docker compose down -v.",
+  ],
+  [
+    "Databases missing even though init.sql is present",
+    "Scripts in /docker-entrypoint-initdb.d only run when the data directory is empty, and the pgdata volume already existed.",
+    "docker compose down -v to drop the volume, then bring the stack back up so the init script runs.",
+  ],
+  [
+    "no matching manifest for linux/arm64",
+    "The pinned image has no arm64 build (common on Apple Silicon).",
+    "Add platform: linux/amd64 to that service and expect emulation to be slower, or pick a tag that publishes multi-arch images.",
+  ],
+  [
+    "pull access denied / unauthorized",
+    "The tag points at a private or non-existent registry path.",
+    "Use the public Docker Hub images identus/identus-cloud-agent and identus/prism-node with an explicit version tag — never :latest.",
+  ],
+  [
+    "Agent healthy but the console cannot reach it",
+    "The base URL is missing the /cloud-agent prefix, or the apikey header is not being sent.",
+    "Use http://localhost:8085/cloud-agent and set the admin key to your ADMIN_TOKEN value, then re-run the health probe.",
+  ],
+];
+
 
 function Docs() {
   return (
@@ -246,16 +291,185 @@ function Docs() {
         </section>
 
         <section>
-          <h2 className="font-display text-2xl font-semibold tracking-tight">Running an agent</h2>
-          <div className="mt-6 space-y-6 text-sm text-muted-foreground">
+          <h2 className="font-display text-2xl font-semibold tracking-tight">
+            Run Identus with Docker
+          </h2>
+          <p className="mt-3 max-w-3xl text-sm text-muted-foreground">
+            Docker Compose gives you the highest-fidelity local stack: the same images the hosted
+            deployment uses, on your own machine, with logs and a debugger within reach.
+          </p>
+
+          <div className="mt-8 space-y-8 text-sm text-muted-foreground">
             <div>
-              <h3 className="font-mono text-sm text-foreground">Docker on your machine</h3>
+              <h3 className="font-mono text-sm text-foreground">1 · Prerequisites</h3>
+              <p className="mt-2">
+                Docker Desktop or Docker Engine with the Compose v2 plugin — Compose is a{" "}
+                <code className="font-mono text-xs text-foreground">docker compose</code> subcommand
+                now, not the old <code className="font-mono text-xs">docker-compose</code> binary.
+                The Cloud Agent and PRISM node are JVM services, so give Docker at least 4 GB of
+                memory and 2 CPUs.
+              </p>
               <pre className="mt-2 overflow-x-auto rounded-md border border-border/60 bg-secondary/40 p-4 font-mono text-xs">
-{`git clone https://github.com/hyperledger-identus/cloud-agent
- cd cloud-agent/infrastructure/local
- ./run.sh            # agent on http://localhost:8085/cloud-agent`}
+{`docker compose version   # expect v2.x
+docker info | grep -i "total memory"`}
               </pre>
             </div>
+
+            <div>
+              <h3 className="font-mono text-sm text-foreground">2 · Get a stack</h3>
+              <p className="mt-2">
+                Either take the upstream stack from the Cloud Agent repository, or generate a
+                validated bundle from the Compose Lab in the console&apos;s Sandbox — it writes{" "}
+                <code className="font-mono text-xs text-foreground">docker-compose.yml</code>,{" "}
+                <code className="font-mono text-xs text-foreground">.env</code> and{" "}
+                <code className="font-mono text-xs text-foreground">postgres/init.sql</code> with
+                pinned image tags.
+              </p>
+              <pre className="mt-2 overflow-x-auto rounded-md border border-border/60 bg-secondary/40 p-4 font-mono text-xs">
+{`git clone https://github.com/hyperledger-identus/cloud-agent
+cd cloud-agent/infrastructure/local
+./run.sh            # agent on http://localhost:8085/cloud-agent`}
+              </pre>
+            </div>
+
+            <div>
+              <h3 className="font-mono text-sm text-foreground">3 · Lifecycle commands</h3>
+              <pre className="mt-2 overflow-x-auto rounded-md border border-border/60 bg-secondary/40 p-4 font-mono text-xs">
+{`docker compose config               # print the interpolated stack, catch .env typos
+docker compose up -d --wait         # start and block until services are healthy
+docker compose ps                   # state + published ports
+docker compose logs -f cloud-agent  # follow one service
+docker compose restart cloud-agent  # bounce a single service
+docker compose pull && docker compose up -d   # upgrade to newer image tags
+docker compose down                 # stop, keep the Postgres volume
+docker compose down -v              # stop and DELETE all wallet + DID data`}
+              </pre>
+              <p className="mt-2">
+                <code className="font-mono text-xs text-foreground">--wait</code> is the important
+                one: it returns only once every service with a healthcheck reports healthy, so
+                scripts never race a half-booted agent.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-mono text-sm text-foreground">4 · How the stack fits together</h3>
+              <pre className="mt-2 overflow-x-auto rounded-md border border-border/60 bg-secondary/40 p-4 font-mono text-xs">
+{`  your app / console
+          |  REST  :8085/cloud-agent          DIDComm  :8090
+          v
+   +--------------+  gRPC :50053   +------------+
+   | cloud-agent  |--------------->| prism-node |
+   +--------------+                +------------+
+          |  pollux, connect, agent      |  node
+          v                              v
+              +--------------------------+
+              |  postgres :5432 (pgdata) |
+              +--------------------------+`}
+              </pre>
+              <p className="mt-2">
+                Four databases are created by{" "}
+                <code className="font-mono text-xs text-foreground">postgres/init.sql</code> —{" "}
+                <code className="font-mono text-xs">pollux</code> (credentials),{" "}
+                <code className="font-mono text-xs">connect</code> (DIDComm connections),{" "}
+                <code className="font-mono text-xs">agent</code> (wallets and secrets) and{" "}
+                <code className="font-mono text-xs">node</code> (PRISM node). Keeping them separate
+                stops the modules&apos; migrations from colliding.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-mono text-sm text-foreground">5 · Environment and ports</h3>
+              <div className="mt-3 overflow-hidden rounded-md border border-border/60">
+                <div className="grid grid-cols-[1fr_auto_2fr] gap-px bg-border/60 text-xs">
+                  <div className="bg-secondary/40 px-3 py-2 font-medium text-foreground">.env var</div>
+                  <div className="bg-secondary/40 px-3 py-2 font-medium text-foreground">Default</div>
+                  <div className="bg-secondary/40 px-3 py-2 font-medium text-foreground">Purpose</div>
+                  {dockerEnv.map(([key, value, purpose]) => (
+                    <div key={key} className="col-span-3 grid grid-cols-[1fr_auto_2fr] gap-px bg-border/60">
+                      <div className="bg-card/60 px-3 py-2 font-mono text-foreground">{key}</div>
+                      <div className="bg-card/60 px-3 py-2 font-mono">{value}</div>
+                      <div className="bg-card/60 px-3 py-2">{purpose}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <p className="mt-2">
+                Only the left side of a port mapping is yours to change. If{" "}
+                <code className="font-mono text-xs">5432</code> is already taken by a local
+                Postgres, set <code className="font-mono text-xs text-foreground">POSTGRES_PORT=5433</code>{" "}
+                — the container keeps listening on 5432 inside the network, so no other service
+                needs editing.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-mono text-sm text-foreground">6 · Startup order and health</h3>
+              <p className="mt-2">
+                The agent cannot migrate its schema until Postgres accepts connections, so Postgres
+                declares a <code className="font-mono text-xs">pg_isready</code> healthcheck and the
+                other services depend on it with{" "}
+                <code className="font-mono text-xs text-foreground">condition: service_healthy</code>.
+                Plain <code className="font-mono text-xs">depends_on</code> only waits for the
+                container to <em>start</em>, which is not the same as ready. The agent has its own
+                healthcheck against{" "}
+                <code className="font-mono text-xs">/_system/health</code> with a generous{" "}
+                <code className="font-mono text-xs">start_period</code> for JVM boot.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-mono text-sm text-foreground">7 · Connect the console</h3>
+              <p className="mt-2">
+                On the Agents page pick <strong className="text-foreground">Docker local</strong>,
+                set the base URL to{" "}
+                <code className="font-mono text-xs text-foreground">http://localhost:8085/cloud-agent</code>{" "}
+                and paste your <code className="font-mono text-xs">ADMIN_TOKEN</code> as the admin
+                API key, then run the health probe. Verify from the shell first:
+              </p>
+              <pre className="mt-2 overflow-x-auto rounded-md border border-border/60 bg-secondary/40 p-4 font-mono text-xs">
+{`curl -fsS http://localhost:8085/cloud-agent/_system/health
+curl -fsS -H "apikey: $ADMIN_TOKEN" \\
+  http://localhost:8085/cloud-agent/did-registrar/dids`}
+              </pre>
+            </div>
+
+            <div>
+              <h3 className="font-mono text-sm text-foreground">8 · Troubleshooting</h3>
+              <div className="mt-3 space-y-3">
+                {dockerTroubleshooting.map(([symptom, cause, fix]) => (
+                  <div key={symptom} className="rounded-md border border-border/60 bg-card/60 p-3">
+                    <p className="font-mono text-xs text-foreground">{symptom}</p>
+                    <p className="mt-1 text-xs">
+                      <span className="text-foreground">Cause:</span> {cause}
+                    </p>
+                    <p className="mt-1 text-xs">
+                      <span className="text-foreground">Fix:</span> {fix}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-mono text-sm text-foreground">9 · Data and cleanup</h3>
+              <p className="mt-2">
+                All state lives in the named volume{" "}
+                <code className="font-mono text-xs text-foreground">pgdata</code>. Published DIDs and
+                issued credentials do not survive a{" "}
+                <code className="font-mono text-xs">down -v</code>, so back it up before resetting.
+              </p>
+              <pre className="mt-2 overflow-x-auto rounded-md border border-border/60 bg-secondary/40 p-4 font-mono text-xs">
+{`docker compose exec postgres pg_dumpall -U postgres > identus-backup.sql
+docker volume ls | grep pgdata
+docker compose down -v && docker compose up -d --wait   # clean slate`}
+              </pre>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="font-display text-2xl font-semibold tracking-tight">Other ways to run</h2>
+          <div className="mt-6 space-y-6 text-sm text-muted-foreground">
             <div>
               <h3 className="font-mono text-sm text-foreground">Fly.io, from the console</h3>
               <p className="mt-2">
@@ -273,6 +487,7 @@ function Docs() {
             </div>
           </div>
         </section>
+
       </article>
 
       <footer className="border-t border-border/60">

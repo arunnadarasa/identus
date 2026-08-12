@@ -68,8 +68,8 @@ function Docs() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border/60">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
-          <Link to="/" className="font-display text-lg font-semibold tracking-tight">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
+          <Link to="/" className="font-display min-w-0 truncate text-base sm:text-lg font-semibold tracking-tight">
             Identus<span className="text-primary">.</span>Companion
           </Link>
           <Button asChild size="sm">
@@ -78,12 +78,12 @@ function Docs() {
         </div>
       </header>
 
-      <article className="mx-auto max-w-5xl space-y-14 px-6 py-16">
+      <article className="mx-auto max-w-5xl space-y-10 px-4 py-10 sm:space-y-14 sm:px-6 sm:py-16">
         <section>
           <Badge variant="outline" className="mb-4 border-primary/40 text-primary">
             Primer
           </Badge>
-          <h1 className="font-display text-4xl font-semibold tracking-tight">
+          <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight">
             How Hyperledger Identus fits together
           </h1>
           <p className="mt-4 max-w-3xl text-muted-foreground">
@@ -188,7 +188,7 @@ cd cloud-agent/infrastructure/local
       </article>
 
       <footer className="border-t border-border/60">
-        <div className="mx-auto max-w-5xl px-6 py-10 text-sm text-muted-foreground">
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10 text-sm text-muted-foreground">
           Community project — not affiliated with the Hyperledger Foundation or the Linux Foundation.
         </div>
       </footer>

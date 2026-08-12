@@ -38,7 +38,7 @@ function Dids() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight">
+        <h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">
           DIDs & DIDComm connections
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -79,6 +79,7 @@ function Dids() {
               </Select>
             </div>
             <Button
+              className="h-11 w-full sm:h-10 sm:w-auto"
               disabled={busy || !alias}
               onClick={async () => {
                 setBusy(true);
@@ -117,6 +118,7 @@ function Dids() {
               />
             </div>
             <Button
+              className="h-11 w-full sm:h-10 sm:w-auto"
               disabled={busy || !label}
               onClick={async () => {
                 setBusy(true);
@@ -151,13 +153,13 @@ function Dids() {
             (data?.dids ?? []).map((did: any) => (
               <div
                 key={did.id}
-                className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-3 last:border-0"
+                className="flex flex-col gap-2 border-b border-border/50 pb-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{did.alias}</p>
                   <p className="truncate font-mono text-xs text-muted-foreground">{did.did}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                   <Badge variant="secondary" className="text-xs">
                     {did.role}
                   </Badge>
@@ -184,8 +186,8 @@ function Dids() {
                 key={peer.id}
                 className="space-y-2 border-b border-border/50 pb-3 last:border-0"
               >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
                     <p className="text-sm font-medium">{peer.label}</p>
                     <p className="font-mono text-xs text-muted-foreground">{peer.state}</p>
                   </div>

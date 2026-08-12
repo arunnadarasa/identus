@@ -68,7 +68,7 @@ const hostingComparison = [
   {
     feature: "Container image execution",
     fly: "Yes — runs identus/identus-cloud-agent and identus/prism-node images",
-    docker: "Yes — full Docker Compose stack on localhost",
+    docker: "Yes — the same pinned images, run locally by Compose",
     sprites: "No — sprites.dev runs a single Linux box, not container images",
   },
   {
@@ -86,7 +86,7 @@ const hostingComparison = [
   {
     feature: "Long-running agent service",
     fly: "Yes — Machines stay up and expose HTTPS endpoints",
-    docker: "Yes — containers run continuously while Docker is active",
+    docker: "Yes — but localhost only; external DIDComm peers need a tunnel",
     sprites: "No — exec commands are short-lived; no persistent service model",
   },
   {

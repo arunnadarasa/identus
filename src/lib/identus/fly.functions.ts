@@ -467,7 +467,7 @@ export const adoptFlyAgent = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { probeAgent, logActivity } = await import("./agent.server");
-    const baseUrl = `https://${data.appName}.fly.dev/cloud-agent`;
+    const baseUrl = `https://${data.appName}.fly.dev`;
 
     const { data: existing } = await context.supabase
       .from("agent_connections")

@@ -124,7 +124,7 @@ export function FlyAgentPicker({ onChanged }: { onChanged?: () => void }) {
                   ) : null}
                 </div>
                 <p className="break-all pt-1 font-mono text-xs text-muted-foreground">
-                  https://{app.name}.fly.dev/cloud-agent
+                  https://{app.name}.fly.dev
                 </p>
                 <p className="pt-1 text-xs text-muted-foreground">
                   {app.status} ·{" "}

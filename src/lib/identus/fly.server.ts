@@ -244,12 +244,17 @@ export function prismNodeMachineConfig(region: string, pgHost: string, password:
         NODE_REFRESH_AND_SUBMIT_PERIOD: "7s",
         NODE_MOVE_SCHEDULED_TO_PENDING_PERIOD: "5s",
         NODE_WALLET_MAX_TPS: "10",
+        // Fly's private network is IPv6-only. The JVM prefers IPv4 by default,
+        // so JDBC never dials the Postgres 6PN address without this flag.
+        JAVA_TOOL_OPTIONS:
+          "-Djava.net.preferIPv6Addresses=true -Djava.net.preferIPv4Stack=false -XX:MaxRAMPercentage=70",
       },
       guest: { cpu_kind: "shared", cpus: 1, memory_mb: 1024 },
       // gRPC is consumed by the agent over 6PN only.
     },
   };
 }
+
 
 export function agentMachineConfig(
   region: string,

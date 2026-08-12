@@ -114,6 +114,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     setError("");
     setAgentState("");
     setDeployedAt(null);
+    setConnectionId(null);
     const size = SIZES[sizeIndex]!;
     const result = await provision({
       data: {
@@ -128,6 +129,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     });
     setSteps(result.steps as StepEntry[]);
     setConnectionId(result.connectionId);
+
     onChanged();
     qc.invalidateQueries({ queryKey: ["connections"] });
     if (result.ok) {

@@ -241,7 +241,14 @@ export const runSnippet = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .maybeSingle();
     if (!box) {
-      return { ok: false as const, output: "", exitCode: null, message: "Create your sandbox first." };
+      return {
+        ok: false as const,
+        output: "",
+        exitCode: null as number | null,
+        durationMs: 0,
+        snippetId: null as string | null,
+        message: "Create your sandbox first.",
+      };
     }
 
     // Persist the snippet before running so nothing is lost on a failed run.

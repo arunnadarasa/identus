@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -9,6 +9,8 @@ import {
   destroyFlyApp,
 } from "@/lib/identus/fly.functions";
 import { listConnections, setActiveConnection } from "@/lib/identus.functions";
+import { ProvisionLogViewer } from "@/components/ProvisionLogViewer";
+import type { ProvisionStep } from "@/lib/identus/types";
 import {
   useAgentReadiness,
   formatDuration,
@@ -18,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 const REGIONS = ["lhr", "ams", "fra", "iad", "ord", "sjc", "syd", "nrt"];
 const SIZES = [

@@ -521,3 +521,217 @@ export const adoptFlyAgent = createServerFn({ method: "POST" })
 
     return { id, baseUrl, healthy: probe.healthy, message: probe.message };
   });
+
+/**
+ * Mints a new admin API key, pushes it into the deployed agent machine's env,
+ * waits for the restart and verifies the agent answers with the new key.
+ * Rolls the machine and the stored key back if verification fails.
+ */
+export const rotateFlyAdminKey = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const {
+      fly,
+      FlyApiError,
+      describeFlyError,
+      listMachines,
+      updateMachineEnv,
+      waitForMachineState,
+    } = await import("./fly.server");
+    type Step = import("./fly.server").Step;
+    const { probeAgent, logActivity } = await import("./agent.server");
+
+    const { data: conn, error } = await context.supabase
+      .from("agent_connections")
+      .select("*")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+    if (error) throw new Error(error.message);
+    if (conn.mode !== "fly" || !conn.fly_app_name) {
+      throw new Error("Only Fly.io deployments can rotate their admin credentials.");
+    }
+
+    const appName = conn.fly_app_name as string;
+    const previousKey = (conn.api_key as string | null) ?? null;
+    const newKey = crypto.randomUUID().replace(/-/g, "");
+    const steps: Step[] = [];
+
+    const persist = async (status: string) => {
+      await context.supabase
+        .from("agent_connections")
+        .update({ provision_status: status, provision_log: steps as unknown as never })
+        .eq("id", data.id);
+    };
+
+    const runStep = async <T>(
+      name: string,
+      endpoint: string,
+      fn: () => Promise<T>,
+      detail?: (result: T) => string | undefined,
+    ): Promise<T> => {
+      const entry: Step = {
+        step: name,
+        status: "running",
+        at: new Date().toISOString(),
+        endpoint,
+      };
+      steps.push(entry);
+      await persist("rotating");
+      const started = Date.now();
+      try {
+        const result = await fn();
+        entry.status = "ok";
+        entry.durationMs = Date.now() - started;
+        entry.detail = detail ? detail(result) : undefined;
+        await persist("rotating");
+        return result;
+      } catch (stepError) {
+        entry.status = "error";
+        entry.durationMs = Date.now() - started;
+        if (stepError instanceof FlyApiError) {
+          entry.detail = describeFlyError(stepError);
+          entry.httpStatus = stepError.status;
+          entry.raw = stepError.body.slice(0, 4000);
+        } else {
+          entry.detail = stepError instanceof Error ? stepError.message : String(stepError);
+        }
+        await persist("rotate_failed");
+        throw stepError;
+      }
+    };
+
+    const failStep = async (name: string, detail: string) => {
+      steps.push({ step: name, status: "error", at: new Date().toISOString(), detail });
+      await persist("rotate_failed");
+    };
+
+    try {
+      const machines = await runStep(
+        "Locate agent machine",
+        `GET /apps/${appName}/machines`,
+        () => listMachines(appName),
+        (list) => `${list.length} machines`,
+      );
+      const agentMachine =
+        machines.find((m) => m.name === "identus-cloud-agent") ?? machines[0];
+      if (!agentMachine) throw new Error("No Cloud Agent machine found in this Fly app.");
+
+      await runStep("Mint new admin key", "local", async () => newKey, () => "32-char key generated");
+
+      await runStep(
+        "Update machine configuration",
+        `POST /apps/${appName}/machines/${agentMachine.id}`,
+        () =>
+          updateMachineEnv(appName, agentMachine.id, {
+            ADMIN_TOKEN: newKey,
+            DEFAULT_WALLET_AUTH_API_KEY: newKey,
+          }),
+        () => `${agentMachine.name} restarting`,
+      );
+
+      await runStep(
+        "Wait for machine to start",
+        `GET /apps/${appName}/machines/${agentMachine.id}/wait`,
+        () => waitForMachineState(appName, agentMachine.id, "started", 120),
+        () => "machine started",
+      );
+
+      // The agent needs a moment after `started` before the HTTP API answers.
+      const probe = await runStep(
+        "Verify with the new key",
+        `${conn.base_url}/_system/health`,
+        async () => {
+          let last = await probeAgent({
+            mode: "fly",
+            base_url: conn.base_url,
+            fly_app_name: appName,
+            api_key: newKey,
+          });
+          for (let attempt = 0; attempt < 5 && !last.healthy; attempt += 1) {
+            await new Promise((r) => setTimeout(r, 5000));
+            last = await probeAgent({
+              mode: "fly",
+              base_url: conn.base_url,
+              fly_app_name: appName,
+              api_key: newKey,
+            });
+          }
+          return last;
+        },
+        (result) => result.message,
+      );
+
+      if (!probe.healthy) {
+        // Restore the previous key so the console and the agent never diverge.
+        if (previousKey) {
+          try {
+            await updateMachineEnv(appName, agentMachine.id, {
+              ADMIN_TOKEN: previousKey,
+              DEFAULT_WALLET_AUTH_API_KEY: previousKey,
+            });
+            await failStep(
+              "Rolled back to previous key",
+              "The agent did not accept the new key — the machine was restored with the old credentials.",
+            );
+          } catch (rollbackError) {
+            await failStep(
+              "Rollback failed",
+              rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+            );
+          }
+        } else {
+          await failStep(
+            "Verification failed",
+            "The agent did not answer with the new key and there was no previous key to restore.",
+          );
+        }
+        await logActivity(
+          context.supabase,
+          context.userId,
+          data.id,
+          "connection.key_rotation_failed",
+          `Admin key rotation for ${appName} failed verification`,
+        );
+        return {
+          ok: false as const,
+          apiKey: null as string | null,
+          message: probe.message || "The agent did not accept the new admin key.",
+        };
+      }
+
+      await context.supabase
+        .from("agent_connections")
+        .update({
+          api_key: newKey,
+          last_probe: probe as unknown as never,
+          last_health: "healthy",
+          last_checked_at: new Date().toISOString(),
+          readiness_status: "ready",
+          ready_at: new Date().toISOString(),
+          provision_status: "ready",
+        })
+        .eq("id", data.id);
+
+      await logActivity(
+        context.supabase,
+        context.userId,
+        data.id,
+        "connection.key_rotated",
+        `Rotated admin credentials for ${appName}`,
+      );
+
+      return { ok: true as const, apiKey: newKey, message: probe.message };
+    } catch (rotateError) {
+      const message = rotateError instanceof Error ? rotateError.message : String(rotateError);
+      await logActivity(
+        context.supabase,
+        context.userId,
+        data.id,
+        "connection.key_rotation_failed",
+        message,
+      );
+      return { ok: false as const, apiKey: null as string | null, message };
+    }
+  });

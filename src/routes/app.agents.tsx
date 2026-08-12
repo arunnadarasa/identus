@@ -211,12 +211,19 @@ function Agents() {
                 onChecked={invalidate}
               />
               {conn.mode === "fly" ? (
-                <ProvisionLogSection
-                  connectionId={conn.id}
-                  status={conn.provision_status ?? null}
-                  stepCount={Array.isArray(conn.provision_log) ? conn.provision_log.length : 0}
-                />
+                <>
+                  <FlyMachineDiagnostics
+                    connectionId={conn.id}
+                    autoRefresh={conn.readiness_status === "waiting"}
+                  />
+                  <ProvisionLogSection
+                    connectionId={conn.id}
+                    status={conn.provision_status ?? null}
+                    stepCount={Array.isArray(conn.provision_log) ? conn.provision_log.length : 0}
+                  />
+                </>
               ) : null}
+
 
             </CardContent>
           </Card>

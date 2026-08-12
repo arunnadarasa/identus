@@ -306,3 +306,30 @@ function Agents() {
     </div>
   );
 }
+
+/** Collapsible provisioning log for a Fly connection, including failed deploys. */
+function ProvisionLogSection({
+  connectionId,
+  status,
+  stepCount,
+}: {
+  connectionId: string;
+  status: string | null;
+  stepCount: number;
+}) {
+  const [open, setOpen] = useState(status === "provisioning" || status === "failed");
+  if (!stepCount && !status) return null;
+
+  return (
+    <div className="space-y-2">
+      <Button size="sm" variant="ghost" onClick={() => setOpen((v) => !v)}>
+        {open ? "Hide provisioning log" : "View provisioning log"}
+        {stepCount ? (
+          <span className="ml-1 text-muted-foreground">({stepCount} steps)</span>
+        ) : null}
+      </Button>
+      {open ? <ProvisionLogViewer connectionId={connectionId} /> : null}
+    </div>
+  );
+}
+

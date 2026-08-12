@@ -98,7 +98,7 @@ export interface FlyAppSummary {
   status: string;
   machineCount: number;
   machines: FlyMachine[];
-  machinesMessage?: string;
+  machinesMessage?: string | undefined;
 }
 
 /** Apps in an organisation, each with its live machine states. */

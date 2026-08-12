@@ -365,7 +365,11 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-display text-sm font-semibold">Agent credentials</p>
             <Badge variant="outline" className="border-border text-xs">
-              {agentState === "healthy" ? "healthy" : "booting…"}
+              {readiness.status === "ready"
+                ? "ready"
+                : readiness.status === "timeout"
+                  ? "not responding"
+                  : "booting…"}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -386,8 +390,48 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
               </Button>
             </div>
           </div>
+
+          {/* Automatic readiness progress — no manual refreshing needed. */}
+          <div className="space-y-2 rounded-md border border-border/60 bg-background/50 px-3 py-2 text-xs">
+            <div className="flex items-center gap-2">
+              {readiness.status === "ready" ? (
+                <Check className="h-3.5 w-3.5 text-primary" />
+              ) : readiness.status === "timeout" ? (
+                <X className="h-3.5 w-3.5 text-destructive" />
+              ) : (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+              )}
+              <span className="text-muted-foreground">
+                {readiness.status === "ready"
+                  ? `Agent responded and is ready (after ${formatDuration(readiness.elapsedMs)})`
+                  : readiness.status === "timeout"
+                    ? `Agent still not responding after ${formatDuration(readiness.elapsedMs)}`
+                    : `Waiting for the agent to answer… attempt ${readiness.attempts || 1} · ${formatDuration(readiness.elapsedMs)} elapsed`}
+              </span>
+            </div>
+            {readiness.probe?.checks?.length ? (
+              <ul className="grid gap-1 sm:grid-cols-2">
+                {readiness.probe.checks.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between gap-2 font-mono">
+                    <span className="text-muted-foreground">{c.label}</span>
+                    <span className={c.ok ? "text-primary" : "text-destructive"}>
+                      {c.ok ? `${c.ms}ms` : (c.status ?? "down")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {readiness.status === "timeout" ? (
+              <Button size="sm" variant="outline" onClick={readiness.retry} disabled={readiness.running}>
+                <RefreshCw className={`mr-2 h-3 w-3 ${readiness.running ? "animate-spin" : ""}`} />
+                Keep checking
+              </Button>
+            ) : null}
+          </div>
+
           <Button
             size="sm"
+            disabled={readiness.status !== "ready"}
             onClick={async () => {
               if (!connectionId) return;
               await activate({ data: { id: connectionId } });
@@ -395,7 +439,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
               toast.success("Fly agent is now the active agent");
             }}
           >
-            Use this agent
+            {readiness.status === "ready" ? "Use this agent" : "Waiting for agent…"}
           </Button>
         </div>
       ) : null}

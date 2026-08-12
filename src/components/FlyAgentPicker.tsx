@@ -133,18 +133,45 @@ export function FlyAgentPicker({ onChanged }: { onChanged?: () => void }) {
                     : `${app.machineCount} machines`}
                 </p>
               </div>
-              <Button
-                size="sm"
-                disabled={busy === app.name || app.isActive}
-                onClick={() => use(app)}
-              >
-                {app.isActive
-                  ? "In use"
-                  : busy === app.name
-                    ? "Saving…"
-                    : "Use this agent"}
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  disabled={busy === app.name || app.isActive}
+                  onClick={() => use(app)}
+                >
+                  {app.isActive
+                    ? "In use"
+                    : busy === app.name
+                      ? "Saving…"
+                      : "Use this agent"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive"
+                  disabled={busy === app.name}
+                  onClick={async () => {
+                    if (!confirm(`Destroy Fly app ${app.name}? This is permanent.`)) return;
+                    setBusy(app.name);
+                    try {
+                      await destroyByName({
+                        data: { appName: app.name, orgSlug: selectedOrg },
+                      });
+                      onChanged?.();
+                      refetch();
+                      toast.success(`${app.name} destroyed`);
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : String(error));
+                    } finally {
+                      setBusy(null);
+                    }
+                  }}
+                >
+                  Destroy
+                </Button>
+              </div>
             </div>
+
             {!app.hasKey ? (
               <div className="mt-3 space-y-2">
                 <Label htmlFor={`key-${app.name}`} className="text-xs">

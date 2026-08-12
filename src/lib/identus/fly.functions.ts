@@ -423,7 +423,46 @@ export const flyMachineDiagnostics = createServerFn({ method: "POST" })
     }
   });
 
+/**
+ * Deletes a Fly app by name so half-created deployments from failed attempts can
+ * be cleaned up even when no connection row tracks them. The app must belong to
+ * an organisation the saved Fly token can see.
+ */
+export const destroyFlyAppByName = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        appName: z.string().trim().regex(/^[a-z0-9-]{4,40}$/),
+        orgSlug: z.string().trim().min(1),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { fly, listApps } = await import("./fly.server");
+    const { logActivity } = await import("./agent.server");
+    const apps = await listApps(data.orgSlug);
+    if (!apps.some((a) => a.name === data.appName)) {
+      throw new Error(`${data.appName} is not an app in ${data.orgSlug}.`);
+    }
+    await fly(`/apps/${data.appName}`, { method: "DELETE" });
+    await context.supabase
+      .from("agent_connections")
+      .delete()
+      .eq("user_id", context.userId)
+      .eq("fly_app_name", data.appName);
+    await logActivity(
+      context.supabase,
+      context.userId,
+      null,
+      "fly.destroyed",
+      `Destroyed Fly app ${data.appName}`,
+    );
+    return { ok: true as const };
+  });
+
 export const destroyFlyApp = createServerFn({ method: "POST" })
+
 
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))

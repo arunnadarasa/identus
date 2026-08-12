@@ -130,28 +130,13 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     }
   };
 
-  // Poll agent health for ~2 minutes after a successful deploy.
-  useEffect(() => {
-    if (agentState !== "booting" || !connectionId) return;
-    let cancelled = false;
-    let attempts = 0;
-    const tick = async () => {
-      attempts += 1;
-      const result = await health({ data: { id: connectionId } });
-      if (cancelled) return;
-      if (result.healthy) {
-        setAgentState("healthy");
-        qc.invalidateQueries({ queryKey: ["connections"] });
-        return;
-      }
-      if (attempts < 12) setTimeout(tick, 10_000);
-    };
-    const timer = setTimeout(tick, 15_000);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [agentState, connectionId]);
+  // Automatic readiness watcher: starts as soon as provisioning succeeds and keeps
+  // polling (5s for the first minute, then 15s, up to 10 minutes) until ready.
+  const readiness = useAgentReadiness(phase === "done" ? connectionId : null, {
+    active: phase === "done",
+    startedAt: deployedAt,
+    attempts: 0,
+  });
 
   const cleanup = async () => {
     if (!connectionId) return;

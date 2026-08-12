@@ -1,6 +1,14 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -9,7 +17,13 @@ const nav = [
   { to: "/app/dids", label: "DIDs" },
   { to: "/app/credentials", label: "Credentials" },
   { to: "/app/activity", label: "Activity" },
+  { to: "/docs", label: "Docs" },
 ] as const;
+
+function isActive(pathname: string, to: string) {
+  if (to === "/app") return pathname === "/app";
+  return pathname.startsWith(to);
+}
 
 export function AppShell({
   children,
@@ -21,43 +35,42 @@ export function AppShell({
   email?: string | undefined;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [open, setOpen] = useState(false);
+
+  // Close the mobile menu whenever navigation happens.
+  useEffect(() => setOpen(false), [pathname]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-20 border-b border-border/60 bg-background/85 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-6 py-3">
-          <Link to="/" className="font-display text-base font-semibold tracking-tight">
+      <header className="sticky top-0 z-20 border-b border-border/60 bg-background/90 backdrop-blur">
+        <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6 lg:flex lg:gap-4">
+          <Link
+            to="/"
+            className="font-display min-w-0 truncate text-base font-semibold tracking-tight"
+          >
             Identus<span className="text-primary">.</span>Companion
           </Link>
-          <nav className="flex flex-1 flex-wrap items-center gap-1">
-            {nav.map((item) => {
-              const active =
-                item.to === "/app" ? pathname === "/app" : pathname.startsWith(item.to);
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={cn(
-                    "rounded-md px-3 py-1.5 text-sm transition-colors",
-                    active
-                      ? "bg-secondary text-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-            <Link
-              to="/docs"
-              className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Docs
-            </Link>
+
+          <nav className="hidden flex-1 items-center gap-1 lg:flex">
+            {nav.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-sm transition-colors",
+                  isActive(pathname, item.to)
+                    ? "bg-secondary text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
-          <div className="flex items-center gap-3">
+
+          <div className="hidden items-center gap-3 lg:flex">
             {email ? (
-              <span className="hidden font-mono text-xs text-muted-foreground sm:inline">
+              <span className="max-w-[16rem] truncate font-mono text-xs text-muted-foreground">
                 {email}
               </span>
             ) : null}
@@ -65,9 +78,58 @@ export function AppShell({
               Sign out
             </Button>
           </div>
+
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild className="lg:hidden">
+              <Button variant="outline" size="icon" aria-label="Open menu">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[85vw] max-w-sm p-0">
+              <SheetHeader className="border-b border-border/60 px-5 py-4 text-left">
+                <SheetTitle className="font-display text-base">
+                  Identus<span className="text-primary">.</span>Companion
+                </SheetTitle>
+                {email ? (
+                  <span className="block truncate font-mono text-xs text-muted-foreground">
+                    {email}
+                  </span>
+                ) : null}
+              </SheetHeader>
+              <nav className="flex flex-col gap-1 p-3">
+                {nav.map((item) => (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "rounded-md px-4 py-3 text-base transition-colors",
+                      isActive(pathname, item.to)
+                        ? "bg-secondary text-foreground"
+                        : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </nav>
+              <div className="border-t border-border/60 p-3">
+                <Button
+                  variant="outline"
+                  className="h-11 w-full"
+                  onClick={() => {
+                    setOpen(false);
+                    onSignOut();
+                  }}
+                >
+                  Sign out
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
     </div>
   );
 }

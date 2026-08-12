@@ -14,6 +14,7 @@ import {
 import { flyAppStatus, destroyFlyApp } from "@/lib/identus/fly.functions";
 import { FlyDeployPanel } from "@/components/FlyDeployPanel";
 import { AgentHealthPanel } from "@/components/AgentHealthPanel";
+import { AgentReadinessStatus } from "@/components/AgentReadinessWatcher";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

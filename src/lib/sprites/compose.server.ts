@@ -295,8 +295,26 @@ else:
         else:
             warnings.append("No 'cloud-agent' service found; the console expects one.")
 
+INSECURE_DEFAULTS = {
+    "POSTGRES_PASSWORD": ("postgres", "password"),
+    "ADMIN_TOKEN": ("local-admin-token", "admin"),
+    "DEFAULT_WALLET_AUTH_API_KEY": ("local-admin-token", "admin"),
+}
+for key, bad in INSECURE_DEFAULTS.items():
+    value = env.get(key, "")
+    if value == "":
+        continue
+    if value in bad:
+        warnings.append(".env '%s' is still an insecure default — change it before exposing the stack." % key)
+    elif len(value) < 12 and key != "POSTGRES_PASSWORD":
+        warnings.append(".env '%s' is short (%d chars) — use a long random value." % (key, len(value)))
+
+if env.get("ADMIN_TOKEN") and env.get("DEFAULT_WALLET_AUTH_API_KEY") and env["ADMIN_TOKEN"] != env["DEFAULT_WALLET_AUTH_API_KEY"]:
+    warnings.append("ADMIN_TOKEN and DEFAULT_WALLET_AUTH_API_KEY differ — the console uses ADMIN_TOKEN as the API key.")
+
 for name in sorted(set(missing)):
     errors.append("Env var '%s' is referenced in the compose file but not set in .env." % name)
+
 
 if init_sql is None:
     warnings.append("postgres/init.sql is missing — the agent databases will not be created.")

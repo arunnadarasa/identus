@@ -97,6 +97,51 @@ const hostingComparison = [
   },
 ];
 
+const dockerEnv: Array<[string, string, string]> = [
+  ["AGENT_PORT", "8085", "Host port for the Cloud Agent REST API (/cloud-agent)."],
+  ["DIDCOMM_PORT", "8090", "Host port for the agent's DIDComm endpoint."],
+  ["PRISM_NODE_PORT", "50053", "Host port for the PRISM node's gRPC API."],
+  ["POSTGRES_PORT", "5432", "Host port for Postgres — change it if you already run one."],
+  ["POSTGRES_USER", "postgres", "Owner of the pollux, connect, agent and node databases."],
+  ["POSTGRES_PASSWORD", "postgres", "Database password; change it for anything shared."],
+  ["ADMIN_TOKEN", "local-admin-token", "Admin API key. This is what the console stores."],
+  ["DEFAULT_WALLET_AUTH_API_KEY", "local-admin-token", "API key for the default wallet; keep it equal to ADMIN_TOKEN."],
+];
+
+const dockerTroubleshooting: Array<[string, string, string]> = [
+  [
+    'Error: bind: address already in use',
+    "Another process (often a local Postgres, or a previous stack) already holds that host port.",
+    "Change the host side in .env — e.g. POSTGRES_PORT=5433 — then docker compose up -d --wait. Find the culprit with lsof -i :5432.",
+  ],
+  [
+    "cloud-agent restarts in a loop",
+    "Its schema migration failed, usually because a database is missing or credentials changed.",
+    "Read docker compose logs cloud-agent for the Flyway/JDBC error, confirm all four databases exist with docker compose exec postgres psql -U postgres -l, then reset with docker compose down -v.",
+  ],
+  [
+    "Databases missing even though init.sql is present",
+    "Scripts in /docker-entrypoint-initdb.d only run when the data directory is empty, and the pgdata volume already existed.",
+    "docker compose down -v to drop the volume, then bring the stack back up so the init script runs.",
+  ],
+  [
+    "no matching manifest for linux/arm64",
+    "The pinned image has no arm64 build (common on Apple Silicon).",
+    "Add platform: linux/amd64 to that service and expect emulation to be slower, or pick a tag that publishes multi-arch images.",
+  ],
+  [
+    "pull access denied / unauthorized",
+    "The tag points at a private or non-existent registry path.",
+    "Use the public Docker Hub images identus/identus-cloud-agent and identus/prism-node with an explicit version tag — never :latest.",
+  ],
+  [
+    "Agent healthy but the console cannot reach it",
+    "The base URL is missing the /cloud-agent prefix, or the apikey header is not being sent.",
+    "Use http://localhost:8085/cloud-agent and set the admin key to your ADMIN_TOKEN value, then re-run the health probe.",
+  ],
+];
+
+
 function Docs() {
   return (
     <main className="min-h-screen bg-background text-foreground">

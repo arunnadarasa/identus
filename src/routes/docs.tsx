@@ -224,6 +224,13 @@ function Docs() {
           </div>
 
           <div className="mt-6 rounded-md border border-primary/30 bg-primary/5 p-4 text-sm text-muted-foreground">
+            <strong className="text-foreground">Recommendation: use Fly Machines for Cloud Agents.</strong>{" "}
+            A real Identus Cloud Agent needs Postgres, a PRISM node and the agent service running
+            together with a public HTTPS endpoint. Fly Machines supports this multi-service
+            composition, private networking and health checks out of the box.
+          </div>
+
+          <div className="mt-4 rounded-md border border-primary/30 bg-primary/5 p-4 text-sm text-muted-foreground">
             <strong className="text-foreground">Sprites.dev is only the SDK sandbox.</strong>{" "}
             It cannot host the Cloud Agent because it has no container image execution, no
             multi-service composition and no managed Postgres. The companion app uses it instead as a

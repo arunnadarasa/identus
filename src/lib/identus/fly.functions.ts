@@ -666,7 +666,7 @@ export const rotateFlyAdminKey = createServerFn({ method: "POST" })
       await runStep(
         "Wait for machine to start",
         `GET /apps/${appName}/machines/${agentMachine.id}/wait`,
-        () => waitForMachineState(appName, agentMachine.id, "started", 120),
+        () => waitForMachineState(appName, agentMachine.id, "started", 180),
         () => "machine started",
       );
 

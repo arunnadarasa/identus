@@ -61,7 +61,9 @@ export const getSandbox = createServerFn({ method: "GET" })
             url: (box.url as string | null) ?? null,
             status: box.status as string,
             sdkReady: Boolean(box.sdk_ready),
-            steps: (Array.isArray(box.provision_log) ? box.provision_log : []) as ProvisionStep[],
+            steps: (Array.isArray(box.provision_log)
+              ? box.provision_log
+              : []) as unknown as ProvisionStep[],
             updatedAt: box.updated_at as string,
           }
         : null,

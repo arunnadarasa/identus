@@ -20,10 +20,12 @@ export const ENV_FILE = ".env";
 export const INIT_SQL_FILE = "postgres/init.sql";
 
 export const DEFAULT_COMPOSE = `# Identus Cloud Agent — local stack
-# Validated in the Compose Lab, run with:  docker compose up -d
+# Validated in the Compose Lab, run with:  docker compose up -d --wait
 services:
   postgres:
     image: ${POSTGRES_IMAGE}
+    restart: unless-stopped
+    networks: [identus]
     environment:
       POSTGRES_USER: \${POSTGRES_USER}
       POSTGRES_PASSWORD: \${POSTGRES_PASSWORD}
@@ -41,6 +43,8 @@ services:
 
   prism-node:
     image: ${NODE_IMAGE}
+    restart: unless-stopped
+    networks: [identus]
     environment:
       NODE_PSQL_HOST: postgres:5432
       NODE_PSQL_DATABASE: node
@@ -57,6 +61,8 @@ services:
 
   cloud-agent:
     image: ${AGENT_IMAGE}
+    restart: unless-stopped
+    networks: [identus]
     environment:
       POLLUX_DB_HOST: postgres
       POLLUX_DB_PORT: 5432
@@ -91,9 +97,21 @@ services:
     ports:
       - "\${AGENT_PORT}:8085"
       - "\${DIDCOMM_PORT}:8090"
+    healthcheck:
+      # 'docker compose up --wait' blocks until this reports healthy.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8085/_system/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+networks:
+  identus:
+    driver: bridge
 
 volumes:
   pgdata:
+
 `;
 
 export const DEFAULT_ENV = `# Ports exposed on your machine

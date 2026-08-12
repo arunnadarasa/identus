@@ -26,16 +26,17 @@ export const Route = createFileRoute("/app/sandbox")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "SDK sandbox — Identus Companion" },
+      { title: "Sandbox — Identus Companion" },
       {
         name: "description",
         content:
-          "Run Identus TypeScript SDK snippets in your own disposable sandbox box, wired to your active Cloud Agent.",
+          "Run Identus SDK snippets and lint your docker-local Compose stack in a disposable micro-environment.",
       },
-      { property: "og:title", content: "SDK sandbox — Identus Companion" },
+      { property: "og:title", content: "Sandbox — Identus Companion" },
       {
         property: "og:description",
-        content: "Generate and test Identus SDK code without deploying a full agent stack.",
+        content:
+          "SDK snippets plus a Docker Compose lab for Identus, without deploying a full agent stack.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

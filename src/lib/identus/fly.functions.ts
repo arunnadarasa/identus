@@ -80,7 +80,10 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
     const steps: Step[] = [];
     const password = data.pgPassword ?? crypto.randomUUID().replace(/-/g, "");
     const adminKey = data.adminKey ?? crypto.randomUUID().replace(/-/g, "");
-    const guest = { cpus: data.cpus ?? 2, memoryMb: data.memoryMb ?? 2048 };
+    // The Cloud Agent is a JVM service that migrates four databases on first
+    // boot; 2 GB gets OOM-killed, so 4 GB is the default.
+    const guest = { cpus: data.cpus ?? 2, memoryMb: data.memoryMb ?? 4096 };
+
     // Fly private DNS resolves process groups, not machine names. The machine's
     // private 6PN address is used when the create call returns one, since it is
     // available immediately and does not wait on DNS propagation.

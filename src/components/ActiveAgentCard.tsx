@@ -5,6 +5,7 @@ import { revealConnectionKey, testConnection } from "@/lib/identus.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { RotateKeyDialog } from "@/components/RotateKeyDialog";
 import { MODE_LABELS, type AgentMode } from "@/lib/identus/types";
 
 /** Shows the console configuration currently in use: mode, URL, health, admin key. */
@@ -32,6 +33,8 @@ export function ActiveAgentCard({
             {MODE_LABELS[connection.mode as AgentMode]} · all protocol calls use this agent
           </CardDescription>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        <RotateKeyDialog connection={connection} onChanged={onChecked} />
         <Button
           size="sm"
           variant="outline"
@@ -49,6 +52,7 @@ export function ActiveAgentCard({
         >
           {busy ? "Checking…" : "Re-check"}
         </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3 text-xs">
         <Row label="Base URL">

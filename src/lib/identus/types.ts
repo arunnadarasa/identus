@@ -14,6 +14,25 @@ export interface AgentConnection {
   last_health: string | null;
   last_checked_at: string | null;
   has_api_key?: boolean;
+  last_probe?: ProbeResult | null;
+}
+
+export interface ProbeCheck {
+  id: string;
+  label: string;
+  ok: boolean;
+  status?: number;
+  ms: number;
+  detail?: string;
+}
+
+export interface ProbeResult {
+  healthy: boolean;
+  version?: string;
+  message: string;
+  totalMs: number;
+  startedAt: string;
+  checks: ProbeCheck[];
 }
 
 export interface ProvisionStep {

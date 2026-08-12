@@ -10,12 +10,30 @@ export interface Step {
   status: "ok" | "error" | "running";
   detail?: string | undefined;
   at: string;
+  durationMs?: number | undefined;
+  endpoint?: string | undefined;
+  httpStatus?: number | undefined;
+  raw?: string | undefined;
 }
 
 export function step(name: string, status: Step["status"], detail?: string): Step {
   return { step: name, status, detail, at: new Date().toISOString() };
 }
 
+/** Carries the full Fly response so the provisioning log can show the real cause. */
+export class FlyApiError extends Error {
+  readonly path: string;
+  readonly status: number;
+  readonly body: string;
+
+  constructor(path: string, status: number, body: string) {
+    super(`Fly API ${status} on ${path}: ${body.slice(0, 400)}`);
+    this.name = "FlyApiError";
+    this.path = path;
+    this.status = status;
+    this.body = body;
+  }
+}
 
 function token() {
   const value = process.env["FLY_API_TOKEN"];
@@ -35,10 +53,30 @@ export async function fly(path: string, init: RequestInit = {}) {
   });
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`Fly API ${res.status} on ${path}: ${text.slice(0, 400)}`);
+    throw new FlyApiError(path, res.status, text);
   }
   return text ? JSON.parse(text) : null;
 }
+
+export interface FlyMachine {
+  id: string;
+  name: string;
+  state: string;
+  region: string;
+}
+
+export async function listMachines(appName: string): Promise<FlyMachine[]> {
+  const raw = (await fly(`/apps/${appName}/machines`)) as
+    | { id: string; name: string; state: string; region: string }[]
+    | null;
+  return (raw ?? []).map((m) => ({
+    id: m.id,
+    name: m.name,
+    state: m.state,
+    region: m.region,
+  }));
+}
+
 
 export async function flyGraphql(query: string, variables: Record<string, unknown>) {
   const res = await fetch(FLY_GRAPHQL, {

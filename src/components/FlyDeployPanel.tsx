@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -9,6 +9,8 @@ import {
   destroyFlyApp,
 } from "@/lib/identus/fly.functions";
 import { listConnections, setActiveConnection } from "@/lib/identus.functions";
+import { ProvisionLogViewer } from "@/components/ProvisionLogViewer";
+import type { ProvisionStep } from "@/lib/identus/types";
 import {
   useAgentReadiness,
   formatDuration,
@@ -18,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 const REGIONS = ["lhr", "ams", "fra", "iad", "ord", "sjc", "syd", "nrt"];
 const SIZES = [
@@ -77,21 +80,24 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     if (!orgSlug && data.orgs.length) setOrgSlug(data.orgs[0]!.slug);
   }, [preflightQuery.data]);
 
-  // Live progress: while deploying, poll the connection row for provisioning steps.
-  const progressQuery = useQuery({
+  // The provisioning row is inserted before the first Fly call, so while the deploy
+  // request is still in flight we discover its id by app name and hand it to the
+  // log viewer, which then streams the steps itself.
+  const discoveryQuery = useQuery({
     queryKey: ["connections"],
     queryFn: () => fetchConnections(),
-    refetchInterval: phase === "deploying" ? 2500 : false,
-    enabled: phase === "deploying",
+    refetchInterval: phase === "deploying" && !connectionId ? 2500 : false,
+    enabled: phase === "deploying" && !connectionId,
   });
 
-  const liveSteps = useMemo(() => {
-    const rows = (progressQuery.data ?? []) as any[];
+  useEffect(() => {
+    if (connectionId) return;
+    const rows = (discoveryQuery.data ?? []) as { id: string; fly_app_name?: string | null }[];
     const row = rows.find((r) => r.fly_app_name === appName);
-    return Array.isArray(row?.provision_log) ? (row.provision_log as StepEntry[]) : [];
-  }, [progressQuery.data, appName]);
+    if (row) setConnectionId(row.id);
+  }, [discoveryQuery.data, appName, connectionId]);
 
-  const shown = phase === "deploying" && liveSteps.length > steps.length ? liveSteps : steps;
+
   const orgs = preflightQuery.data?.ok ? preflightQuery.data.orgs : [];
   const tokenProblem = preflightQuery.data && !preflightQuery.data.ok ? preflightQuery.data.message : "";
   const nameValid = /^[a-z0-9-]{4,40}$/.test(appName);
@@ -108,6 +114,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     setError("");
     setAgentState("");
     setDeployedAt(null);
+    setConnectionId(null);
     const size = SIZES[sizeIndex]!;
     const result = await provision({
       data: {
@@ -122,6 +129,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     });
     setSteps(result.steps as StepEntry[]);
     setConnectionId(result.connectionId);
+
     onChanged();
     qc.invalidateQueries({ queryKey: ["connections"] });
     if (result.ok) {
@@ -320,31 +328,14 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
         </Button>
       </div>
 
-      {shown.length ? (
-        <div className="space-y-1 rounded-md border border-border/60 bg-secondary/30 p-4 font-mono text-xs">
-          {shown.map((entry, index) => (
-            <div
-              key={index}
-              className={`flex items-start gap-2 ${entry.status === "error" ? "text-destructive" : "text-success"}`}
-            >
-              {entry.status === "error" ? (
-                <X className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              ) : (
-                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              )}
-              <span>
-                {entry.step}
-                {entry.detail ? ` — ${entry.detail}` : ""}
-              </span>
-            </div>
-          ))}
-          {phase === "deploying" ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> working…
-            </div>
-          ) : null}
-        </div>
+      {connectionId || steps.length ? (
+        <ProvisionLogViewer
+          connectionId={connectionId}
+          live={phase === "deploying"}
+          fallbackSteps={steps as ProvisionStep[]}
+        />
       ) : null}
+
 
       {phase === "failed" ? (
         <div className="space-y-3 rounded-md border border-destructive/40 bg-destructive/10 p-4">

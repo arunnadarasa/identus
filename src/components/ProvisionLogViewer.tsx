@@ -36,17 +36,21 @@ function StepRow({ entry }: { entry: ProvisionStep }) {
         className="flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-xs hover:bg-muted/40 disabled:cursor-default"
         disabled={!hasDetail}
       >
-        <span className="text-muted-foreground/70">{formatClock(entry.at)}</span>
+        <span className="hidden shrink-0 text-muted-foreground/70 sm:inline">
+          {formatClock(entry.at)}
+        </span>
         <StatusIcon status={entry.status} />
         <span
-          className={
+          className={`min-w-0 truncate ${
             entry.status === "error" ? "text-destructive" : "text-foreground"
-          }
+          }`}
         >
           {entry.step}
         </span>
         {entry.detail ? (
-          <span className="truncate text-muted-foreground">— {entry.detail}</span>
+          <span className="hidden min-w-0 truncate text-muted-foreground sm:inline">
+            — {entry.detail}
+          </span>
         ) : null}
         <span className="ml-auto flex items-center gap-2 text-muted-foreground/70">
           {formatMs(entry.durationMs)}
@@ -162,7 +166,7 @@ export function ProvisionLogViewer({
         </Button>
       </div>
 
-      <div ref={scroller} className="max-h-80 overflow-auto">
+      <div ref={scroller} className="max-h-80 overflow-auto overscroll-contain">
         {steps.length === 0 ? (
           <p className="px-3 py-4 text-xs text-muted-foreground">
             {query.isLoading ? "Loading log…" : "No provisioning steps recorded yet."}

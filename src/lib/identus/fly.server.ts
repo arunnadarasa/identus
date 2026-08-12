@@ -190,6 +190,9 @@ export function postgresMachineConfig(region: string, password: string) {
   return {
     name: "identus-postgres",
     region,
+    // The process group is what `<group>.process.<app>.internal` resolves to;
+    // machine names are not part of Fly's private DNS.
+    metadata: { fly_process_group: "postgres" },
     config: {
       image: POSTGRES_IMAGE,
       env: {
@@ -207,7 +210,7 @@ export function postgresMachineConfig(region: string, password: string) {
             [
               "#!/bin/bash",
               "set -e",
-              'for db in pollux connect agent; do',
+              'for db in pollux connect agent node; do',
               '  psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \\',
               "    -c \"CREATE DATABASE $db\"",
               "done",
@@ -218,13 +221,8 @@ export function postgresMachineConfig(region: string, password: string) {
       ],
       mounts: [{ volume: "", path: "/var/lib/postgresql/data" }],
       guest: { cpu_kind: "shared", cpus: 1, memory_mb: 1024 },
-      services: [
-        {
-          ports: [{ port: 5432 }],
-          protocol: "tcp",
-          internal_port: 5432,
-        },
-      ],
+      // No `services` block: Postgres is reached over the app's private 6PN
+      // network only and must never be published to the internet.
     },
   };
 }
@@ -233,11 +231,12 @@ export function prismNodeMachineConfig(region: string, pgHost: string, password:
   return {
     name: "identus-prism-node",
     region,
+    metadata: { fly_process_group: "prism-node" },
     config: {
       image: PRISM_NODE_IMAGE,
       env: {
         NODE_PSQL_HOST: `${pgHost}:5432`,
-        NODE_PSQL_DATABASE: "agent",
+        NODE_PSQL_DATABASE: "node",
         NODE_PSQL_SCHEMA: "public",
         NODE_PSQL_USERNAME: "postgres",
         NODE_PSQL_PASSWORD: password,
@@ -247,7 +246,7 @@ export function prismNodeMachineConfig(region: string, pgHost: string, password:
         NODE_WALLET_MAX_TPS: "10",
       },
       guest: { cpu_kind: "shared", cpus: 1, memory_mb: 1024 },
-      services: [{ ports: [{ port: 50053 }], protocol: "tcp", internal_port: 50053 }],
+      // gRPC is consumed by the agent over 6PN only.
     },
   };
 }
@@ -264,6 +263,7 @@ export function agentMachineConfig(
   return {
     name: "identus-cloud-agent",
     region,
+    metadata: { fly_process_group: "agent" },
     config: {
       image: AGENT_IMAGE,
       env: {
@@ -295,7 +295,7 @@ export function agentMachineConfig(
         ADMIN_TOKEN: adminKey,
         AGENT_HTTP_PORT: "8085",
         AGENT_DIDCOMM_PORT: "8090",
-        REST_SERVICE_URL: `https://${appName}.fly.dev/cloud-agent`,
+        REST_SERVICE_URL: `https://${appName}.fly.dev`,
         DIDCOMM_SERVICE_URL: `https://${appName}.fly.dev/didcomm`,
         SECRET_STORAGE_BACKEND: "postgres",
       },

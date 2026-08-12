@@ -64,6 +64,39 @@ const endpoints = [
   ["GET", "/_system/health", "Agent health and version"],
 ];
 
+const hostingComparison = [
+  {
+    feature: "Container image execution",
+    fly: "Yes — runs identus/identus-cloud-agent and identus/prism-node images",
+    docker: "Yes — full Docker Compose stack on localhost",
+    sprites: "No — sprites.dev runs a single Linux box, not container images",
+  },
+  {
+    feature: "Multi-service composition",
+    fly: "Yes — separate Machines for Postgres, PRISM node and Cloud Agent",
+    docker: "Yes — Compose orchestrates all services",
+    sprites: "No — one command at a time, no Compose-like service grouping",
+  },
+  {
+    feature: "Managed Postgres + private network",
+    fly: "Yes — Fly Postgres with internal 6PN IPs and 4 databases",
+    docker: "Yes — local Postgres on the Docker network",
+    sprites: "No — no managed Postgres or private service networking",
+  },
+  {
+    feature: "Long-running agent service",
+    fly: "Yes — Machines stay up and expose HTTPS endpoints",
+    docker: "Yes — containers run continuously while Docker is active",
+    sprites: "No — exec commands are short-lived; no persistent service model",
+  },
+  {
+    feature: "SDK snippet sandbox",
+    fly: "Not designed for ad-hoc code",
+    docker: "Possible but manual",
+    sprites: "Yes — per-user Node box with the Identus TypeScript SDK",
+  },
+];
+
 function Docs() {
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -158,14 +191,57 @@ function Docs() {
         </section>
 
         <section>
+          <h2 className="font-display text-2xl font-semibold tracking-tight">
+            Where to run an Identus Cloud Agent
+          </h2>
+          <p className="mt-4 max-w-3xl text-sm text-muted-foreground">
+            The Cloud Agent ships as container images and needs a Postgres instance with several
+            databases on a private network. That shapes which hosts can run the full stack versus
+            which are only suitable for code snippets.
+          </p>
+
+          <div className="mt-6 overflow-hidden rounded-md border border-border/60">
+            <div className="grid grid-cols-4 gap-px bg-border/60">
+              <div className="bg-secondary/40 px-4 py-3 text-xs font-medium text-foreground">Capability</div>
+              <div className="bg-secondary/40 px-4 py-3 text-xs font-medium text-foreground">Fly Machines</div>
+              <div className="bg-secondary/40 px-4 py-3 text-xs font-medium text-foreground">Docker local</div>
+              <div className="bg-secondary/40 px-4 py-3 text-xs font-medium text-foreground">Sprites.dev</div>
+              {hostingComparison.flatMap((row) => [
+                <div key={`${row.feature}-f`} className="bg-card/60 px-4 py-3 text-sm text-foreground">
+                  {row.feature}
+                </div>,
+                <div key={`${row.feature}-fly`} className="bg-card/60 px-4 py-3 text-sm text-muted-foreground">
+                  {row.fly}
+                </div>,
+                <div key={`${row.feature}-docker`} className="bg-card/60 px-4 py-3 text-sm text-muted-foreground">
+                  {row.docker}
+                </div>,
+                <div key={`${row.feature}-sprites`} className="bg-card/60 px-4 py-3 text-sm text-muted-foreground">
+                  {row.sprites}
+                </div>,
+              ])}
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-md border border-primary/30 bg-primary/5 p-4 text-sm text-muted-foreground">
+            <strong className="text-foreground">Sprites.dev is only the SDK sandbox.</strong>{" "}
+            It cannot host the Cloud Agent because it has no container image execution, no
+            multi-service composition and no managed Postgres. The companion app uses it instead as a
+            per-user scratch box: each account gets a private sprite with Node and the Identus
+            TypeScript SDK installed, and snippets run there with the active agent&apos;s base URL and
+            admin key injected as environment variables.
+          </div>
+        </section>
+
+        <section>
           <h2 className="font-display text-2xl font-semibold tracking-tight">Running an agent</h2>
           <div className="mt-6 space-y-6 text-sm text-muted-foreground">
             <div>
               <h3 className="font-mono text-sm text-foreground">Docker on your machine</h3>
               <pre className="mt-2 overflow-x-auto rounded-md border border-border/60 bg-secondary/40 p-4 font-mono text-xs">
 {`git clone https://github.com/hyperledger-identus/cloud-agent
-cd cloud-agent/infrastructure/local
-./run.sh            # agent on http://localhost:8085/cloud-agent`}
+ cd cloud-agent/infrastructure/local
+ ./run.sh            # agent on http://localhost:8085/cloud-agent`}
               </pre>
             </div>
             <div>
@@ -183,27 +259,6 @@ cd cloud-agent/infrastructure/local
                 learn the protocol shape before deploying anything.
               </p>
             </div>
-            <div>
-              <h3 className="font-mono text-sm text-foreground">Why Fly.io for hosted agents</h3>
-              <p className="mt-2">
-                The Cloud Agent ships as container images —{" "}
-                <code className="font-mono text-xs text-foreground">identus/identus-cloud-agent</code>{" "}
-                and <code className="font-mono text-xs text-foreground">identus/prism-node</code> —
-                and needs a Postgres instance holding three separate databases (agent, connect,
-                pollux) on a private network. Fly Machines models that directly: one machine per
-                image, a shared internal network and a volume-backed Postgres.
-              </p>
-              <p className="mt-2">
-                Lighter sandbox hosts such as sprites.dev cannot host the agent itself: they run a
-                single Linux box with long-running commands, with no container image execution, no
-                multi-service composition and no managed Postgres. They are a good fit for code
-                though, so the SDK sandbox uses one: each account gets a private box with Node and
-                the Identus TypeScript SDK installed, and snippets run there with the active agent's
-                base URL and admin key injected as environment variables.
-              </p>
-
-            </div>
-
           </div>
         </section>
       </article>

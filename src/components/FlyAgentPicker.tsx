@@ -30,6 +30,8 @@ export function FlyAgentPicker({ onChanged }: { onChanged?: () => void }) {
   const orgsFn = useServerFn(flyOrganizations);
   const appsFn = useServerFn(flyApps);
   const adopt = useServerFn(adoptFlyAgent);
+  const destroyByName = useServerFn(destroyFlyAppByName);
+
 
   const [org, setOrg] = useState<string>("");
   const [keys, setKeys] = useState<Record<string, string>>({});

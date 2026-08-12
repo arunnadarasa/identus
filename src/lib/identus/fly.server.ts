@@ -303,6 +303,12 @@ export function agentMachineConfig(
         REST_SERVICE_URL: `https://${appName}.fly.dev`,
         DIDCOMM_SERVICE_URL: `https://${appName}.fly.dev/didcomm`,
         SECRET_STORAGE_BACKEND: "postgres",
+        // Fly's private network is IPv6-only, so the JVM must be told not to
+        // prefer IPv4 or JDBC/gRPC never reach Postgres and the PRISM node.
+        // MaxRAMPercentage keeps the heap inside the machine's memory so the
+        // first-boot schema migrations don't get OOM-killed.
+        JAVA_TOOL_OPTIONS:
+          "-Djava.net.preferIPv6Addresses=true -Djava.net.preferIPv4Stack=false -XX:MaxRAMPercentage=70",
       },
       guest: { cpu_kind: "shared", cpus: guest.cpus, memory_mb: guest.memoryMb },
       services: [
@@ -323,9 +329,12 @@ export function agentMachineConfig(
           path: "/_system/health",
           interval: "15s",
           timeout: "5s",
-          grace_period: "60s",
+          // First boot migrates four databases; a short grace period makes Fly
+          // restart the agent mid-migration, which never converges.
+          grace_period: "300s",
         },
       },
+
     },
   };
 }

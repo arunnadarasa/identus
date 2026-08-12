@@ -21,14 +21,14 @@ export interface ProbeCheck {
   id: string;
   label: string;
   ok: boolean;
-  status?: number;
+  status?: number | undefined;
   ms: number;
-  detail?: string;
+  detail?: string | undefined;
 }
 
 export interface ProbeResult {
   healthy: boolean;
-  version?: string;
+  version?: string | undefined;
   message: string;
   totalMs: number;
   startedAt: string;

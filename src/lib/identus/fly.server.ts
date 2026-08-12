@@ -244,12 +244,17 @@ export function prismNodeMachineConfig(region: string, pgHost: string, password:
         NODE_REFRESH_AND_SUBMIT_PERIOD: "7s",
         NODE_MOVE_SCHEDULED_TO_PENDING_PERIOD: "5s",
         NODE_WALLET_MAX_TPS: "10",
+        // Fly's private network is IPv6-only. The JVM prefers IPv4 by default,
+        // so JDBC never dials the Postgres 6PN address without this flag.
+        JAVA_TOOL_OPTIONS:
+          "-Djava.net.preferIPv6Addresses=true -Djava.net.preferIPv4Stack=false -XX:MaxRAMPercentage=70",
       },
       guest: { cpu_kind: "shared", cpus: 1, memory_mb: 1024 },
       // gRPC is consumed by the agent over 6PN only.
     },
   };
 }
+
 
 export function agentMachineConfig(
   region: string,
@@ -298,6 +303,12 @@ export function agentMachineConfig(
         REST_SERVICE_URL: `https://${appName}.fly.dev`,
         DIDCOMM_SERVICE_URL: `https://${appName}.fly.dev/didcomm`,
         SECRET_STORAGE_BACKEND: "postgres",
+        // Fly's private network is IPv6-only, so the JVM must be told not to
+        // prefer IPv4 or JDBC/gRPC never reach Postgres and the PRISM node.
+        // MaxRAMPercentage keeps the heap inside the machine's memory so the
+        // first-boot schema migrations don't get OOM-killed.
+        JAVA_TOOL_OPTIONS:
+          "-Djava.net.preferIPv6Addresses=true -Djava.net.preferIPv4Stack=false -XX:MaxRAMPercentage=70",
       },
       guest: { cpu_kind: "shared", cpus: guest.cpus, memory_mb: guest.memoryMb },
       services: [
@@ -318,11 +329,159 @@ export function agentMachineConfig(
           path: "/_system/health",
           interval: "15s",
           timeout: "5s",
-          grace_period: "60s",
+          // First boot migrates four databases; a short grace period makes Fly
+          // restart the agent mid-migration, which never converges.
+          grace_period: "300s",
         },
       },
+
     },
   };
+}
+
+export interface MachineDiagnostic {
+  id: string;
+  name: string;
+  state: string;
+  region: string;
+  image: string;
+  privateIp: string | null;
+  memoryMb: number | null;
+  cpus: number | null;
+  restarts: number;
+  /** Fly health-check results; `output` usually carries the real error text. */
+  checks: { name: string; status: string; output: string }[];
+  /** Newest first. Non-zero `exitCode` or `oomKilled` is the smoking gun. */
+  events: {
+    type: string;
+    status: string;
+    at: string;
+    exitCode: number | null;
+    oomKilled: boolean;
+    signal: number | null;
+  }[];
+  /** Plain-language reading of the above. */
+  diagnosis: string;
+  fatal: boolean;
+}
+
+function readEvents(raw: any) {
+  return ((raw?.events ?? []) as any[]).map((e) => {
+    const exit = e?.request?.exit_event ?? e?.request?.MonitorEvent?.exit_event ?? null;
+    return {
+      type: String(e?.type ?? "event"),
+      status: String(e?.status ?? ""),
+      at: e?.timestamp ? new Date(Number(e.timestamp)).toISOString() : "",
+      exitCode: typeof exit?.exit_code === "number" ? exit.exit_code : null,
+      oomKilled: Boolean(exit?.oom_killed),
+      signal: typeof exit?.signal === "number" ? exit.signal : null,
+    };
+  });
+}
+
+function diagnose(raw: any, events: MachineDiagnostic["events"], checks: MachineDiagnostic["checks"]) {
+  const oom = events.find((e) => e.oomKilled);
+  if (oom) {
+    return {
+      fatal: true,
+      diagnosis:
+        "The container was killed for running out of memory. Redeploy with more memory (4 GB or more for the Cloud Agent).",
+    };
+  }
+  const exits = events.filter((e) => e.exitCode !== null && e.exitCode !== 0);
+  if (exits.length >= 3) {
+    return {
+      fatal: true,
+      diagnosis: `The process is crash-looping (${exits.length} non-zero exits, last code ${exits[0]?.exitCode}). It cannot start with the current configuration.`,
+    };
+  }
+  if (exits.length > 0) {
+    return {
+      fatal: false,
+      diagnosis: `The process exited with code ${exits[0]?.exitCode} at least once and was restarted.`,
+    };
+  }
+  const failing = checks.find((c) => c.status && c.status !== "passing");
+  if (failing) {
+    return {
+      fatal: false,
+      diagnosis: `Fly health check "${failing.name}" is ${failing.status}${
+        failing.output ? `: ${failing.output.slice(0, 300)}` : ""
+      }`,
+    };
+  }
+  if (String(raw?.state) === "started" && checks.length && checks.every((c) => c.status === "passing")) {
+    return { fatal: false, diagnosis: "Machine is up and all Fly health checks pass." };
+  }
+  return {
+    fatal: false,
+    diagnosis:
+      String(raw?.state) === "started"
+        ? "Machine is up. The service is still starting — the Cloud Agent migrates four databases on first boot, which can take several minutes."
+        : `Machine state is "${raw?.state}".`,
+  };
+}
+
+/** Machine state, Fly check output and event history for one machine. */
+export async function getMachineDiagnostics(
+  appName: string,
+  machineId: string,
+): Promise<MachineDiagnostic> {
+  const raw = (await fly(`/apps/${appName}/machines/${machineId}`)) as any;
+  const checks = ((raw?.checks ?? []) as any[]).map((c) => ({
+    name: String(c?.name ?? "check"),
+    status: String(c?.status ?? ""),
+    output: String(c?.output ?? ""),
+  }));
+  const events = readEvents(raw);
+  const { diagnosis, fatal } = diagnose(raw, events, checks);
+  const guest = raw?.config?.guest ?? {};
+  return {
+    id: String(raw?.id ?? machineId),
+    name: String(raw?.name ?? machineId),
+    state: String(raw?.state ?? "unknown"),
+    region: String(raw?.region ?? ""),
+    image: String(raw?.config?.image ?? ""),
+    privateIp: raw?.private_ip ? String(raw.private_ip) : null,
+    memoryMb: typeof guest?.memory_mb === "number" ? guest.memory_mb : null,
+    cpus: typeof guest?.cpus === "number" ? guest.cpus : null,
+    restarts: events.filter((e) => e.type === "restart" || e.status === "starting").length,
+    checks,
+    events: events.slice(0, 12),
+    diagnosis,
+    fatal,
+  };
+}
+
+/** Diagnostics for every machine in the app, agent first. */
+export async function getAppDiagnostics(appName: string): Promise<MachineDiagnostic[]> {
+  const machines = await listMachines(appName);
+  const details = await Promise.all(
+    machines.map(async (m) => {
+      try {
+        return await getMachineDiagnostics(appName, m.id);
+      } catch (error) {
+        return {
+          id: m.id,
+          name: m.name,
+          state: m.state,
+          region: m.region,
+          image: "",
+          privateIp: null,
+          memoryMb: null,
+          cpus: null,
+          restarts: 0,
+          checks: [],
+          events: [],
+          diagnosis: error instanceof Error ? error.message : String(error),
+          fatal: false,
+        } satisfies MachineDiagnostic;
+      }
+    }),
+  );
+  const rank = (name: string) =>
+    name.includes("cloud-agent") ? 0 : name.includes("prism") ? 1 : 2;
+  return details.sort((a, b) => rank(a.name) - rank(b.name));
 }
 
 

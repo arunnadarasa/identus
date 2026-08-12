@@ -2,7 +2,13 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { flyOrganizations, flyApps, adoptFlyAgent } from "@/lib/identus/fly.functions";
+import {
+  flyOrganizations,
+  flyApps,
+  adoptFlyAgent,
+  destroyFlyAppByName,
+} from "@/lib/identus/fly.functions";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -24,6 +30,8 @@ export function FlyAgentPicker({ onChanged }: { onChanged?: () => void }) {
   const orgsFn = useServerFn(flyOrganizations);
   const appsFn = useServerFn(flyApps);
   const adopt = useServerFn(adoptFlyAgent);
+  const destroyByName = useServerFn(destroyFlyAppByName);
+
 
   const [org, setOrg] = useState<string>("");
   const [keys, setKeys] = useState<Record<string, string>>({});
@@ -133,18 +141,45 @@ export function FlyAgentPicker({ onChanged }: { onChanged?: () => void }) {
                     : `${app.machineCount} machines`}
                 </p>
               </div>
-              <Button
-                size="sm"
-                disabled={busy === app.name || app.isActive}
-                onClick={() => use(app)}
-              >
-                {app.isActive
-                  ? "In use"
-                  : busy === app.name
-                    ? "Saving…"
-                    : "Use this agent"}
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  disabled={busy === app.name || app.isActive}
+                  onClick={() => use(app)}
+                >
+                  {app.isActive
+                    ? "In use"
+                    : busy === app.name
+                      ? "Saving…"
+                      : "Use this agent"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive"
+                  disabled={busy === app.name}
+                  onClick={async () => {
+                    if (!confirm(`Destroy Fly app ${app.name}? This is permanent.`)) return;
+                    setBusy(app.name);
+                    try {
+                      await destroyByName({
+                        data: { appName: app.name, orgSlug: selectedOrg },
+                      });
+                      onChanged?.();
+                      refetch();
+                      toast.success(`${app.name} destroyed`);
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : String(error));
+                    } finally {
+                      setBusy(null);
+                    }
+                  }}
+                >
+                  Destroy
+                </Button>
+              </div>
             </div>
+
             {!app.hasKey ? (
               <div className="mt-3 space-y-2">
                 <Label htmlFor={`key-${app.name}`} className="text-xs">

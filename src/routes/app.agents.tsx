@@ -16,6 +16,8 @@ import { FlyDeployPanel } from "@/components/FlyDeployPanel";
 import { AgentHealthPanel } from "@/components/AgentHealthPanel";
 import { AgentReadinessStatus } from "@/components/AgentReadinessWatcher";
 import { ProvisionLogViewer } from "@/components/ProvisionLogViewer";
+import { FlyMachineDiagnostics } from "@/components/FlyMachineDiagnostics";
+
 import { FlyAgentPicker } from "@/components/FlyAgentPicker";
 import { ActiveAgentCard } from "@/components/ActiveAgentCard";
 import { RotateKeyDialog } from "@/components/RotateKeyDialog";
@@ -211,12 +213,19 @@ function Agents() {
                 onChecked={invalidate}
               />
               {conn.mode === "fly" ? (
-                <ProvisionLogSection
-                  connectionId={conn.id}
-                  status={conn.provision_status ?? null}
-                  stepCount={Array.isArray(conn.provision_log) ? conn.provision_log.length : 0}
-                />
+                <>
+                  <FlyMachineDiagnostics
+                    connectionId={conn.id}
+                    autoRefresh={conn.readiness_status === "waiting"}
+                  />
+                  <ProvisionLogSection
+                    connectionId={conn.id}
+                    status={conn.provision_status ?? null}
+                    stepCount={Array.isArray(conn.provision_log) ? conn.provision_log.length : 0}
+                  />
+                </>
               ) : null}
+
 
             </CardContent>
           </Card>

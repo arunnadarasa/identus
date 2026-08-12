@@ -173,6 +173,11 @@ export function AgentReadinessStatus({
           {formatDuration(watcher.elapsedMs)} elapsed)
         </span>
       </div>
+      <p className="text-muted-foreground">
+        {watcher.elapsedMs > 90_000
+          ? "Still no HTTP response. The Cloud Agent migrates four databases on first boot, which can take several minutes — open machine diagnostics below to see whether it is migrating or crash-looping."
+          : "The agent is booting and migrating its databases before it answers."}
+      </p>
       {watcher.probe?.checks?.length ? (
         <ul className="grid gap-1 sm:grid-cols-2">
           {watcher.probe.checks.map((c) => (
@@ -187,4 +192,5 @@ export function AgentReadinessStatus({
       ) : null}
     </div>
   );
+
 }

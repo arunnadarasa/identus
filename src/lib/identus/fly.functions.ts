@@ -80,7 +80,10 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
     const steps: Step[] = [];
     const password = data.pgPassword ?? crypto.randomUUID().replace(/-/g, "");
     const adminKey = data.adminKey ?? crypto.randomUUID().replace(/-/g, "");
-    const guest = { cpus: data.cpus ?? 2, memoryMb: data.memoryMb ?? 2048 };
+    // The Cloud Agent is a JVM service that migrates four databases on first
+    // boot; 2 GB gets OOM-killed, so 4 GB is the default.
+    const guest = { cpus: data.cpus ?? 2, memoryMb: data.memoryMb ?? 4096 };
+
     // Fly private DNS resolves process groups, not machine names. The machine's
     // private 6PN address is used when the create call returns one, since it is
     // available immediately and does not wait on DNS propagation.
@@ -383,7 +386,84 @@ export const flyAppStatus = createServerFn({ method: "POST" })
     return { machines, health, message };
   });
 
+/**
+ * Machine state, Fly health-check output and event history (exit codes, OOM
+ * kills) for a Fly deployment, plus a plain-language diagnosis per machine.
+ */
+export const flyMachineDiagnostics = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { getAppDiagnostics } = await import("./fly.server");
+    const { data: conn, error } = await context.supabase
+      .from("agent_connections")
+      .select("id, fly_app_name")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+    if (error) throw new Error(error.message);
+    if (!conn.fly_app_name) throw new Error("This connection is not a Fly.io deployment.");
+    try {
+      const machines = await getAppDiagnostics(conn.fly_app_name);
+      return {
+        ok: true as const,
+        appName: conn.fly_app_name,
+        machines,
+        message: "",
+        fatal: machines.some((m) => m.fatal),
+      };
+    } catch (flyError) {
+      return {
+        ok: false as const,
+        appName: conn.fly_app_name,
+        machines: [] as Awaited<ReturnType<typeof getAppDiagnostics>>,
+        message: flyError instanceof Error ? flyError.message : String(flyError),
+        fatal: false,
+      };
+    }
+  });
+
+/**
+ * Deletes a Fly app by name so half-created deployments from failed attempts can
+ * be cleaned up even when no connection row tracks them. The app must belong to
+ * an organisation the saved Fly token can see.
+ */
+export const destroyFlyAppByName = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        appName: z.string().trim().regex(/^[a-z0-9-]{4,40}$/),
+        orgSlug: z.string().trim().min(1),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { fly, listApps } = await import("./fly.server");
+    const { logActivity } = await import("./agent.server");
+    const apps = await listApps(data.orgSlug);
+    if (!apps.some((a) => a.name === data.appName)) {
+      throw new Error(`${data.appName} is not an app in ${data.orgSlug}.`);
+    }
+    await fly(`/apps/${data.appName}`, { method: "DELETE" });
+    await context.supabase
+      .from("agent_connections")
+      .delete()
+      .eq("user_id", context.userId)
+      .eq("fly_app_name", data.appName);
+    await logActivity(
+      context.supabase,
+      context.userId,
+      null,
+      "fly.destroyed",
+      `Destroyed Fly app ${data.appName}`,
+    );
+    return { ok: true as const };
+  });
+
 export const destroyFlyApp = createServerFn({ method: "POST" })
+
+
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {

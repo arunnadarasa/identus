@@ -320,31 +320,14 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
         </Button>
       </div>
 
-      {shown.length ? (
-        <div className="space-y-1 rounded-md border border-border/60 bg-secondary/30 p-4 font-mono text-xs">
-          {shown.map((entry, index) => (
-            <div
-              key={index}
-              className={`flex items-start gap-2 ${entry.status === "error" ? "text-destructive" : "text-success"}`}
-            >
-              {entry.status === "error" ? (
-                <X className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              ) : (
-                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              )}
-              <span>
-                {entry.step}
-                {entry.detail ? ` — ${entry.detail}` : ""}
-              </span>
-            </div>
-          ))}
-          {phase === "deploying" ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> working…
-            </div>
-          ) : null}
-        </div>
+      {connectionId || steps.length ? (
+        <ProvisionLogViewer
+          connectionId={connectionId}
+          live={phase === "deploying"}
+          fallbackSteps={steps as ProvisionStep[]}
+        />
       ) : null}
+
 
       {phase === "failed" ? (
         <div className="space-y-3 rounded-md border border-destructive/40 bg-destructive/10 p-4">

@@ -43,11 +43,20 @@ export function makeCredentialJwt(payload: {
 }
 
 export function agentBaseUrl(conn: Pick<AgentConnection, "base_url" | "mode" | "fly_app_name">) {
-  if (conn.base_url) return conn.base_url.replace(/\/$/, "");
+  // Fly deployments talk straight to the agent machine, which serves its API at
+  // the root. The `/cloud-agent` prefix only exists in the upstream compose
+  // stack (an APISIX gateway adds it), so strip it from stored Fly URLs.
+  const normalise = (url: string) =>
+    url.replace(/\/$/, "").replace(/\/cloud-agent$/, "");
+  if (conn.base_url) {
+    const trimmed = conn.base_url.replace(/\/$/, "");
+    return conn.mode === "fly" ? normalise(trimmed) : trimmed;
+  }
   if (conn.mode === "fly" && conn.fly_app_name)
-    return `https://${conn.fly_app_name}.fly.dev/cloud-agent`;
+    return `https://${conn.fly_app_name}.fly.dev`;
   return "";
 }
+
 
 /** Raw REST call against a real Identus Cloud Agent. */
 export async function agentFetch(

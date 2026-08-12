@@ -48,11 +48,39 @@ function Agents() {
   const [dockerKey, setDockerKey] = useState("");
   const [simName, setSimName] = useState("Simulated agent");
   const [busy, setBusy] = useState(false);
-
+  const [switching, setSwitching] = useState<string | null>(null);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["connections"] });
     qc.invalidateQueries({ queryKey: ["workspace"] });
+  };
+
+  // Never switch to a real agent without confirming it responds first.
+  const useAgent = async (conn: any) => {
+    setSwitching(conn.id);
+    try {
+      if (conn.mode !== "simulated") {
+        const probe = await diagnose({ data: { id: conn.id } });
+        invalidate();
+        if (!probe.healthy) {
+          const failed = probe.checks.filter((c) => !c.ok).map((c) => c.label);
+          const ok = confirm(
+            `${conn.name} failed its health check.\n\n${probe.message}${
+              failed.length ? `\n\nFailing: ${failed.join(", ")}` : ""
+            }\n\nSwitch to it anyway?`,
+          );
+          if (!ok) {
+            toast.error("Stayed on the current agent");
+            return;
+          }
+        }
+      }
+      await activate({ data: { id: conn.id } });
+      invalidate();
+      toast.success(`${conn.name} is now the active agent`);
+    } finally {
+      setSwitching(null);
+    }
   };
 
   return (

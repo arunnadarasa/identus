@@ -375,3 +375,149 @@ export const destroyFlyApp = createServerFn({ method: "POST" })
     );
     return { ok: true };
   });
+
+/**
+ * Apps in a Fly organisation, annotated with whether the console already tracks
+ * them so the picker can offer a single "Use this agent" action.
+ */
+export const flyApps = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ orgSlug: z.string().trim().min(1) }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { listApps } = await import("./fly.server");
+    const { data: rows } = await context.supabase
+      .from("agent_connections")
+      .select("id, fly_app_name, api_key, is_active")
+      .eq("user_id", context.userId)
+      .eq("mode", "fly");
+    const tracked = new Map(
+      (rows ?? [])
+        .filter((r: any) => r.fly_app_name)
+        .map((r: any) => [r.fly_app_name as string, r]),
+    );
+    try {
+      const apps = await listApps(data.orgSlug);
+      return {
+        ok: true as const,
+        message: "",
+        apps: apps.map((app) => {
+          const row = tracked.get(app.name);
+          return {
+            name: app.name,
+            status: app.status,
+            machineCount: app.machineCount,
+            machines: app.machines,
+            connectionId: (row?.id as string | undefined) ?? null,
+            hasKey: Boolean(row?.api_key),
+            isActive: Boolean(row?.is_active),
+          };
+        }),
+      };
+    } catch (error) {
+      return {
+        ok: false as const,
+        apps: [] as {
+          name: string;
+          status: string;
+          machineCount: number;
+          machines: { id: string; name: string; state: string; region: string }[];
+          connectionId: string | null;
+          hasKey: boolean;
+          isActive: boolean;
+        }[],
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
+
+/**
+ * One-click: write the Fly app's URL + admin key into the console config and
+ * make it the active agent. Re-syncs an existing row instead of duplicating.
+ */
+export const adoptFlyAgent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        appName: z.string().trim().regex(/^[a-z0-9-]{2,63}$/),
+        region: z.string().trim().min(2).optional(),
+        adminKey: z.string().trim().min(1).max(200).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { probeAgent, logActivity } = await import("./agent.server");
+    const baseUrl = `https://${data.appName}.fly.dev/cloud-agent`;
+
+    const { data: existing } = await context.supabase
+      .from("agent_connections")
+      .select("id, api_key")
+      .eq("user_id", context.userId)
+      .eq("fly_app_name", data.appName)
+      .maybeSingle();
+
+    const patch: Record<string, unknown> = {
+      name: `Fly · ${data.appName}`,
+      mode: "fly",
+      base_url: baseUrl,
+      fly_app_name: data.appName,
+      provision_status: "adopted",
+    };
+    if (data.region) patch["fly_region"] = data.region;
+    if (data.adminKey) patch["api_key"] = data.adminKey;
+
+    let id: string;
+    if (existing?.id) {
+      const { error } = await context.supabase
+        .from("agent_connections")
+        .update(patch as never)
+        .eq("id", existing.id);
+      if (error) throw new Error(error.message);
+      id = existing.id as string;
+    } else {
+      const { data: row, error } = await context.supabase
+        .from("agent_connections")
+        .insert({ ...patch, user_id: context.userId } as never)
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      id = row.id as string;
+    }
+
+    const apiKey = data.adminKey ?? ((existing?.api_key as string | null) ?? null);
+    const probe = await probeAgent({
+      mode: "fly",
+      base_url: baseUrl,
+      fly_app_name: data.appName,
+      api_key: apiKey,
+    });
+
+    await context.supabase
+      .from("agent_connections")
+      .update({
+        last_probe: probe as unknown as never,
+        last_health: probe.healthy ? "healthy" : "unreachable",
+        last_checked_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    await context.supabase
+      .from("agent_connections")
+      .update({ is_active: false })
+      .eq("user_id", context.userId);
+    const { error: activateError } = await context.supabase
+      .from("agent_connections")
+      .update({ is_active: true })
+      .eq("id", id);
+    if (activateError) throw new Error(activateError.message);
+
+    await logActivity(
+      context.supabase,
+      context.userId,
+      id,
+      "connection.adopted",
+      `Using Fly agent ${data.appName} (${probe.healthy ? "healthy" : "unreachable"})`,
+    );
+
+    return { id, baseUrl, healthy: probe.healthy, message: probe.message };
+  });

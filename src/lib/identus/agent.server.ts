@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AgentConnection, HealthResult } from "./types";
+import type { AgentConnection, HealthResult, ProbeCheck, ProbeResult } from "./types";
 
 type DB = SupabaseClient<any, "public", any>;
 

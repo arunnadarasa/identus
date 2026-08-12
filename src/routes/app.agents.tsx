@@ -16,6 +16,8 @@ import { FlyDeployPanel } from "@/components/FlyDeployPanel";
 import { AgentHealthPanel } from "@/components/AgentHealthPanel";
 import { AgentReadinessStatus } from "@/components/AgentReadinessWatcher";
 import { ProvisionLogViewer } from "@/components/ProvisionLogViewer";
+import { FlyAgentPicker } from "@/components/FlyAgentPicker";
+import { ActiveAgentCard } from "@/components/ActiveAgentCard";
 
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +57,8 @@ function Agents() {
   const [simName, setSimName] = useState("Simulated agent");
   const [busy, setBusy] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
+
+  const activeConnection = (connections ?? []).find((c: any) => c.is_active) ?? null;
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["connections"] });
@@ -97,6 +101,10 @@ function Agents() {
           Simulated, Docker-local or a real Cloud Agent deployed to Fly.io.
         </p>
       </div>
+
+      {activeConnection ? (
+        <ActiveAgentCard connection={activeConnection} onChecked={invalidate} />
+      ) : null}
 
       <div className="grid gap-4">
         {(connections ?? []).map((conn: any) => (
@@ -296,8 +304,19 @@ function Agents() {
               </Button>
             </TabsContent>
 
-            <TabsContent value="fly">
-              <FlyDeployPanel onChanged={invalidate} />
+            <TabsContent value="fly" className="space-y-6 pt-4">
+              <div className="space-y-3">
+                <div>
+                  <h3 className="font-display text-sm font-semibold">Your Fly apps</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Point the console at an app that already runs a Cloud Agent.
+                  </p>
+                </div>
+                <FlyAgentPicker onChanged={invalidate} />
+              </div>
+              <div className="border-t border-border/60 pt-6">
+                <FlyDeployPanel onChanged={invalidate} />
+              </div>
             </TabsContent>
 
           </Tabs>

@@ -9,9 +9,11 @@ import {
   deleteConnection,
   setActiveConnection,
   testConnection,
+  diagnoseConnection,
 } from "@/lib/identus.functions";
 import { flyAppStatus, destroyFlyApp } from "@/lib/identus/fly.functions";
 import { FlyDeployPanel } from "@/components/FlyDeployPanel";
+import { AgentHealthPanel } from "@/components/AgentHealthPanel";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

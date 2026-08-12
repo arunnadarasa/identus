@@ -179,19 +179,27 @@ function Agents() {
                 )}
               </div>
             </CardHeader>
-            {Array.isArray(conn.provision_log) && conn.provision_log.length ? (
-              <CardContent className="space-y-1 font-mono text-xs">
-                {conn.provision_log.map((entry: any, index: number) => (
-                  <div
-                    key={index}
-                    className={entry.status === "error" ? "text-destructive" : "text-success"}
-                  >
-                    {entry.status === "error" ? "✕" : "✓"} {entry.step}
-                    {entry.detail ? ` — ${entry.detail}` : ""}
-                  </div>
-                ))}
-              </CardContent>
-            ) : null}
+            <CardContent className="space-y-3">
+              <AgentHealthPanel
+                connectionId={conn.id}
+                lastProbe={conn.last_probe ?? null}
+                lastCheckedAt={conn.last_checked_at ?? null}
+                onChecked={invalidate}
+              />
+              {Array.isArray(conn.provision_log) && conn.provision_log.length ? (
+                <div className="space-y-1 font-mono text-xs">
+                  {conn.provision_log.map((entry: any, index: number) => (
+                    <div
+                      key={index}
+                      className={entry.status === "error" ? "text-destructive" : "text-success"}
+                    >
+                      {entry.status === "error" ? "✕" : "✓"} {entry.step}
+                      {entry.detail ? ` — ${entry.detail}` : ""}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </CardContent>
           </Card>
         ))}
       </div>

@@ -40,7 +40,7 @@ export class FlyApiError extends Error {
 }
 
 /** Turn opaque Fly registry failures into something actionable in the log. */
-function describeFlyError(error: FlyApiError) {
+export function describeFlyError(error: FlyApiError) {
   const manifest = /failed to get manifest ([^\s"]+)/.exec(error.body);
   if (manifest) {
     return `Image ${manifest[1]} is not publicly pullable — Fly could not fetch its manifest`;

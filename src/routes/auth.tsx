@@ -37,11 +37,16 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
 
   useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) navigate({ to: "/app" });
+    });
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/app" });
     });
+    return () => sub.subscription.unsubscribe();
   }, [navigate]);
 
   async function signIn(event: React.FormEvent) {
@@ -76,15 +81,33 @@ function AuthPage() {
   }
 
   async function google() {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      toast.error("Google sign-in failed. Try email instead.");
-      return;
+    setGoogleBusy(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        console.error("Google sign-in error", result.error);
+        toast.error(result.error.message || "Google sign-in failed.");
+        return;
+      }
+      if (result.redirected) return;
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        navigate({ to: "/app" });
+        return;
+      }
+      toast.error(
+        "Google sign-in didn't complete — the popup was closed or blocked. Allow popups and try again, or use email below.",
+      );
+    } catch (err) {
+      console.error("Google sign-in threw", err);
+      toast.error(
+        err instanceof Error ? err.message : "Google sign-in failed unexpectedly.",
+      );
+    } finally {
+      setGoogleBusy(false);
     }
-    if (result.redirected) return;
-    navigate({ to: "/app" });
   }
 
   return (
@@ -101,8 +124,13 @@ function AuthPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full" onClick={google}>
-              Continue with Google
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={google}
+              disabled={googleBusy}
+            >
+              {googleBusy ? "Signing in…" : "Continue with Google"}
             </Button>
             <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
               <span className="h-px flex-1 bg-border" />

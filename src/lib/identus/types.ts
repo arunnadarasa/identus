@@ -15,7 +15,13 @@ export interface AgentConnection {
   last_checked_at: string | null;
   has_api_key?: boolean;
   last_probe?: ProbeResult | null;
+  readiness_status?: ReadinessStatus;
+  readiness_attempts?: number;
+  readiness_started_at?: string | null;
+  ready_at?: string | null;
 }
+
+export type ReadinessStatus = "unknown" | "waiting" | "ready" | "timeout";
 
 export interface ProbeCheck {
   id: string;

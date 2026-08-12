@@ -14,6 +14,7 @@ import {
 import { flyAppStatus, destroyFlyApp } from "@/lib/identus/fly.functions";
 import { FlyDeployPanel } from "@/components/FlyDeployPanel";
 import { AgentHealthPanel } from "@/components/AgentHealthPanel";
+import { AgentReadinessStatus } from "@/components/AgentReadinessWatcher";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -180,6 +181,15 @@ function Agents() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
+              {conn.mode !== "simulated" && conn.readiness_status && conn.readiness_status !== "unknown" ? (
+                <AgentReadinessStatus
+                  connectionId={conn.id}
+                  status={conn.readiness_status}
+                  startedAt={conn.readiness_started_at ?? null}
+                  attempts={conn.readiness_attempts ?? 0}
+                  readyAt={conn.ready_at ?? null}
+                />
+              ) : null}
               <AgentHealthPanel
                 connectionId={conn.id}
                 lastProbe={conn.last_probe ?? null}

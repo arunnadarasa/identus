@@ -145,6 +145,86 @@ export const diagnoseConnection = createServerFn({ method: "POST" })
     return result;
   });
 
+/**
+ * Post-deploy readiness check. Runs the deep probe, records readiness state on the
+ * connection and only logs to the activity trail on a state transition so repeated
+ * polling does not flood the log.
+ */
+export const awaitAgentReady = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({ id: z.string().uuid(), timeoutMs: z.number().int().min(30_000).max(1_800_000).optional() })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { probeAgent, logActivity } = await import("./identus/agent.server");
+    const { data: conn, error } = await context.supabase
+      .from("agent_connections")
+      .select("*")
+      .eq("id", data.id)
+      .single();
+    if (error) throw new Error(error.message);
+
+    const now = Date.now();
+    const startedAt = conn.readiness_started_at ?? new Date(now).toISOString();
+    const attempts = (conn.readiness_attempts ?? 0) + 1;
+    const elapsedMs = now - new Date(startedAt).getTime();
+    const budgetMs = data.timeoutMs ?? 600_000;
+
+    const probe = await probeAgent(conn);
+    const byId = new Map(probe.checks.map((c) => [c.id, c]));
+    const ready =
+      probe.checks.length > 0 &&
+      Boolean(byId.get("system")?.ok) &&
+      Boolean(byId.get("did-registrar")?.ok);
+
+    const status: "ready" | "waiting" | "timeout" = ready
+      ? "ready"
+      : elapsedMs >= budgetMs
+        ? "timeout"
+        : "waiting";
+    const previous = conn.readiness_status ?? "unknown";
+
+    await context.supabase
+      .from("agent_connections")
+      .update({
+        readiness_status: status,
+        readiness_attempts: attempts,
+        readiness_started_at: startedAt,
+        ready_at: ready ? (conn.ready_at ?? new Date(now).toISOString()) : conn.ready_at,
+        last_health: probe.healthy ? "healthy" : "unreachable",
+        last_checked_at: new Date(now).toISOString(),
+        last_probe: JSON.parse(JSON.stringify(probe)),
+      })
+      .eq("id", data.id);
+
+    if (status !== previous && status !== "waiting") {
+      await logActivity(
+        context.supabase,
+        context.userId,
+        data.id,
+        status === "ready" ? "connection.ready" : "connection.readiness_timeout",
+        status === "ready"
+          ? `Agent became ready after ${Math.round(elapsedMs / 1000)}s (${attempts} checks)`
+          : `Agent did not become ready within ${Math.round(budgetMs / 60_000)} minutes: ${probe.message}`,
+        status === "ready" ? "ok" : "error",
+        probe.checks,
+      );
+    }
+
+    return {
+      status,
+      ready,
+      attempts,
+      elapsedMs,
+      startedAt,
+      probe,
+      message: probe.message,
+    };
+  });
+
+
 export const getWorkspace = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

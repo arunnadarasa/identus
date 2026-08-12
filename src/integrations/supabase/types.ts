@@ -71,6 +71,10 @@ export type Database = {
           name: string
           provision_log: Json
           provision_status: string | null
+          readiness_attempts: number
+          readiness_started_at: string | null
+          readiness_status: string
+          ready_at: string | null
           updated_at: string
           user_id: string
           wallet_id: string | null
@@ -90,6 +94,10 @@ export type Database = {
           name: string
           provision_log?: Json
           provision_status?: string | null
+          readiness_attempts?: number
+          readiness_started_at?: string | null
+          readiness_status?: string
+          ready_at?: string | null
           updated_at?: string
           user_id: string
           wallet_id?: string | null
@@ -109,6 +117,10 @@ export type Database = {
           name?: string
           provision_log?: Json
           provision_status?: string | null
+          readiness_attempts?: number
+          readiness_started_at?: string | null
+          readiness_status?: string
+          ready_at?: string | null
           updated_at?: string
           user_id?: string
           wallet_id?: string | null

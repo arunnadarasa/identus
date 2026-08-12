@@ -223,6 +223,8 @@ function Agents() {
         ))}
       </div>
 
+      <ModeRecommendation variant="agent-hosting" />
+
       <Card className="border-border/60">
         <CardHeader>
           <CardTitle className="font-display text-lg">Add an agent</CardTitle>

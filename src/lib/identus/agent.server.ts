@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AgentConnection, HealthResult } from "./types";
+import type { AgentConnection, HealthResult, ProbeCheck, ProbeResult } from "./types";
 
 type DB = SupabaseClient<any, "public", any>;
 
@@ -108,6 +108,117 @@ export async function checkHealth(conn: {
         : `Could not reach the agent: ${msg}`,
     };
   }
+}
+
+const PROBE_CHECKS = [
+  { id: "system", label: "System health", path: "/_system/health" },
+  { id: "did-registrar", label: "DID registrar", path: "/did-registrar/dids?offset=0&limit=1" },
+  { id: "issuance", label: "Credential issuance", path: "/issue-credentials/records?offset=0&limit=1" },
+  { id: "connections", label: "DIDComm connections", path: "/connections?offset=0&limit=1" },
+] as const;
+
+/** Deep diagnostic probe: hits several Cloud Agent endpoints and records status + latency. */
+export async function probeAgent(conn: {
+  mode: string;
+  base_url: string | null;
+  fly_app_name: string | null;
+  api_key?: string | null;
+}): Promise<ProbeResult> {
+  const startedAt = new Date().toISOString();
+
+  if (conn.mode === "simulated") {
+    return {
+      healthy: true,
+      version: "simulated-1.0",
+      message: "Simulated agent — all checks pass in-app.",
+      totalMs: 0,
+      startedAt,
+      checks: PROBE_CHECKS.map((c) => ({
+        id: c.id,
+        label: c.label,
+        ok: true,
+        ms: 0,
+        detail: "in-app runtime",
+      })),
+    };
+  }
+
+  const base = agentBaseUrl(conn as AgentConnection);
+  if (!base) {
+    return {
+      healthy: false,
+      message: "No base URL configured for this agent.",
+      totalMs: 0,
+      startedAt,
+      checks: [],
+    };
+  }
+
+  const t0 = Date.now();
+  let version: string | undefined;
+  const checks: ProbeCheck[] = [];
+
+  for (const check of PROBE_CHECKS) {
+    const started = Date.now();
+    try {
+      const res = await fetch(`${base}${check.path}`, {
+        headers: conn.api_key ? { apikey: conn.api_key } : {},
+        signal: AbortSignal.timeout(5000),
+      });
+      const text = (await res.text()).trim();
+      const ms = Date.now() - started;
+      if (check.id === "system" && res.ok) {
+        try {
+          version = JSON.parse(text).version ?? text;
+        } catch {
+          version = text;
+        }
+      }
+      const unauthorized = res.status === 401 || res.status === 403;
+      checks.push({
+        id: check.id,
+        label: check.label,
+        ok: res.ok,
+        status: res.status,
+        ms,
+        detail: res.ok
+          ? check.id === "system"
+            ? `version ${version || "unknown"}`
+            : `HTTP ${res.status}`
+          : unauthorized
+            ? "API key rejected by the agent"
+            : `HTTP ${res.status} ${text.slice(0, 120)}`,
+      });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      checks.push({
+        id: check.id,
+        label: check.label,
+        ok: false,
+        ms: Date.now() - started,
+        detail: msg.includes("timed out")
+          ? "Timed out after 5s — is the agent reachable from the internet?"
+          : msg.slice(0, 160),
+      });
+    }
+  }
+
+  const systemOk = checks.find((c) => c.id === "system")?.ok ?? false;
+  const failed = checks.filter((c) => !c.ok);
+  return {
+    healthy: systemOk && failed.length === 0,
+    version,
+    totalMs: Date.now() - t0,
+    startedAt,
+    checks,
+    message: !systemOk
+      ? `Agent is not responding — ${checks.find((c) => c.id === "system")?.detail ?? "no reply"}`
+      : failed.length
+        ? `Agent is up but ${failed.length} of ${checks.length} checks failed (${failed
+            .map((c) => c.label)
+            .join(", ")}).`
+        : `All ${checks.length} checks passed — agent version ${version || "unknown"}.`,
+  };
 }
 
 export async function logActivity(

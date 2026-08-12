@@ -9,9 +9,11 @@ import {
   deleteConnection,
   setActiveConnection,
   testConnection,
+  diagnoseConnection,
 } from "@/lib/identus.functions";
 import { flyAppStatus, destroyFlyApp } from "@/lib/identus/fly.functions";
 import { FlyDeployPanel } from "@/components/FlyDeployPanel";
+import { AgentHealthPanel } from "@/components/AgentHealthPanel";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,7 @@ function Agents() {
   const removeConnection = useServerFn(deleteConnection);
   const activate = useServerFn(setActiveConnection);
   const health = useServerFn(testConnection);
+  const diagnose = useServerFn(diagnoseConnection);
   const status = useServerFn(flyAppStatus);
   const destroy = useServerFn(destroyFlyApp);
 
@@ -48,11 +51,39 @@ function Agents() {
   const [dockerKey, setDockerKey] = useState("");
   const [simName, setSimName] = useState("Simulated agent");
   const [busy, setBusy] = useState(false);
-
+  const [switching, setSwitching] = useState<string | null>(null);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["connections"] });
     qc.invalidateQueries({ queryKey: ["workspace"] });
+  };
+
+  // Never switch to a real agent without confirming it responds first.
+  const useAgent = async (conn: any) => {
+    setSwitching(conn.id);
+    try {
+      if (conn.mode !== "simulated") {
+        const probe = await diagnose({ data: { id: conn.id } });
+        invalidate();
+        if (!probe.healthy) {
+          const failed = probe.checks.filter((c) => !c.ok).map((c) => c.label);
+          const ok = confirm(
+            `${conn.name} failed its health check.\n\n${probe.message}${
+              failed.length ? `\n\nFailing: ${failed.join(", ")}` : ""
+            }\n\nSwitch to it anyway?`,
+          );
+          if (!ok) {
+            toast.error("Stayed on the current agent");
+            return;
+          }
+        }
+      }
+      await activate({ data: { id: conn.id } });
+      invalidate();
+      toast.success(`${conn.name} is now the active agent`);
+    } finally {
+      setSwitching(null);
+    }
   };
 
   return (
@@ -94,26 +125,12 @@ function Agents() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={async () => {
-                      await activate({ data: { id: conn.id } });
-                      invalidate();
-                      toast.success(`${conn.name} is now the active agent`);
-                    }}
+                    disabled={switching === conn.id}
+                    onClick={() => useAgent(conn)}
                   >
-                    Use
+                    {switching === conn.id ? "Checking…" : "Use"}
                   </Button>
                 ) : null}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={async () => {
-                    const result = await health({ data: { id: conn.id } });
-                    invalidate();
-                    result.healthy ? toast.success(result.message) : toast.error(result.message);
-                  }}
-                >
-                  Test
-                </Button>
                 {conn.mode === "fly" ? (
                   <>
                     <Button
@@ -162,19 +179,27 @@ function Agents() {
                 )}
               </div>
             </CardHeader>
-            {Array.isArray(conn.provision_log) && conn.provision_log.length ? (
-              <CardContent className="space-y-1 font-mono text-xs">
-                {conn.provision_log.map((entry: any, index: number) => (
-                  <div
-                    key={index}
-                    className={entry.status === "error" ? "text-destructive" : "text-success"}
-                  >
-                    {entry.status === "error" ? "✕" : "✓"} {entry.step}
-                    {entry.detail ? ` — ${entry.detail}` : ""}
-                  </div>
-                ))}
-              </CardContent>
-            ) : null}
+            <CardContent className="space-y-3">
+              <AgentHealthPanel
+                connectionId={conn.id}
+                lastProbe={conn.last_probe ?? null}
+                lastCheckedAt={conn.last_checked_at ?? null}
+                onChecked={invalidate}
+              />
+              {Array.isArray(conn.provision_log) && conn.provision_log.length ? (
+                <div className="space-y-1 font-mono text-xs">
+                  {conn.provision_log.map((entry: any, index: number) => (
+                    <div
+                      key={index}
+                      className={entry.status === "error" ? "text-destructive" : "text-success"}
+                    >
+                      {entry.status === "error" ? "✕" : "✓"} {entry.step}
+                      {entry.detail ? ` — ${entry.detail}` : ""}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </CardContent>
           </Card>
         ))}
       </div>

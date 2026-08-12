@@ -113,6 +113,38 @@ export const testConnection = createServerFn({ method: "POST" })
     return result;
   });
 
+export const diagnoseConnection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { probeAgent, logActivity } = await import("./identus/agent.server");
+    const { data: conn, error } = await context.supabase
+      .from("agent_connections")
+      .select("*")
+      .eq("id", data.id)
+      .single();
+    if (error) throw new Error(error.message);
+    const result = await probeAgent(conn);
+    await context.supabase
+      .from("agent_connections")
+      .update({
+        last_health: result.healthy ? "healthy" : "unreachable",
+        last_checked_at: new Date().toISOString(),
+        last_probe: JSON.parse(JSON.stringify(result)),
+      })
+      .eq("id", data.id);
+    await logActivity(
+      context.supabase,
+      context.userId,
+      data.id,
+      "connection.diagnose",
+      result.message,
+      result.healthy ? "ok" : "error",
+      result.checks,
+    );
+    return result;
+  });
+
 export const getWorkspace = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

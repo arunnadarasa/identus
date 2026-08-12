@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MODE_LABELS, type AgentMode } from "@/lib/identus/types";
+import { AgentHealthPanel } from "@/components/AgentHealthPanel";
 
 export const Route = createFileRoute("/app/")({
   ssr: false,
@@ -72,6 +73,15 @@ function Overview() {
             </Button>
           </div>
         </CardHeader>
+        {active ? (
+          <CardContent>
+            <AgentHealthPanel
+              connectionId={active.id}
+              lastProbe={active.last_probe ?? null}
+              lastCheckedAt={active.last_checked_at ?? null}
+            />
+          </CardContent>
+        ) : null}
       </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

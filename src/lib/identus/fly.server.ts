@@ -93,6 +93,42 @@ export async function listMachines(appName: string): Promise<FlyMachine[]> {
   }));
 }
 
+export interface FlyAppSummary {
+  name: string;
+  status: string;
+  machineCount: number;
+  machines: FlyMachine[];
+  machinesMessage?: string;
+}
+
+/** Apps in an organisation, each with its live machine states. */
+export async function listApps(orgSlug: string): Promise<FlyAppSummary[]> {
+  const raw = (await fly(`/apps?org_slug=${encodeURIComponent(orgSlug)}`)) as {
+    apps?: { name: string; status?: string; machine_count?: number }[];
+  } | null;
+  const apps = raw?.apps ?? [];
+  return Promise.all(
+    apps.map(async (app) => {
+      let machines: FlyMachine[] = [];
+      let machinesMessage: string | undefined;
+      try {
+        machines = await listMachines(app.name);
+      } catch (error) {
+        machinesMessage = error instanceof Error ? error.message : String(error);
+      }
+      return {
+        name: app.name,
+        status: app.status ?? "unknown",
+        machineCount: app.machine_count ?? machines.length,
+        machines,
+        machinesMessage,
+      };
+    }),
+  );
+}
+
+
+
 
 export async function flyGraphql(query: string, variables: Record<string, unknown>) {
   const res = await fetch(FLY_GRAPHQL, {

@@ -79,8 +79,11 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
     const password = data.pgPassword ?? crypto.randomUUID().replace(/-/g, "");
     const adminKey = data.adminKey ?? crypto.randomUUID().replace(/-/g, "");
     const guest = { cpus: data.cpus ?? 2, memoryMb: data.memoryMb ?? 2048 };
-    const pgHost = `identus-postgres.process.${data.appName}.internal`;
-    const prismHost = `identus-prism-node.process.${data.appName}.internal`;
+    // Fly private DNS resolves process groups, not machine names. The machine's
+    // private 6PN address is used when the create call returns one, since it is
+    // available immediately and does not wait on DNS propagation.
+    let pgHost = `postgres.process.${data.appName}.internal`;
+    let prismHost = `prism-node.process.${data.appName}.internal`;
 
     const { data: conn, error: insertError } = await context.supabase
       .from("agent_connections")
@@ -88,7 +91,7 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
         user_id: context.userId,
         name: `Fly · ${data.appName}`,
         mode: "fly",
-        base_url: `https://${data.appName}.fly.dev/cloud-agent`,
+        base_url: `https://${data.appName}.fly.dev`,
         api_key: adminKey,
         fly_app_name: data.appName,
         fly_region: data.region,
@@ -172,7 +175,7 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
         () => `3 GB in ${data.region}`,
       );
 
-      await runStep(
+      const pgMachine = await runStep(
         "Start Postgres machine",
         `POST /apps/${data.appName}/machines`,
         () => {
@@ -185,8 +188,24 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
         },
         () => pgHost,
       );
+      if (pgMachine?.private_ip) pgHost = `[${pgMachine.private_ip}]`;
 
+      // Postgres has to finish initdb (it creates the four databases on first
+      // boot) before the node and the agent can migrate their schemas.
       await runStep(
+        "Wait for Postgres to start",
+        `GET /apps/${data.appName}/machines/${pgMachine?.id}/wait`,
+        async () => {
+          await fly(
+            `/apps/${data.appName}/machines/${pgMachine.id}/wait?state=started&timeout=120`,
+          );
+          await new Promise((r) => setTimeout(r, 8000));
+          return true;
+        },
+        () => "database accepting connections",
+      );
+
+      const prismMachine = await runStep(
         "Start PRISM node",
         `POST /apps/${data.appName}/machines`,
         () =>
@@ -196,6 +215,7 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
           }),
         () => prismHost,
       );
+      if (prismMachine?.private_ip) prismHost = `[${prismMachine.private_ip}]`;
 
       await runStep(
         "Start Identus Cloud Agent",
@@ -251,7 +271,7 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
         connectionId: conn.id as string,
         steps,
         adminKey,
-        baseUrl: `https://${data.appName}.fly.dev/cloud-agent`,
+        baseUrl: `https://${data.appName}.fly.dev`,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -447,7 +467,7 @@ export const adoptFlyAgent = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { probeAgent, logActivity } = await import("./agent.server");
-    const baseUrl = `https://${data.appName}.fly.dev/cloud-agent`;
+    const baseUrl = `https://${data.appName}.fly.dev`;
 
     const { data: existing } = await context.supabase
       .from("agent_connections")

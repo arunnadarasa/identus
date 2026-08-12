@@ -35,19 +35,19 @@ function Overview() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight">Overview</h1>
+        <h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">Overview</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Your active agent and everything it has produced so far.
         </p>
       </div>
 
       <Card className="border-border/60">
-        <CardHeader className="flex flex-row items-start justify-between gap-4">
-          <div>
-            <CardTitle className="font-display">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="min-w-0">
+            <CardTitle className="font-display break-words">
               {active ? active.name : "No agent configured"}
             </CardTitle>
-            <CardDescription className="pt-1">
+            <CardDescription className="break-all pt-1">
               {active
                 ? `${MODE_LABELS[active.mode as AgentMode]} · ${
                     active.base_url ?? "in-app runtime"
@@ -55,7 +55,7 @@ function Overview() {
                 : "Add an agent to start issuing credentials."}
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             {active ? (
               <Badge
                 variant="outline"
@@ -84,7 +84,7 @@ function Overview() {
         ) : null}
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {stats.map((stat) => (
           <Link key={stat.label} to={stat.to}>
             <Card className="border-border/60 transition-colors hover:border-primary/50">
@@ -108,8 +108,8 @@ function Overview() {
             <p className="text-sm text-muted-foreground">Nothing has happened yet.</p>
           ) : (
             data.activity.slice(0, 8).map((entry: any) => (
-              <div key={entry.id} className="flex items-start justify-between gap-4 text-sm">
-                <div>
+              <div key={entry.id} className="flex items-start justify-between gap-3 text-sm sm:gap-4">
+                <div className="min-w-0">
                   <span className="font-mono text-xs text-primary">{entry.kind}</span>
                   <p className="text-muted-foreground">{entry.summary}</p>
                 </div>

@@ -1,0 +1,3 @@
+ALTER TABLE public.sprite_boxes
+  ADD COLUMN IF NOT EXISTS lab_ready BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS lab_log JSONB NOT NULL DEFAULT '[]'::jsonb;

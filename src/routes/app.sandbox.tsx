@@ -14,7 +14,9 @@ import {
 } from "lucide-react";
 import { getSandbox, ensureSandbox, destroySandbox } from "@/lib/sprites/sandbox.functions";
 import { SnippetRunner } from "@/components/SnippetRunner";
+import { ComposeLabPanel } from "@/components/ComposeLabPanel";
 import { ModeRecommendation } from "@/components/ModeRecommendation";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,16 +26,17 @@ export const Route = createFileRoute("/app/sandbox")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "SDK sandbox — Identus Companion" },
+      { title: "Sandbox — Identus Companion" },
       {
         name: "description",
         content:
-          "Run Identus TypeScript SDK snippets in your own disposable sandbox box, wired to your active Cloud Agent.",
+          "Run Identus SDK snippets and lint your docker-local Compose stack in a disposable micro-environment.",
       },
-      { property: "og:title", content: "SDK sandbox — Identus Companion" },
+      { property: "og:title", content: "Sandbox — Identus Companion" },
       {
         property: "og:description",
-        content: "Generate and test Identus SDK code without deploying a full agent stack.",
+        content:
+          "SDK snippets plus a Docker Compose lab for Identus, without deploying a full agent stack.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -137,15 +140,28 @@ function Sandbox() {
     <div className="space-y-8">
       <div>
         <h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">
-          SDK sandbox
+          Sandbox
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           A private Linux box with Node and the Identus TypeScript SDK installed, so you can write
-          and run snippets without deploying an agent stack.
+          and run snippets — or author and lint a Docker Compose stack — without deploying an agent.
         </p>
       </div>
 
+      <Tabs defaultValue="sdk" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 sm:inline-flex sm:w-auto">
+          <TabsTrigger value="sdk">SDK snippets</TabsTrigger>
+          <TabsTrigger value="docker">Docker local</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="docker" className="space-y-6">
+          <ComposeLabPanel />
+        </TabsContent>
+
+        <TabsContent value="sdk" className="space-y-8">
       <ModeRecommendation variant="sdk-sandbox" />
+
+
 
       {!data.hasToken ? (
         <Card className="border-destructive/50">
@@ -272,6 +288,9 @@ function Sandbox() {
       </div>
 
       <SnippetRunner data={data} />
+        </TabsContent>
+      </Tabs>
     </div>
+
   );
 }

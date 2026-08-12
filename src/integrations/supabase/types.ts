@@ -127,6 +127,39 @@ export type Database = {
         }
         Relationships: []
       }
+      compose_files: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          last_result: Json | null
+          last_validated_at: string | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          id?: string
+          last_result?: Json | null
+          last_validated_at?: string | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          last_result?: Json | null
+          last_validated_at?: string | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       credential_records: {
         Row: {
           claims: Json
@@ -385,6 +418,8 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          lab_log: Json
+          lab_ready: boolean
           provision_log: Json
           sdk_ready: boolean
           sprite_name: string
@@ -396,6 +431,8 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          lab_log?: Json
+          lab_ready?: boolean
           provision_log?: Json
           sdk_ready?: boolean
           sprite_name: string
@@ -407,6 +444,8 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          lab_log?: Json
+          lab_ready?: boolean
           provision_log?: Json
           sdk_ready?: boolean
           sprite_name?: string

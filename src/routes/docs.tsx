@@ -236,8 +236,13 @@ function Docs() {
             multi-service composition and no managed Postgres. The companion app uses it instead as a
             per-user scratch box: each account gets a private sprite with Node and the Identus
             TypeScript SDK installed, and snippets run there with the active agent&apos;s base URL and
-            admin key injected as environment variables.
+            admin key injected as environment variables. The same box also powers the{" "}
+            <strong className="text-foreground">Compose Lab</strong>, which authors, interpolates and
+            lints the docker-local stack — ports, credentials, image tags and databases — and then
+            hands you the bundle plus the commands to run it on your own machine. Sprites never
+            executes the containers.
           </div>
+
         </section>
 
         <section>

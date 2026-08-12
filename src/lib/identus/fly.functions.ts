@@ -71,7 +71,9 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
       postgresMachineConfig,
       prismNodeMachineConfig,
       agentMachineConfig,
+      waitForMachineState,
     } = await import("./fly.server");
+
     type Step = import("./fly.server").Step;
     const { logActivity } = await import("./agent.server");
 
@@ -192,18 +194,28 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
 
       // Postgres has to finish initdb (it creates the four databases on first
       // boot) before the node and the agent can migrate their schemas.
+      let pgWaitDetail = "database accepting connections";
       await runStep(
         "Wait for Postgres to start",
         `GET /apps/${data.appName}/machines/${pgMachine?.id}/wait`,
         async () => {
-          await fly(
-            `/apps/${data.appName}/machines/${pgMachine.id}/wait?state=started&timeout=120`,
+          await waitForMachineState(
+            data.appName,
+            pgMachine.id,
+            "started",
+            180,
+            (attempt: number, elapsed: number) => {
+              pgWaitDetail = `waiting for boot (attempt ${attempt}, ${elapsed}s elapsed)`;
+            },
+
           );
           await new Promise((r) => setTimeout(r, 8000));
+          pgWaitDetail = "database accepting connections";
           return true;
         },
-        () => "database accepting connections",
+        () => pgWaitDetail,
       );
+
 
       const prismMachine = await runStep(
         "Start PRISM node",
@@ -654,7 +666,7 @@ export const rotateFlyAdminKey = createServerFn({ method: "POST" })
       await runStep(
         "Wait for machine to start",
         `GET /apps/${appName}/machines/${agentMachine.id}/wait`,
-        () => waitForMachineState(appName, agentMachine.id, "started", 120),
+        () => waitForMachineState(appName, agentMachine.id, "started", 180),
         () => "machine started",
       );
 

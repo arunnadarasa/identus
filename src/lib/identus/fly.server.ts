@@ -366,14 +366,46 @@ export async function updateMachineEnv(
   return { previousEnv: (machine.config["env"] ?? {}) as Record<string, string>, machine: updated };
 }
 
-/** Blocks until the machine reaches `state` (Fly long-polls up to `timeout` seconds). */
+/**
+ * Blocks until the machine reaches `state`.
+ *
+ * Fly's wait endpoint only accepts a long-poll between 1s and 60s (and our own
+ * fetch aborts at 30s), so a single long wait is impossible. Poll in short
+ * bounded slices until the overall deadline passes; a wait timeout from Fly
+ * (408) just means "not ready yet".
+ */
 export async function waitForMachineState(
   appName: string,
   machineId: string,
   state: "started" | "stopped" = "started",
-  timeoutSeconds = 60,
+  overallTimeoutSeconds = 180,
+  onAttempt?: (attempt: number, elapsedSeconds: number) => void,
 ) {
-  return fly(
-    `/apps/${appName}/machines/${machineId}/wait?state=${state}&timeout=${timeoutSeconds}`,
-  );
+  const slice = 20; // seconds per poll: inside Fly's [1s, 60s] and our 30s fetch abort
+  const deadline = Date.now() + Math.max(slice, overallTimeoutSeconds) * 1000;
+  const startedAt = Date.now();
+  let attempt = 0;
+  let lastError: unknown = null;
+
+  while (Date.now() < deadline) {
+    attempt += 1;
+    onAttempt?.(attempt, Math.round((Date.now() - startedAt) / 1000));
+    try {
+      return await fly(
+        `/apps/${appName}/machines/${machineId}/wait?state=${state}&timeout=${slice}`,
+      );
+    } catch (error) {
+      lastError = error;
+      const isTimeout =
+        (error instanceof FlyApiError && (error.status === 408 || /timeout/i.test(error.body))) ||
+        (error instanceof Error && error.name === "TimeoutError");
+      if (!isTimeout) throw error;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`Machine ${machineId} did not reach state "${state}" in time`);
 }
+

@@ -566,3 +566,18 @@ export const createSchema = createServerFn({ method: "POST" })
     );
     return row;
   });
+
+/** Returns the stored admin key for one of the caller's own connections. */
+export const revealConnectionKey = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("agent_connections")
+      .select("api_key")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+    if (error) throw new Error(error.message);
+    return { apiKey: (row.api_key as string | null) ?? null };
+  });

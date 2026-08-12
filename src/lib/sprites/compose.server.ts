@@ -249,9 +249,21 @@ else:
                     warnings.append("Service '%s' image '%s' has no tag — pin a version." % (name, image))
                 elif tag == "latest":
                     warnings.append("Service '%s' uses ':latest' — pin an explicit version." % name)
-            for dep in (svc.get("depends_on") or {}):
+            if not svc.get("restart"):
+                warnings.append("Service '%s' has no restart policy — add 'restart: unless-stopped'." % name)
+            deps = svc.get("depends_on") or {}
+            dep_names = list(deps.keys()) if isinstance(deps, dict) else [str(d) for d in deps]
+            for dep in dep_names:
                 if dep not in services:
                     errors.append("Service '%s' depends on unknown service '%s'." % (name, dep))
+                    continue
+                condition = deps.get(dep, {}).get("condition") if isinstance(deps, dict) and isinstance(deps.get(dep), dict) else None
+                target = services.get(dep) or {}
+                if condition == "service_healthy" and isinstance(target, dict) and not target.get("healthcheck"):
+                    errors.append("Service '%s' waits for '%s' to be healthy, but '%s' has no healthcheck." % (name, dep, dep))
+                elif condition is None and isinstance(target, dict) and target.get("healthcheck"):
+                    warnings.append("Service '%s' depends on '%s' without a condition — use 'condition: service_healthy'." % (name, dep))
+
             for mapping in (svc.get("ports") or []):
                 text = str(mapping)
                 parts = text.split(":")

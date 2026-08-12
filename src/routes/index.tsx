@@ -128,7 +128,7 @@ function Landing() {
 
 
 
-      <section className="mx-auto max-w-6xl px-6 py-20">
+      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
         <h2 className="font-display text-2xl font-semibold tracking-tight">Three agent modes</h2>
         <p className="mt-2 max-w-2xl text-muted-foreground">
           Switch mode at any time — the console keeps the same workflows, only the backing agent
@@ -150,7 +150,7 @@ function Landing() {
       </section>
 
       <section className="border-t border-border/60 bg-card/30">
-        <div className="mx-auto max-w-6xl px-6 py-20">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
           <h2 className="font-display text-2xl font-semibold tracking-tight">
             What you can do in the console
           </h2>
@@ -166,7 +166,7 @@ function Landing() {
       </section>
 
       <footer className="border-t border-border/60">
-        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-6 py-10 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-8 sm:px-6 sm:py-10 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <span>
             Community project — not affiliated with the Hyperledger Foundation or the Linux
             Foundation.

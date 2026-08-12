@@ -183,6 +183,24 @@ cd cloud-agent/infrastructure/local
                 learn the protocol shape before deploying anything.
               </p>
             </div>
+            <div>
+              <h3 className="font-mono text-sm text-foreground">Why Fly.io for hosted agents</h3>
+              <p className="mt-2">
+                The Cloud Agent ships as container images —{" "}
+                <code className="font-mono text-xs text-foreground">identus/identus-cloud-agent</code>{" "}
+                and <code className="font-mono text-xs text-foreground">identus/prism-node</code> —
+                and needs a Postgres instance holding three separate databases (agent, connect,
+                pollux) on a private network. Fly Machines models that directly: one machine per
+                image, a shared internal network and a volume-backed Postgres.
+              </p>
+              <p className="mt-2">
+                Lighter sandbox hosts such as sprites.dev were considered and rejected: they run a
+                single Linux box with long-running commands, with no container image execution, no
+                multi-service composition and no managed Postgres, so the Identus stack cannot be
+                expressed on them.
+              </p>
+            </div>
+
           </div>
         </section>
       </article>

@@ -16,6 +16,8 @@ import { FlyDeployPanel } from "@/components/FlyDeployPanel";
 import { AgentHealthPanel } from "@/components/AgentHealthPanel";
 import { AgentReadinessStatus } from "@/components/AgentReadinessWatcher";
 import { ProvisionLogViewer } from "@/components/ProvisionLogViewer";
+import { FlyMachineDiagnostics } from "@/components/FlyMachineDiagnostics";
+
 import { FlyAgentPicker } from "@/components/FlyAgentPicker";
 import { ActiveAgentCard } from "@/components/ActiveAgentCard";
 import { RotateKeyDialog } from "@/components/RotateKeyDialog";

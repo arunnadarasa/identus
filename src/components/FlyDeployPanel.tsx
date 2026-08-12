@@ -8,7 +8,11 @@ import {
   provisionFlyAgent,
   destroyFlyApp,
 } from "@/lib/identus/fly.functions";
-import { listConnections, setActiveConnection, testConnection } from "@/lib/identus.functions";
+import { listConnections, setActiveConnection } from "@/lib/identus.functions";
+import {
+  useAgentReadiness,
+  formatDuration,
+} from "@/components/AgentReadinessWatcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

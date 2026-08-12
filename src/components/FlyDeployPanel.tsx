@@ -47,7 +47,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
   const destroy = useServerFn(destroyFlyApp);
   const fetchConnections = useServerFn(listConnections);
   const activate = useServerFn(setActiveConnection);
-  const health = useServerFn(testConnection);
+  
 
   const [appName, setAppName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");

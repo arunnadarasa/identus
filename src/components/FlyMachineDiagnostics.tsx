@@ -68,6 +68,31 @@ export function FlyMachineDiagnostics({
             <p className="text-muted-foreground">No machines found in this app.</p>
           ) : null}
 
+          {query.data?.ok && ips.length === 0 ? (
+            <div className="space-y-2 rounded-md border border-destructive/40 bg-destructive/10 p-2">
+              <p className="text-destructive">
+                This app has no public IP, so <span className="font-mono">{query.data.appName}.fly.dev</span>{" "}
+                does not resolve — every health probe fails before it reaches the container, however
+                healthy the machines are.
+                {query.data.ipsMessage ? ` (${query.data.ipsMessage})` : ""}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                disabled={repair.isPending}
+                onClick={() => repair.mutate()}
+              >
+                <Globe className="mr-2 h-3 w-3" />
+                {repair.isPending ? "Allocating…" : "Allocate public IP"}
+              </Button>
+            </div>
+          ) : ips.length ? (
+            <p className="text-muted-foreground">
+              Public IPs: {ips.map((ip) => `${ip.type} ${ip.address}`).join(", ")}
+            </p>
+          ) : null}
+
           {machines.map((m) => (
             <div key={m.id} className="space-y-2 border-b border-border/40 pb-2 last:border-0 last:pb-0">
               <div className="flex flex-wrap items-center gap-2">

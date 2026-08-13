@@ -694,6 +694,11 @@ export interface FlyLogLine {
 export interface FlyLogReport {
   appName: string;
   machineId: string | null;
+  /** Which machine the tail belongs to, so agent output is never confused with the PRISM node's. */
+  machineName: string | null;
+  machineState: string | null;
+  /** False when the Cloud Agent machine printed nothing at all — itself a finding. */
+  producedOutput: boolean;
   lines: FlyLogLine[];
   /** Plain-language reading of the log tail. */
   diagnosis: string;

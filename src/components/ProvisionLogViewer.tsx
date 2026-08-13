@@ -212,14 +212,14 @@ export function ProvisionLogViewer({
             <Badge
               variant="outline"
               className={
-                query.data.status === "failed"
+                query.data.status === "failed" || stalled
                   ? "border-destructive/50 text-destructive"
                   : query.data.status === "ready"
                     ? "border-primary/40 text-primary"
                     : ""
               }
             >
-              {query.data.status}
+              {stalled ? "stalled" : query.data.status}
             </Badge>
           ) : null}
         </div>
@@ -228,6 +228,31 @@ export function ProvisionLogViewer({
           Copy log
         </Button>
       </div>
+
+      {stalled ? (
+        <div className="space-y-2 border-b border-border/60 bg-warning/10 px-3 py-3">
+          <p className="text-xs text-warning">
+            Stalled — no progress since {lastStepClock}. The deploy request stopped before it
+            finished, so nothing has been checking this app. The machines it already created are
+            still there.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" disabled={Boolean(recovering)} onClick={doResume}>
+              {recovering === "resume" ? "Checking…" : "Resume readiness check"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive"
+              disabled={Boolean(recovering)}
+              onClick={doDestroy}
+            >
+              {recovering === "destroy" ? "Destroying…" : "Destroy app"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
 
       <div ref={scroller} className="max-h-80 overflow-auto overscroll-contain">
         {steps.length === 0 ? (

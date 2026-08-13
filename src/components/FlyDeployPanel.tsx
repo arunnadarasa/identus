@@ -10,6 +10,8 @@ import {
 } from "@/lib/identus/fly.functions";
 import { listConnections, setActiveConnection } from "@/lib/identus.functions";
 import { ProvisionLogViewer } from "@/components/ProvisionLogViewer";
+import { FlyMachineDiagnostics } from "@/components/FlyMachineDiagnostics";
+import { FlyAgentLogs } from "@/components/FlyAgentLogs";
 import type { ProvisionStep } from "@/lib/identus/types";
 import {
   useAgentReadiness,

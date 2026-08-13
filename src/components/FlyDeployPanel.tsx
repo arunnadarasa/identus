@@ -272,6 +272,14 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
               <p className="text-xs text-destructive">
                 4–40 characters: lowercase letters, numbers and dashes.
               </p>
+            ) : nameTaken ? (
+              <p className="text-xs text-destructive">
+                Already taken in your Fly organisation — pick another name.
+              </p>
+            ) : checkingName ? (
+              <p className="text-xs text-muted-foreground">Checking availability…</p>
+            ) : nameValid && nameCheck.data?.ok ? (
+              <p className="text-xs text-muted-foreground">Name is available.</p>
             ) : null}
           </div>
           <div className="space-y-2">

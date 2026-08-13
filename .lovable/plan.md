@@ -1,41 +1,42 @@
 # Debug: identus-agent-arun never answers
 
-## What I verified just now
+## What the evidence says
 
-- The console row for `identus-agent-arun` is `readiness_status: waiting`, `last_health: unreachable`, 3 attempts, and every probe check times out at 6s.
-- Public networking is fine: the app has both a public IPv4 (`66.241.124.86`) and IPv6 address, and DNS resolves. So this is not the "missing public IP" failure from the previous deploy.
-- Requests to `https://identus-agent-arun.fly.dev/_system/health` hang until timeout instead of returning an error. Fly's edge accepts the connection but the agent machine is not answering on port 8085 — it is either still migrating databases or crash-looping.
-- The Fly machine config requests 2 shared CPUs / 2048 MB for the agent (`agentMachineConfig` default and the "recommended" size in the deploy panel). Identus first boot migrates four databases on the JVM; 2 GB is the size that previously got OOM-killed, and 4 GB is the value recorded as safe.
+- Console row for `identus-agent-arun`: `readiness_status: waiting`, `last_health: unreachable`, every probe times out at 6s.
+- Public networking is fine — the app has a public IPv4 (`66.241.124.86`) and IPv6 address and DNS resolves. This is not the earlier "missing public IP" failure.
+- Requests to `https://identus-agent-arun.fly.dev/_system/health` hang until timeout: Fly's edge accepts the connection but nothing behind it answers on port 8085.
+- The Fly logs you shared contain **only `io.iohk.atala.prism.node` lines** — the PRISM node happily looping over "move scheduled objects to pending". There is not a single Cloud Agent log line, and the machine list shows one machine **STOPPED** next to one **STARTED**.
 
-The screenshot at 2m13s is also inside the normal boot window, so part of what you are seeing is the UI presenting a still-booting agent as four red "down" rows with no explanation.
+So the PRISM node is healthy and the Cloud Agent machine is not running. That is why the URL hangs. The most likely reason at the configured size is that the agent machine exited during first boot (OOM or a failed DB migration) — the agent is currently created with only 2 shared CPUs / 2048 MB, which is the size previously recorded as too small for the four first-boot database migrations.
 
-## Step 1 — confirm the cause from the machine itself
+## Step 1 — name the exit reason
 
-Before changing anything, read the evidence the app can already fetch for this connection:
+Extend the diagnostics that already exist for this connection so the agent machine's own story is visible without leaving the app:
 
-- Machine diagnostics: per-machine state, restart count, memory, and Fly health-check output.
-- Agent logs: the container boot tail, which shows either Flyway migrations in progress, a JDBC/gRPC connection failure, or an OOM kill.
+- Show each machine's state, restart count, memory, last exit code, and `oomKilled` flag, with the stopped machine pulled to the top.
+- Filter the log tail per machine so the Cloud Agent's (empty or truncated) output is distinguishable from the PRISM node's noise, and say explicitly when the agent produced no logs at all — that itself is the finding.
+- Translate the machine event into one sentence: OOM-killed, exited non-zero during migration, or stopped cleanly.
 
-Whichever of the three signals appears decides the fix: OOM/restarts -> memory, JDBC/gRPC errors -> Postgres or PRISM node reachability, quiet-but-slow migrations -> patience plus a longer readiness deadline.
+## Step 2 — fix the sizing and restart the agent
 
-## Step 2 — remove the known undersizing
+- Raise the agent machine default to 4 shared CPUs / 4096 MB and make 4 GB the "recommended" choice in the deploy panel; keep 2 GB as an explicitly-labelled cheap option that may fail on first boot.
+- Add a **Repair agent machine** action to Machine diagnostics that applies the 4 GB guest to the existing machine and starts it again, then re-runs the readiness watcher. This fixes `identus-agent-arun` in place — no redeploy, no new app.
+- Make provisioning treat a stopped/exited agent machine as a failed step with the exit reason in the provisioning log, instead of reporting "Start Identus Cloud Agent ✓" and moving on.
 
-- Raise the agent machine default to 4 shared CPUs / 4096 MB, and make 4 GB the "recommended" option in the deploy panel (keep 2 GB as an explicitly-labelled cheap option that may OOM on first boot).
-- Existing unhealthy Fly agents get a "Resize agent machine" repair action in Machine diagnostics that applies the 4 GB guest and restarts that machine, so `identus-agent-arun` can be fixed without a full redeploy.
+## Step 3 — make the wait honest
 
-## Step 3 — make booting readable
-
-- While readiness is still inside the boot window, show "Still booting — first boot migrates four databases and usually takes 3–6 minutes" instead of four bare red rows, and only switch to a failure presentation once the deadline passes.
-- Extend the readiness watcher deadline to 12 minutes so a healthy-but-slow first boot is not reported as a failure.
-- When the deadline does pass, surface the single most likely cause from the machine events (OOM, restart loop, DB unreachable) directly in the card, with the diagnostics and logs panels one tap away.
+- Before the deadline, show "Still booting — first boot migrates four databases and usually takes 3–6 minutes" instead of four bare red rows.
+- Raise the readiness deadline to 12 minutes.
+- When readiness fails, show the machine-level reason (agent machine stopped, OOM, DB unreachable) directly on the card with the repair action next to it.
 
 ## Technical notes
 
-- `src/lib/identus/fly.server.ts`: `agentMachineConfig` guest default 2048 -> 4096 / cpus 4; add a `resizeAgentMachine` helper that PATCHes the machine config guest and restarts it.
-- `src/lib/identus/fly.functions.ts`: expose `flyResizeAgent` (auth middleware, verifies the connection belongs to the caller) and log the step into `provision_log`.
+- `src/lib/identus/fly.server.ts`: `agentMachineConfig` guest 2048 -> 4096 / cpus 4; add `resizeAndStartAgentMachine` (PATCH machine config guest, then `POST /machines/:id/start`); after starting the agent during provisioning, assert the machine reaches `started` and stays there, and capture `exit_code`/`oom_killed` into the step detail.
+- `src/lib/identus/fly.functions.ts`: expose `flyRepairAgentMachine` behind the auth middleware, verify connection ownership, append the repair to `provision_log`, then re-arm readiness.
+- `src/components/FlyMachineDiagnostics.tsx`: stopped-machine-first ordering, exit code / OOM row, Repair agent machine button alongside the existing IP repair.
+- `src/components/FlyAgentLogs.tsx`: per-machine filter plus an explicit "Cloud Agent produced no output" state.
 - `src/components/FlyDeployPanel.tsx`: reorder/relabel `SIZES` so 4 GB is recommended.
-- `src/components/AgentReadinessWatcher.tsx`: raise the deadline, add a `booting` presentation for the pre-deadline window.
-- `src/components/FlyMachineDiagnostics.tsx`: add the resize repair button next to the existing IP repair action.
-- Update the Identus skill's failure-modes card with "hangs with no response, machine started, 2 GB guest -> undersized agent".
+- `src/components/AgentReadinessWatcher.tsx`: 12-minute deadline, `booting` presentation before it.
+- Skill update: add "hangs, only prism-node logs, agent machine STOPPED -> undersized/exited agent machine" to the failure-modes card.
 
 No database schema change is needed.

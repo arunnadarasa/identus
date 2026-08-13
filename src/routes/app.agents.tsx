@@ -218,6 +218,10 @@ function Agents() {
                     connectionId={conn.id}
                     autoRefresh={conn.readiness_status === "waiting"}
                   />
+                  <FlyAgentLogs
+                    connectionId={conn.id}
+                    autoRefresh={conn.readiness_status === "waiting"}
+                  />
                   <ProvisionLogSection
                     connectionId={conn.id}
                     status={conn.provision_status ?? null}

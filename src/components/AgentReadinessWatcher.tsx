@@ -165,21 +165,25 @@ export function AgentReadinessStatus({
     );
   }
 
+  // Inside the boot window a non-answering agent is expected, so it is presented
+  // as progress rather than as four failed checks.
+  const booting = watcher.elapsedMs < BOOT_WINDOW_MS;
+
   return (
     <div className="space-y-2 rounded-md border border-border/60 bg-card/40 px-3 py-2 text-xs">
       <div className="flex items-center gap-2 text-muted-foreground">
         <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
         <span>
-          Waiting for the agent… (attempt {Math.max(watcher.attempts, attempts) || 1},{" "}
-          {formatDuration(watcher.elapsedMs)} elapsed)
+          {booting ? "Still booting" : "Waiting for the agent"}… (attempt{" "}
+          {Math.max(watcher.attempts, attempts) || 1}, {formatDuration(watcher.elapsedMs)} elapsed)
         </span>
       </div>
       <p className="text-muted-foreground">
-        {watcher.elapsedMs > 90_000
-          ? "Still no HTTP response. The Cloud Agent migrates four databases on first boot, which can take several minutes — open machine diagnostics below to see whether it is migrating or crash-looping."
-          : "The agent is booting and migrating its databases before it answers."}
+        {booting
+          ? "First boot migrates four databases and usually takes 3–6 minutes. The agent will not answer until that finishes."
+          : "Still no HTTP response after the usual boot window. Open machine diagnostics below — if the Cloud Agent machine is stopped, repair it with 4 GB and start it again."}
       </p>
-      {watcher.probe?.checks?.length ? (
+      {booting ? null : watcher.probe?.checks?.length ? (
         <ul className="grid gap-1 sm:grid-cols-2">
           {watcher.probe.checks.map((c) => (
             <li key={c.id} className="flex items-center justify-between gap-2 font-mono">

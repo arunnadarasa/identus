@@ -69,6 +69,9 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
   // belongs to this attempt, so machines and cleanup must not be offered.
   const [appCreated, setAppCreated] = useState(true);
   const [connectionId, setConnectionId] = useState<string | null>(null);
+  // App name this session has started deploying — Fly reports it as taken from
+  // the moment we create it, which must not read as a collision.
+  const [deployingName, setDeployingName] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [agentState, setAgentState] = useState<"booting" | "healthy" | "">("");
   const [deployedAt, setDeployedAt] = useState<string | null>(null);
@@ -120,13 +123,21 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
   const nameCheck = useQuery({
     queryKey: ["fly-name-check", debouncedName],
     queryFn: () => preflight({ data: { appName: debouncedName } }),
-    enabled: /^[a-z0-9-]{4,40}$/.test(debouncedName),
+    enabled: /^[a-z0-9-]{4,40}$/.test(debouncedName) && phase === "idle",
     staleTime: 15_000,
   });
+  // Once this session has deployed a name, Fly of course reports it as taken —
+  // by the app this deploy just created. The collision UI must only speak about
+  // names that were taken before we touched them.
+  const ownName = deployingName === appName;
   const nameTaken = Boolean(
-    nameCheck.data?.ok && nameCheck.data.taken && debouncedName === appName,
+    nameCheck.data?.ok &&
+      nameCheck.data.taken &&
+      debouncedName === appName &&
+      phase === "idle" &&
+      !ownName,
   );
-  const checkingName = nameCheck.isFetching && debouncedName === appName;
+  const checkingName = nameCheck.isFetching && debouncedName === appName && !ownName;
 
   const copy = async (value: string, label: string) => {
     await navigator.clipboard.writeText(value);
@@ -136,6 +147,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
   const deploy = async () => {
     if (!nameValid || !orgSlug || nameTaken) return;
     setPhase("deploying");
+    setDeployingName(appName);
     setSteps([]);
     setError("");
     setFailureReason("");
@@ -195,6 +207,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     setPhase("idle");
     setSteps([]);
     setConnectionId(null);
+    setDeployingName("");
     setAppName(`identus-agent-${randomKey().slice(0, 4)}`);
     onChanged();
     toast.success("Fly app cleaned up");
@@ -210,6 +223,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     setError("");
     setFailureReason("");
     setConnectionId(null);
+    setDeployingName("");
     setAppCreated(true);
     onChanged();
     qc.invalidateQueries({ queryKey: ["connections"] });
@@ -399,10 +413,12 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
         </Button>
       </div>
 
-      {nameTaken ? (
+      {/* Only ever about a name that was taken before this session deployed it. */}
+      {nameTaken || failureReason === "name_taken" ? (
         <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
-          An app named <span className="font-mono">{appName}</span> already exists in your Fly
-          organisation. Pick a different name, or adopt that app from the{" "}
+          An app named{" "}
+          <span className="font-mono">{nameTaken ? appName : deployingName || appName}</span> already
+          exists in your Fly organisation. Pick a different name, or adopt that app from the{" "}
           <span className="font-medium">Existing apps</span> list instead of deploying a duplicate.
         </p>
       ) : null}
@@ -413,10 +429,11 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
           live={phase === "deploying"}
           fallbackSteps={steps as ProvisionStep[]}
           showMachines={appCreated}
+          onChanged={onChanged}
           machinesNote={
             appCreated
               ? ""
-              : `Nothing was deployed: an app named ${appName} already existed, so no machines belong to this attempt.`
+              : `Nothing was deployed: an app named ${deployingName || appName} already existed, so no machines belong to this attempt.`
           }
         />
       ) : null}

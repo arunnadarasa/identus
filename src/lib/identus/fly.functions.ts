@@ -417,6 +417,119 @@ export const getProvisionLog = createServerFn({ method: "POST" })
   });
 
 
+/**
+ * Finalises a deploy whose request never returned — the machines were created
+ * but the row stayed at `provisioning`, so nothing was watching it. Inspects the
+ * app on Fly and lands the row on `ready` (starting the readiness watcher) or
+ * `failed`.
+ */
+export const resumeFlyProvisioning = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { getAppDiagnostics, listIpAddresses, allocateSharedIpv4 } = await import("./fly.server");
+    type Step = import("./fly.server").Step;
+
+    const { data: conn, error } = await context.supabase
+      .from("agent_connections")
+      .select("id, fly_app_name, provision_log")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+    if (error) throw new Error(error.message);
+    if (!conn.fly_app_name) throw new Error("This connection is not a Fly.io deployment.");
+
+    const steps: Step[] = Array.isArray(conn.provision_log)
+      ? (conn.provision_log as unknown as Step[])
+      : [];
+
+    const record = async (status: string, step: Step) => {
+      steps.push(step);
+      await context.supabase
+        .from("agent_connections")
+        .update({ provision_status: status, provision_log: steps as unknown as never })
+        .eq("id", conn.id);
+    };
+
+    try {
+      const machines = await getAppDiagnostics(conn.fly_app_name);
+      const agent = machines.find((m) => /agent/i.test(m.name));
+      const summary = machines.map((m) => `${m.name}: ${m.state}`).join(" · ");
+
+      if (!agent) {
+        await record("failed", {
+          step: "Resume provisioning",
+          status: "error",
+          at: new Date().toISOString(),
+          detail: `No agent machine exists on ${conn.fly_app_name}${summary ? ` (${summary})` : ""}. Destroy the app and deploy again.`,
+        });
+        return {
+          ok: false as const,
+          status: "failed" as const,
+          message: `No agent machine exists on ${conn.fly_app_name}. Destroy the app and deploy again.`,
+        };
+      }
+
+      if (agent.state !== "started") {
+        await record("failed", {
+          step: "Resume provisioning",
+          status: "error",
+          at: new Date().toISOString(),
+          detail: `Agent machine is ${agent.state} — ${agent.diagnosis}`,
+        });
+        return {
+          ok: false as const,
+          status: "failed" as const,
+          message: `Agent machine is ${agent.state} — ${agent.diagnosis}`,
+        };
+      }
+
+      // Without a public IP `<app>.fly.dev` has no DNS record, so every probe
+      // fails regardless of how healthy the container is.
+      let ipDetail = "public IP present";
+      try {
+        const ips = await listIpAddresses(conn.fly_app_name);
+        if (!ips.length) {
+          await allocateSharedIpv4(conn.fly_app_name);
+          ipDetail = "allocated a shared public IPv4";
+        }
+      } catch (ipError) {
+        ipDetail = ipError instanceof Error ? ipError.message : String(ipError);
+      }
+
+      await record("ready", {
+        step: "Resume provisioning",
+        status: "ok",
+        at: new Date().toISOString(),
+        detail: `${summary} · ${ipDetail}`,
+      });
+      await context.supabase
+        .from("agent_connections")
+        .update({
+          readiness_status: "waiting",
+          readiness_attempts: 0,
+          readiness_started_at: new Date().toISOString(),
+          ready_at: null,
+        })
+        .eq("id", conn.id);
+      return {
+        ok: true as const,
+        status: "ready" as const,
+        message: `Machines are up (${summary}). Checking readiness now.`,
+      };
+    } catch (flyError) {
+      const message = flyError instanceof Error ? flyError.message : String(flyError);
+      await record("failed", {
+        step: "Resume provisioning",
+        status: "error",
+        at: new Date().toISOString(),
+        detail: message,
+      });
+      return { ok: false as const, status: "failed" as const, message };
+    }
+  });
+
+
 export const flyAppStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))

@@ -1,12 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { AlertTriangle, Check, ChevronRight, Copy, Loader2 } from "lucide-react";
-import { getProvisionLog } from "@/lib/identus/fly.functions";
+import {
+  getProvisionLog,
+  resumeFlyProvisioning,
+  destroyFlyApp,
+} from "@/lib/identus/fly.functions";
 import type { ProvisionStep } from "@/lib/identus/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
+/** No new step for this long while still "provisioning" means the deploy request died. */
+const STALL_MS = 3 * 60_000;
 
 function formatMs(ms?: number) {
   if (ms === undefined) return "";
@@ -89,6 +96,8 @@ interface Props {
    * belong to a different, pre-existing app.
    */
   machinesNote?: string;
+  /** Called after a recovery action changes the connection. */
+  onChanged?: () => void;
 }
 
 export function ProvisionLogViewer({
@@ -97,9 +106,14 @@ export function ProvisionLogViewer({
   fallbackSteps = [],
   showMachines = true,
   machinesNote = "",
+  onChanged,
 }: Props) {
+  const qc = useQueryClient();
   const fetchLog = useServerFn(getProvisionLog);
+  const resume = useServerFn(resumeFlyProvisioning);
+  const destroy = useServerFn(destroyFlyApp);
   const scroller = useRef<HTMLDivElement>(null);
+  const [recovering, setRecovering] = useState("");
 
   const query = useQuery({
     queryKey: ["provision-log", connectionId],
@@ -116,6 +130,48 @@ export function ProvisionLogViewer({
   }, [query.data, fallbackSteps]);
 
   const running = steps.some((s) => s.status === "running");
+
+  // A serverless deploy request can be cut off mid-sequence: the machines exist
+  // but the row never reaches a terminal status, so nothing polls readiness.
+  const lastStepAt = steps.length ? Date.parse(steps[steps.length - 1]!.at) : NaN;
+  const stalled =
+    query.data?.status === "provisioning" &&
+    !live &&
+    Number.isFinite(lastStepAt) &&
+    Date.now() - lastStepAt > STALL_MS;
+  const lastStepClock = Number.isFinite(lastStepAt) ? formatClock(new Date(lastStepAt).toISOString()) : "";
+
+  const afterRecovery = () => {
+    qc.invalidateQueries({ queryKey: ["provision-log", connectionId] });
+    qc.invalidateQueries({ queryKey: ["connections"] });
+    onChanged?.();
+  };
+
+  const doResume = async () => {
+    if (!connectionId) return;
+    setRecovering("resume");
+    try {
+      const result = await resume({ data: { id: connectionId } });
+      afterRecovery();
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.message);
+    } finally {
+      setRecovering("");
+    }
+  };
+
+  const doDestroy = async () => {
+    if (!connectionId) return;
+    if (!confirm("Destroy this Fly app and remove it from the console? This is permanent.")) return;
+    setRecovering("destroy");
+    try {
+      const result: any = await destroy({ data: { id: connectionId } });
+      afterRecovery();
+      toast.success(result?.message ?? "Fly app destroyed");
+    } finally {
+      setRecovering("");
+    }
+  };
 
   // Keep the newest line in view while the deploy streams in.
   useEffect(() => {
@@ -156,14 +212,14 @@ export function ProvisionLogViewer({
             <Badge
               variant="outline"
               className={
-                query.data.status === "failed"
+                query.data.status === "failed" || stalled
                   ? "border-destructive/50 text-destructive"
                   : query.data.status === "ready"
                     ? "border-primary/40 text-primary"
                     : ""
               }
             >
-              {query.data.status}
+              {stalled ? "stalled" : query.data.status}
             </Badge>
           ) : null}
         </div>
@@ -172,6 +228,31 @@ export function ProvisionLogViewer({
           Copy log
         </Button>
       </div>
+
+      {stalled ? (
+        <div className="space-y-2 border-b border-border/60 bg-warning/10 px-3 py-3">
+          <p className="text-xs text-warning">
+            Stalled — no progress since {lastStepClock}. The deploy request stopped before it
+            finished, so nothing has been checking this app. The machines it already created are
+            still there.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" disabled={Boolean(recovering)} onClick={doResume}>
+              {recovering === "resume" ? "Checking…" : "Resume readiness check"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive"
+              disabled={Boolean(recovering)}
+              onClick={doDestroy}
+            >
+              {recovering === "destroy" ? "Destroying…" : "Destroy app"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
 
       <div ref={scroller} className="max-h-80 overflow-auto overscroll-contain">
         {steps.length === 0 ? (

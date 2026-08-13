@@ -225,7 +225,14 @@ export function suggestAppName() {
   return `identus-agent-${Math.random().toString(16).slice(2, 6)}`;
 }
 
-export function postgresMachineConfig(region: string, password: string) {
+/** Roles the Cloud Agent's migrations GRANT to after creating each schema. */
+export const APP_ROLES = [
+  { role: "pollux-application-user", db: "pollux" },
+  { role: "connect-application-user", db: "connect" },
+  { role: "agent-application-user", db: "agent" },
+] as const;
+
+export function postgresMachineConfig(region: string, password: string, appPassword: string) {
   return {
     name: "identus-postgres",
     region,
@@ -241,7 +248,10 @@ export function postgresMachineConfig(region: string, password: string) {
         PGDATA: "/var/lib/postgresql/data/pgdata",
       },
       // The Cloud Agent keeps its components in separate databases; create all
-      // three on first boot so schema migrations don't collide.
+      // four on first boot so schema migrations don't collide. Each component
+      // also migrates as `postgres` and then GRANTs to a dedicated
+      // `<component>-application-user` role, so those roles must exist first or
+      // the very first migration aborts with `role ... does not exist`.
       files: [
         {
           guest_path: "/docker-entrypoint-initdb.d/00-identus-databases.sh",
@@ -249,10 +259,18 @@ export function postgresMachineConfig(region: string, password: string) {
             [
               "#!/bin/bash",
               "set -e",
-              'for db in pollux connect agent node; do',
+              `APP_PASSWORD='${appPassword}'`,
+              "for db in pollux connect agent node; do",
               '  psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \\',
-              "    -c \"CREATE DATABASE $db\"",
+              '    -c "CREATE DATABASE $db"',
               "done",
+              ...APP_ROLES.flatMap(({ role, db }) => [
+                `psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \\`,
+                `  -c "CREATE ROLE \\"${role}\\" WITH LOGIN PASSWORD '$APP_PASSWORD'" \\`,
+                `  -c "GRANT CONNECT ON DATABASE ${db} TO \\"${role}\\""`,
+                `psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname ${db} \\`,
+                `  -c "GRANT USAGE, CREATE ON SCHEMA public TO \\"${role}\\""`,
+              ]),
               "",
             ].join("\n"),
           ).toString("base64"),
@@ -265,6 +283,7 @@ export function postgresMachineConfig(region: string, password: string) {
     },
   };
 }
+
 
 export function prismNodeMachineConfig(region: string, pgHost: string, password: string) {
   return {

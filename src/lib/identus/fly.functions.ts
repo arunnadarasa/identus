@@ -232,7 +232,7 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
       );
       if (prismMachine?.private_ip) prismHost = `[${prismMachine.private_ip}]`;
 
-      await runStep(
+      const agentMachine = await runStep(
         "Start Identus Cloud Agent",
         `POST /apps/${data.appName}/machines`,
         () =>
@@ -252,6 +252,28 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
           }),
         () => `${data.appName}.fly.dev`,
       );
+
+      // Creating the machine is not the same as it staying up: an undersized
+      // agent exits during the first-boot migrations, and then the public URL
+      // just hangs with no agent behind it. Verify before reporting success.
+      let agentStateDetail = "machine created";
+      await runStep(
+        "Verify agent machine is running",
+        `GET /apps/${data.appName}/machines/${agentMachine?.id}`,
+        async () => {
+          const { getMachineDiagnostics } = await import("./fly.server");
+          await waitForMachineState(data.appName, agentMachine.id, "started", 120);
+          await new Promise((r) => setTimeout(r, 5000));
+          const diag = await getMachineDiagnostics(data.appName, agentMachine.id);
+          agentStateDetail = `${diag.state} · ${diag.cpus ?? "?"} cpu · ${
+            diag.memoryMb ? `${Math.round(diag.memoryMb / 1024)} GB` : "unknown memory"
+          } — ${diag.diagnosis}`;
+          if (diag.state !== "started") throw new Error(agentStateDetail);
+          return true;
+        },
+        () => agentStateDetail,
+      );
+
 
       // A missing public IP is recoverable — log it and keep going.
       try {

@@ -69,6 +69,9 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
   // belongs to this attempt, so machines and cleanup must not be offered.
   const [appCreated, setAppCreated] = useState(true);
   const [connectionId, setConnectionId] = useState<string | null>(null);
+  // App name this session has started deploying — Fly reports it as taken from
+  // the moment we create it, which must not read as a collision.
+  const [deployingName, setDeployingName] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [agentState, setAgentState] = useState<"booting" | "healthy" | "">("");
   const [deployedAt, setDeployedAt] = useState<string | null>(null);

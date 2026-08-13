@@ -536,7 +536,62 @@ export async function getAppDiagnostics(appName: string): Promise<MachineDiagnos
   );
   const rank = (name: string) =>
     name.includes("cloud-agent") ? 0 : name.includes("prism") ? 1 : 2;
-  return details.sort((a, b) => rank(a.name) - rank(b.name));
+  // Anything not running is the reason you opened this panel, so it goes first.
+  const broken = (m: MachineDiagnostic) => (m.fatal || m.state !== "started" ? 0 : 1);
+  return details.sort(
+    (a, b) => broken(a) - broken(b) || rank(a.name) - rank(b.name),
+  );
+}
+
+/** The Cloud Agent machine, or null when the app has none. */
+export async function findAgentMachine(appName: string) {
+  const machines = await listMachines(appName);
+  return machines.find((m) => m.name.includes("cloud-agent")) ?? null;
+}
+
+/**
+ * Repairs an agent machine that exited during first boot: applies a bigger guest
+ * (the four first-boot migrations OOM at 2 GB) and starts it again.
+ *
+ * Fly replaces the whole machine config on update, so the current config is read
+ * first and only `guest` is patched.
+ */
+export async function resizeAndStartAgentMachine(
+  appName: string,
+  machineId: string,
+  guest: Guest = { cpus: 4, memoryMb: 4096 },
+) {
+  const machine = await getMachine(appName, machineId);
+  const previous = (machine.config["guest"] ?? {}) as { cpus?: number; memory_mb?: number };
+  const resized =
+    previous.memory_mb !== guest.memoryMb || previous.cpus !== guest.cpus;
+
+  if (resized) {
+    await fly(`/apps/${appName}/machines/${machineId}`, {
+      method: "POST",
+      body: JSON.stringify({
+        config: {
+          ...machine.config,
+          guest: { cpu_kind: "shared", cpus: guest.cpus, memory_mb: guest.memoryMb },
+        },
+      }),
+    });
+  }
+
+  // A machine that is already started stays started; only a stopped/failed one
+  // needs the explicit start.
+  if (machine.state !== "started") {
+    await fly(`/apps/${appName}/machines/${machineId}/start`, { method: "POST" });
+  }
+  await waitForMachineState(appName, machineId, "started", 120);
+
+  return {
+    resized,
+    previousMemoryMb: previous.memory_mb ?? null,
+    previousCpus: previous.cpus ?? null,
+    memoryMb: guest.memoryMb,
+    cpus: guest.cpus,
+  };
 }
 
 

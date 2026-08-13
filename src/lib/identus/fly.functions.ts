@@ -394,7 +394,7 @@ export const flyMachineDiagnostics = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { getAppDiagnostics } = await import("./fly.server");
+    const { getAppDiagnostics, listIpAddresses } = await import("./fly.server");
     const { data: conn, error } = await context.supabase
       .from("agent_connections")
       .select("id, fly_app_name")
@@ -405,10 +405,21 @@ export const flyMachineDiagnostics = createServerFn({ method: "POST" })
     if (!conn.fly_app_name) throw new Error("This connection is not a Fly.io deployment.");
     try {
       const machines = await getAppDiagnostics(conn.fly_app_name);
+      // No public IP means <app>.fly.dev has no DNS record at all, so every probe
+      // fails with a transport error no matter how healthy the container is.
+      let ips: { address: string; type: string }[] = [];
+      let ipsMessage = "";
+      try {
+        ips = await listIpAddresses(conn.fly_app_name);
+      } catch (ipError) {
+        ipsMessage = ipError instanceof Error ? ipError.message : String(ipError);
+      }
       return {
         ok: true as const,
         appName: conn.fly_app_name,
         machines,
+        ips,
+        ipsMessage,
         message: "",
         fatal: machines.some((m) => m.fatal),
       };
@@ -417,8 +428,45 @@ export const flyMachineDiagnostics = createServerFn({ method: "POST" })
         ok: false as const,
         appName: conn.fly_app_name,
         machines: [] as Awaited<ReturnType<typeof getAppDiagnostics>>,
+        ips: [] as { address: string; type: string }[],
+        ipsMessage: "",
         message: flyError instanceof Error ? flyError.message : String(flyError),
         fatal: false,
+      };
+    }
+  });
+
+/**
+ * Repairs an app that has no public IP. Without one Fly never publishes
+ * `<app>.fly.dev`, so the agent is unreachable even when all machines are up.
+ */
+export const flyAllocateIps = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { allocateSharedIpv4 } = await import("./fly.server");
+    const { data: conn, error } = await context.supabase
+      .from("agent_connections")
+      .select("id, fly_app_name")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+    if (error) throw new Error(error.message);
+    if (!conn.fly_app_name) throw new Error("This connection is not a Fly.io deployment.");
+    try {
+      const ips = await allocateSharedIpv4(conn.fly_app_name);
+      return {
+        ok: true as const,
+        ips,
+        message: `${conn.fly_app_name}.fly.dev now resolves via ${ips
+          .map((i) => `${i.type} ${i.address}`)
+          .join(", ")}. DNS can take up to a minute to propagate.`,
+      };
+    } catch (flyError) {
+      return {
+        ok: false as const,
+        ips: [] as { address: string; type: string }[],
+        message: flyError instanceof Error ? flyError.message : String(flyError),
       };
     }
   });

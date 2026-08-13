@@ -472,6 +472,92 @@ export const flyAllocateIps = createServerFn({ method: "POST" })
   });
 
 /**
+ * Repairs a Cloud Agent machine that exited during first boot: applies a 4 GB
+ * guest and starts it again, then re-arms the readiness watcher. This fixes an
+ * unreachable agent in place, without destroying and redeploying the app.
+ */
+export const flyRepairAgentMachine = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        cpus: z.number().int().min(1).max(8).default(4),
+        memoryMb: z.number().int().min(1024).max(16384).default(4096),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { findAgentMachine, resizeAndStartAgentMachine, describeFlyError, FlyApiError } =
+      await import("./fly.server");
+    const { data: conn, error } = await context.supabase
+      .from("agent_connections")
+      .select("id, fly_app_name, provision_log")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+    if (error) throw new Error(error.message);
+    if (!conn.fly_app_name) throw new Error("This connection is not a Fly.io deployment.");
+
+    const log = Array.isArray(conn.provision_log) ? [...(conn.provision_log as any[])] : [];
+    const record = async (status: string, detail: string) => {
+      log.push({ step: "Repair agent machine", status, detail, at: new Date().toISOString() });
+      await context.supabase
+        .from("agent_connections")
+        .update({ provision_log: log })
+        .eq("id", conn.id);
+    };
+
+    try {
+      const machine = await findAgentMachine(conn.fly_app_name);
+      if (!machine) {
+        const message = "No Cloud Agent machine exists in this app — redeploy the agent.";
+        await record("error", message);
+        return { ok: false as const, message };
+      }
+      const result = await resizeAndStartAgentMachine(conn.fly_app_name, machine.id, {
+        cpus: data.cpus,
+        memoryMb: data.memoryMb,
+      });
+      const message = `Cloud Agent machine ${
+        result.resized
+          ? `resized from ${
+              result.previousMemoryMb ? `${Math.round(result.previousMemoryMb / 1024)} GB` : "its old size"
+            } to ${Math.round(result.memoryMb / 1024)} GB and restarted`
+          : "restarted"
+      }. First boot migrates four databases, so give it a few minutes.`;
+      await record("ok", message);
+
+      await context.supabase
+        .from("agent_connections")
+        .update({
+          readiness_status: "waiting",
+          readiness_attempts: 0,
+          readiness_started_at: new Date().toISOString(),
+          ready_at: null,
+        })
+        .eq("id", conn.id);
+      await logActivity(
+        context.supabase,
+        context.userId,
+        conn.id,
+        "fly.repaired",
+        message,
+      );
+      return { ok: true as const, message, ...result };
+    } catch (flyError) {
+      const message =
+        flyError instanceof FlyApiError
+          ? describeFlyError(flyError)
+          : flyError instanceof Error
+            ? flyError.message
+            : String(flyError);
+      await record("error", message);
+      return { ok: false as const, message };
+    }
+  });
+
+/**
  * Container log tail for the deployed Cloud Agent. This is the signal machine
  * state and health checks cannot give you: whether the JVM crashed, is still
  * migrating, or never reached its database.

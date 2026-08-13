@@ -373,7 +373,7 @@ function ProvisionLogSection({
   connectionId: string;
   status: string | null;
   stepCount: number;
-  onChanged?: () => void;
+  onChanged: () => void;
 }) {
   const [open, setOpen] = useState(status === "provisioning" || status === "failed");
   if (!stepCount && !status) return null;

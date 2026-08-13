@@ -424,6 +424,45 @@ export const flyMachineDiagnostics = createServerFn({ method: "POST" })
   });
 
 /**
+ * Container log tail for the deployed Cloud Agent. This is the signal machine
+ * state and health checks cannot give you: whether the JVM crashed, is still
+ * migrating, or never reached its database.
+ */
+export const flyAgentLogs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({ id: z.string().uuid(), machineId: z.string().trim().min(1).optional() })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { getAgentLogs } = await import("./fly.server");
+    const { data: conn, error } = await context.supabase
+      .from("agent_connections")
+      .select("id, fly_app_name")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+    if (error) throw new Error(error.message);
+    if (!conn.fly_app_name) throw new Error("This connection is not a Fly.io deployment.");
+    try {
+      const report = await getAgentLogs(conn.fly_app_name, data.machineId ?? null);
+      return { ok: true as const, ...report, message: "" };
+    } catch (flyError) {
+      return {
+        ok: false as const,
+        appName: conn.fly_app_name,
+        machineId: null,
+        lines: [] as Awaited<ReturnType<typeof getAgentLogs>>["lines"],
+        diagnosis: "",
+        fatal: false,
+        message: flyError instanceof Error ? flyError.message : String(flyError),
+      };
+    }
+  });
+
+
+/**
  * Deletes a Fly app by name so half-created deployments from failed attempts can
  * be cleaned up even when no connection row tracks them. The app must belong to
  * an organisation the saved Fly token can see.

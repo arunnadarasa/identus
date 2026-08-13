@@ -609,7 +609,10 @@ export const flyAgentLogs = createServerFn({ method: "POST" })
       return {
         ok: false as const,
         appName: conn.fly_app_name,
-        machineId: null,
+        machineId: null as string | null,
+        machineName: null as string | null,
+        machineState: null as string | null,
+        producedOutput: false,
         lines: [] as Awaited<ReturnType<typeof getAgentLogs>>["lines"],
         diagnosis: "",
         fatal: false,

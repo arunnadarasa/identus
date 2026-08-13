@@ -6,7 +6,8 @@ import { awaitAgentReady } from "@/lib/identus.functions";
 import { Button } from "@/components/ui/button";
 import type { ProbeResult, ReadinessStatus } from "@/lib/identus/types";
 
-const TIMEOUT_MS = 600_000; // 10 minutes
+const TIMEOUT_MS = 720_000; // 12 minutes — first boot migrates four databases
+const BOOT_WINDOW_MS = 360_000; // under 6 minutes is a normal first boot, not a failure
 const FAST_PHASE_MS = 60_000; // first minute polls every 5s
 const FAST_INTERVAL = 5_000;
 const SLOW_INTERVAL = 15_000;

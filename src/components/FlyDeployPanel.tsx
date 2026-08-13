@@ -104,16 +104,38 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
   const tokenProblem = preflightQuery.data && !preflightQuery.data.ok ? preflightQuery.data.message : "";
   const nameValid = /^[a-z0-9-]{4,40}$/.test(appName);
 
+  // Fly rejects a duplicate app name with a 422 on the very first call, so the
+  // name is checked while it is being typed and the deploy button is gated on
+  // the result — retrying a taken name can never succeed.
+  const [debouncedName, setDebouncedName] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedName(appName), 400);
+    return () => clearTimeout(t);
+  }, [appName]);
+
+  const nameCheck = useQuery({
+    queryKey: ["fly-name-check", debouncedName],
+    queryFn: () => preflight({ data: { appName: debouncedName } }),
+    enabled: /^[a-z0-9-]{4,40}$/.test(debouncedName),
+    staleTime: 15_000,
+  });
+  const nameTaken = Boolean(
+    nameCheck.data?.ok && nameCheck.data.taken && debouncedName === appName,
+  );
+  const checkingName = nameCheck.isFetching && debouncedName === appName;
+
   const copy = async (value: string, label: string) => {
     await navigator.clipboard.writeText(value);
     toast.success(`${label} copied`);
   };
 
   const deploy = async () => {
-    if (!nameValid || !orgSlug) return;
+    if (!nameValid || !orgSlug || nameTaken) return;
     setPhase("deploying");
     setSteps([]);
     setError("");
+    setFailureReason("");
+    setAppCreated(true);
     setAgentState("");
     setDeployedAt(null);
     setConnectionId(null);
@@ -131,6 +153,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     });
     setSteps(result.steps as StepEntry[]);
     setConnectionId(result.connectionId);
+    setAppCreated(result.appCreated);
 
     onChanged();
     qc.invalidateQueries({ queryKey: ["connections"] });
@@ -142,6 +165,13 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
       toast.success(`${appName} deployed — checking readiness automatically.`);
     } else {
       setError(result.message ?? "Provisioning failed");
+      setFailureReason(result.reason ?? "");
+      // A name collision is only fixable with a different name, so a free one is
+      // filled in immediately and Retry becomes a deploy that can work.
+      if (result.reason === "name_taken" && result.suggestedName) {
+        setAppName(result.suggestedName);
+        setAdvanced(true);
+      }
       setPhase("failed");
       toast.error(result.message ?? "Provisioning failed");
     }

@@ -207,6 +207,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     setPhase("idle");
     setSteps([]);
     setConnectionId(null);
+    setDeployingName("");
     setAppName(`identus-agent-${randomKey().slice(0, 4)}`);
     onChanged();
     toast.success("Fly app cleaned up");
@@ -222,6 +223,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     setError("");
     setFailureReason("");
     setConnectionId(null);
+    setDeployingName("");
     setAppCreated(true);
     onChanged();
     qc.invalidateQueries({ queryKey: ["connections"] });

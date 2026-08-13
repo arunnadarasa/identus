@@ -155,15 +155,54 @@ export async function listOrganizations() {
   return data.organizations.nodes;
 }
 
-export async function allocateSharedIpv4(appName: string) {
-  await flyGraphql(
-    `mutation($input: AllocateIPAddressInput!) { allocateIpAddress(input: $input) { ipAddress { address type } } }`,
-    { input: { appId: appName, type: "shared_v4" } },
-  );
-  await flyGraphql(
-    `mutation($input: AllocateIPAddressInput!) { allocateIpAddress(input: $input) { ipAddress { address type } } }`,
-    { input: { appId: appName, type: "v6" } },
-  );
+export interface FlyIpAddress {
+  address: string;
+  type: string;
+}
+
+/** Public IPs currently attached to the app. Empty means `<app>.fly.dev` has no DNS. */
+export async function listIpAddresses(appName: string): Promise<FlyIpAddress[]> {
+  const data = (await flyGraphql(
+    `query($name: String!) { app(name: $name) { ipAddresses { nodes { address type } } } }`,
+    { name: appName },
+  )) as { app?: { ipAddresses?: { nodes?: FlyIpAddress[] } } } | null;
+  return (data?.app?.ipAddresses?.nodes ?? []).map((n) => ({
+    address: String(n.address),
+    type: String(n.type),
+  }));
+}
+
+/**
+ * Attaches a shared IPv4 and a dedicated IPv6 to the app.
+ *
+ * Fly only publishes `<app>.fly.dev` DNS once an IP exists, so this verifies the
+ * result instead of trusting the mutation: a silently no-op allocation leaves an
+ * app whose hostname never resolves, which looks exactly like an agent that
+ * booted but never answers.
+ */
+export async function allocateSharedIpv4(appName: string): Promise<FlyIpAddress[]> {
+  const allocate = async (type: "shared_v4" | "v6") => {
+    try {
+      await flyGraphql(
+        `mutation($input: AllocateIPAddressInput!) { allocateIpAddress(input: $input) { ipAddress { address type } } }`,
+        { input: { appId: appName, type } },
+      );
+    } catch (error) {
+      // "already allocated" is success from our point of view.
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/already|exists|taken/i.test(message)) throw error;
+    }
+  };
+  await allocate("shared_v4");
+  await allocate("v6");
+
+  const ips = await listIpAddresses(appName);
+  if (!ips.length) {
+    throw new Error(
+      `Fly accepted the allocation but ${appName} still has no public IP, so ${appName}.fly.dev will not resolve. This usually means the API token is scoped to a deploy-only role that cannot allocate IPs — use an organisation token.`,
+    );
+  }
+  return ips;
 }
 
 export interface Guest {

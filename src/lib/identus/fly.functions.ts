@@ -490,6 +490,7 @@ export const flyRepairAgentMachine = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { findAgentMachine, resizeAndStartAgentMachine, describeFlyError, FlyApiError } =
       await import("./fly.server");
+    const { logActivity } = await import("./agent.server");
     const { data: conn, error } = await context.supabase
       .from("agent_connections")
       .select("id, fly_app_name, provision_log")

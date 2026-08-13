@@ -147,6 +147,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
   const deploy = async () => {
     if (!nameValid || !orgSlug || nameTaken) return;
     setPhase("deploying");
+    setDeployingName(appName);
     setSteps([]);
     setError("");
     setFailureReason("");

@@ -322,6 +322,7 @@ export function agentMachineConfig(
   adminKey: string,
   appName: string,
   guest: Guest = { cpus: 4, memoryMb: 4096 },
+  appPassword: string = password,
 ) {
   return {
     name: "identus-cloud-agent",
@@ -339,16 +340,25 @@ export function agentMachineConfig(
         POLLUX_DB_PORT: "5432",
         POLLUX_DB_USER: "postgres",
         POLLUX_DB_PASSWORD: password,
+        // Migrations run as `postgres` and then GRANT to these roles, which the
+        // Postgres init script creates on first boot.
+        POLLUX_DB_APP_USER: "pollux-application-user",
+        POLLUX_DB_APP_PASSWORD: appPassword,
         CONNECT_DB_NAME: "connect",
         CONNECT_DB_HOST: pgHost,
         CONNECT_DB_PORT: "5432",
         CONNECT_DB_USER: "postgres",
         CONNECT_DB_PASSWORD: password,
+        CONNECT_DB_APP_USER: "connect-application-user",
+        CONNECT_DB_APP_PASSWORD: appPassword,
         AGENT_DB_NAME: "agent",
         AGENT_DB_HOST: pgHost,
         AGENT_DB_PORT: "5432",
         AGENT_DB_USER: "postgres",
         AGENT_DB_PASSWORD: password,
+        AGENT_DB_APP_USER: "agent-application-user",
+        AGENT_DB_APP_PASSWORD: appPassword,
+
         PRISM_NODE_HOST: prismHost,
         PRISM_NODE_PORT: "50053",
         API_KEY_ENABLED: "true",

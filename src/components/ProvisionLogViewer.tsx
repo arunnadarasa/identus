@@ -212,6 +212,10 @@ export function ProvisionLogViewer({
             </div>
           ))}
         </div>
+      ) : machinesNote ? (
+        <div className="border-t border-border/60 px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">{machinesNote}</p>
+        </div>
       ) : null}
     </div>
   );

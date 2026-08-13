@@ -20,6 +20,7 @@ import { FlyMachineDiagnostics } from "@/components/FlyMachineDiagnostics";
 import { FlyAgentLogs } from "@/components/FlyAgentLogs";
 
 import { FlyAgentPicker } from "@/components/FlyAgentPicker";
+import { FlyPresenceBadge } from "@/components/FlyPresenceBadge";
 import { ActiveAgentCard } from "@/components/ActiveAgentCard";
 import { RotateKeyDialog } from "@/components/RotateKeyDialog";
 import { ModeRecommendation } from "@/components/ModeRecommendation";
@@ -136,6 +137,8 @@ function Agents() {
                 >
                   {conn.last_health ?? "untested"}
                 </Badge>
+                {conn.mode === "fly" ? <FlyPresenceBadge connectionId={conn.id} /> : null}
+
                 {!conn.is_active ? (
                   <Button
                     size="sm"
@@ -170,19 +173,33 @@ function Agents() {
                     <Button
                       size="sm"
                       variant="ghost"
+                      onClick={async () => {
+                        if (!confirm(`Remove ${conn.name} from the console? The Fly app is left untouched.`))
+                          return;
+                        await removeConnection({ data: { id: conn.id } });
+                        invalidate();
+                        toast.success("Removed from console");
+                      }}
+                    >
+                      Remove from console
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       className="text-destructive"
                       onClick={async () => {
                         if (!confirm(`Destroy Fly app ${conn.fly_app_name}? This is permanent.`))
                           return;
-                        await destroy({ data: { id: conn.id } });
+                        const result: any = await destroy({ data: { id: conn.id } });
                         invalidate();
-                        toast.success("Fly app destroyed");
+                        toast.success(result?.message ?? "Fly app destroyed");
                       }}
                     >
                       Destroy
                     </Button>
                   </>
                 ) : (
+
                   <Button
                     size="sm"
                     variant="ghost"

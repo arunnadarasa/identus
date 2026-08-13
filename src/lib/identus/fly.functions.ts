@@ -548,6 +548,30 @@ export const destroyFlyAppByName = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+/**
+ * Reports whether the Fly app behind a connection still exists, so the console
+ * can label orphaned rows ("not on Fly") instead of just "unreachable".
+ */
+export const flyAppPresence = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { appExists } = await import("./fly.server");
+    const { data: conn, error } = await context.supabase
+      .from("agent_connections")
+      .select("id, fly_app_name")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+    if (error) throw new Error(error.message);
+    if (!conn.fly_app_name) return { known: false as const, exists: true as const };
+    try {
+      return { known: true as const, exists: await appExists(conn.fly_app_name) };
+    } catch {
+      return { known: false as const, exists: true as const };
+    }
+  });
+
 export const destroyFlyApp = createServerFn({ method: "POST" })
 
 
@@ -563,17 +587,39 @@ export const destroyFlyApp = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
     if (!conn.fly_app_name) throw new Error("This connection is not a Fly.io deployment.");
-    await fly(`/apps/${conn.fly_app_name}`, { method: "DELETE" });
+    // A missing app is the common case for ghost rows left over from failed or
+    // externally deleted deploys — treat 404/not-found as already destroyed so
+    // the console row always gets cleaned up.
+    let alreadyGone = false;
+    try {
+      await fly(`/apps/${conn.fly_app_name}`, { method: "DELETE" });
+    } catch (flyError) {
+      const message = flyError instanceof Error ? flyError.message : String(flyError);
+      if (/404|not found|could not find/i.test(message)) {
+        alreadyGone = true;
+      } else {
+        throw flyError;
+      }
+    }
     await context.supabase.from("agent_connections").delete().eq("id", data.id);
     await logActivity(
       context.supabase,
       context.userId,
       null,
       "fly.destroyed",
-      `Destroyed Fly app ${conn.fly_app_name}`,
+      alreadyGone
+        ? `Fly app ${conn.fly_app_name} no longer existed — removed from console`
+        : `Destroyed Fly app ${conn.fly_app_name}`,
     );
-    return { ok: true };
+    return {
+      ok: true,
+      alreadyGone,
+      message: alreadyGone
+        ? "App already gone on Fly — removed from console."
+        : `Destroyed Fly app ${conn.fly_app_name}.`,
+    };
   });
+
 
 /**
  * Apps in a Fly organisation, annotated with whether the console already tracks

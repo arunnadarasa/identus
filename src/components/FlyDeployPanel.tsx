@@ -344,13 +344,22 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <Button
           className="h-11 w-full sm:h-10 sm:w-auto"
-          disabled={phase === "deploying" || !nameValid || !orgSlug || !!tokenProblem}
+          disabled={
+            phase === "deploying" ||
+            !nameValid ||
+            !orgSlug ||
+            !!tokenProblem ||
+            nameTaken ||
+            checkingName
+          }
           onClick={deploy}
         >
           {phase === "deploying" ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" /> Deploying…
             </>
+          ) : nameTaken ? (
+            "Choose a free app name"
           ) : (
             "Deploy Cloud Agent to Fly.io"
           )}
@@ -365,11 +374,25 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
         </Button>
       </div>
 
+      {nameTaken ? (
+        <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
+          An app named <span className="font-mono">{appName}</span> already exists in your Fly
+          organisation. Pick a different name, or adopt that app from the{" "}
+          <span className="font-medium">Existing apps</span> list instead of deploying a duplicate.
+        </p>
+      ) : null}
+
       {connectionId || steps.length ? (
         <ProvisionLogViewer
           connectionId={connectionId}
           live={phase === "deploying"}
           fallbackSteps={steps as ProvisionStep[]}
+          showMachines={appCreated}
+          machinesNote={
+            appCreated
+              ? ""
+              : `Nothing was deployed: an app named ${appName} already existed, so no machines belong to this attempt.`
+          }
         />
       ) : null}
 
@@ -378,13 +401,27 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
         <div className="space-y-3 rounded-md border border-destructive/40 bg-destructive/10 p-4">
           <p className="text-sm text-destructive">{error}</p>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={deploy}>
+            <Button size="sm" variant="outline" onClick={deploy} disabled={nameTaken || checkingName}>
               Retry
             </Button>
-            <Button size="sm" variant="ghost" className="text-destructive" onClick={cleanup}>
-              Clean up app
-            </Button>
+            {/* Destroying by name is only safe when this run created the app;
+                otherwise it would delete a pre-existing app of the same name. */}
+            {appCreated && connectionId ? (
+              <Button size="sm" variant="ghost" className="text-destructive" onClick={cleanup}>
+                Clean up app
+              </Button>
+            ) : (
+              <Button size="sm" variant="ghost" onClick={discard}>
+                Discard this attempt
+              </Button>
+            )}
           </div>
+          {failureReason === "name_taken" ? (
+            <p className="text-xs text-muted-foreground">
+              A free name has been filled in for you, so Retry will deploy a fresh app. Your existing
+              Fly app was left untouched.
+            </p>
+          ) : null}
         </div>
       ) : null}
 

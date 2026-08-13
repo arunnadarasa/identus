@@ -1,8 +1,20 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, Check, Cpu, Globe, RefreshCw, Stethoscope } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  Cpu,
+  Globe,
+  RefreshCw,
+  Stethoscope,
+  Wrench,
+} from "lucide-react";
 import { toast } from "sonner";
-import { flyAllocateIps, flyMachineDiagnostics } from "@/lib/identus/fly.functions";
+import {
+  flyAllocateIps,
+  flyMachineDiagnostics,
+  flyRepairAgentMachine,
+} from "@/lib/identus/fly.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -23,8 +35,10 @@ export function FlyMachineDiagnostics({
   connectionId: string;
   autoRefresh?: boolean;
 }) {
+  const qc = useQueryClient();
   const load = useServerFn(flyMachineDiagnostics);
   const allocate = useServerFn(flyAllocateIps);
+  const repairAgent = useServerFn(flyRepairAgentMachine);
   const query = useQuery({
     queryKey: ["fly-diagnostics", connectionId],
     queryFn: () => load({ data: { id: connectionId } }),
@@ -43,8 +57,26 @@ export function FlyMachineDiagnostics({
       toast.error(error instanceof Error ? error.message : "Could not allocate an IP."),
   });
 
+  const repairMachine = useMutation({
+    mutationFn: () => repairAgent({ data: { id: connectionId, cpus: 4, memoryMb: 4096 } }),
+    onSuccess: (result) => {
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.message);
+      query.refetch();
+      qc.invalidateQueries({ queryKey: ["connections"] });
+      qc.invalidateQueries({ queryKey: ["fly-agent-logs", connectionId] });
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not repair the machine."),
+  });
+
   const machines = query.data?.machines ?? [];
   const ips: { address: string; type: string }[] = query.data?.ips ?? [];
+  const agent = machines.find((m) => m.name.includes("cloud-agent"));
+  const agentNeedsRepair = Boolean(
+    agent && (agent.state !== "started" || agent.events.some((e) => e.oomKilled)),
+  );
+
 
   return (
     <Collapsible>

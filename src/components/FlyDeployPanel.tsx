@@ -120,13 +120,21 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
   const nameCheck = useQuery({
     queryKey: ["fly-name-check", debouncedName],
     queryFn: () => preflight({ data: { appName: debouncedName } }),
-    enabled: /^[a-z0-9-]{4,40}$/.test(debouncedName),
+    enabled: /^[a-z0-9-]{4,40}$/.test(debouncedName) && phase === "idle",
     staleTime: 15_000,
   });
+  // Once this session has deployed a name, Fly of course reports it as taken —
+  // by the app this deploy just created. The collision UI must only speak about
+  // names that were taken before we touched them.
+  const ownName = deployingName === appName;
   const nameTaken = Boolean(
-    nameCheck.data?.ok && nameCheck.data.taken && debouncedName === appName,
+    nameCheck.data?.ok &&
+      nameCheck.data.taken &&
+      debouncedName === appName &&
+      phase === "idle" &&
+      !ownName,
   );
-  const checkingName = nameCheck.isFetching && debouncedName === appName;
+  const checkingName = nameCheck.isFetching && debouncedName === appName && !ownName;
 
   const copy = async (value: string, label: string) => {
     await navigator.clipboard.writeText(value);

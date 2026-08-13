@@ -157,6 +157,11 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
       }
     };
 
+    // Whether this run actually created the Fly app. Until it is true, any
+    // machines that happen to exist under this name belong to a pre-existing app
+    // and must never be presented as the output of this deploy.
+    let appCreated = false;
+
     try {
       await runStep(
         "Create Fly app",
@@ -168,6 +173,8 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
           }),
         () => data.appName,
       );
+      appCreated = true;
+
 
       const volume = await runStep(
         "Create Postgres volume",

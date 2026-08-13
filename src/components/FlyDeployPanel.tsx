@@ -64,6 +64,10 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [steps, setSteps] = useState<StepEntry[]>([]);
   const [error, setError] = useState("");
+  const [failureReason, setFailureReason] = useState("");
+  // False when the failure happened before the app existed: nothing on Fly
+  // belongs to this attempt, so machines and cleanup must not be offered.
+  const [appCreated, setAppCreated] = useState(true);
   const [connectionId, setConnectionId] = useState<string | null>(null);
   const [baseUrl, setBaseUrl] = useState("");
   const [agentState, setAgentState] = useState<"booting" | "healthy" | "">("");

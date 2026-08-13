@@ -139,6 +139,27 @@ export function FlyMachineDiagnostics({
             </p>
           ) : null}
 
+          {agentNeedsRepair && agent ? (
+            <div className="space-y-2 rounded-md border border-destructive/40 bg-destructive/10 p-2">
+              <p className="text-destructive">
+                The Cloud Agent machine is <span className="font-mono">{agent.state}</span>
+                {agent.memoryMb ? ` at ${Math.round(agent.memoryMb / 1024)} GB` : ""}, so nothing
+                answers on the public URL. Repairing gives it 4 shared CPUs and 4 GB — enough for the
+                four first-boot database migrations — and starts it again.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                disabled={repairMachine.isPending}
+                onClick={() => repairMachine.mutate()}
+              >
+                <Wrench className="mr-2 h-3 w-3" />
+                {repairMachine.isPending ? "Repairing…" : "Repair agent machine (4 GB)"}
+              </Button>
+            </div>
+          ) : null}
+
           {machines.map((m) => (
             <div key={m.id} className="space-y-2 border-b border-border/40 pb-2 last:border-0 last:pb-0">
               <div className="flex flex-wrap items-center gap-2">

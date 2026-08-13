@@ -136,6 +136,8 @@ function Agents() {
                 >
                   {conn.last_health ?? "untested"}
                 </Badge>
+                {conn.mode === "fly" ? <FlyPresenceBadge connectionId={conn.id} /> : null}
+
                 {!conn.is_active ? (
                   <Button
                     size="sm"

@@ -225,7 +225,14 @@ export function suggestAppName() {
   return `identus-agent-${Math.random().toString(16).slice(2, 6)}`;
 }
 
-export function postgresMachineConfig(region: string, password: string) {
+/** Roles the Cloud Agent's migrations GRANT to after creating each schema. */
+export const APP_ROLES = [
+  { role: "pollux-application-user", db: "pollux" },
+  { role: "connect-application-user", db: "connect" },
+  { role: "agent-application-user", db: "agent" },
+] as const;
+
+export function postgresMachineConfig(region: string, password: string, appPassword: string) {
   return {
     name: "identus-postgres",
     region,
@@ -241,7 +248,10 @@ export function postgresMachineConfig(region: string, password: string) {
         PGDATA: "/var/lib/postgresql/data/pgdata",
       },
       // The Cloud Agent keeps its components in separate databases; create all
-      // three on first boot so schema migrations don't collide.
+      // four on first boot so schema migrations don't collide. Each component
+      // also migrates as `postgres` and then GRANTs to a dedicated
+      // `<component>-application-user` role, so those roles must exist first or
+      // the very first migration aborts with `role ... does not exist`.
       files: [
         {
           guest_path: "/docker-entrypoint-initdb.d/00-identus-databases.sh",
@@ -249,10 +259,18 @@ export function postgresMachineConfig(region: string, password: string) {
             [
               "#!/bin/bash",
               "set -e",
-              'for db in pollux connect agent node; do',
+              `APP_PASSWORD='${appPassword}'`,
+              "for db in pollux connect agent node; do",
               '  psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \\',
-              "    -c \"CREATE DATABASE $db\"",
+              '    -c "CREATE DATABASE $db"',
               "done",
+              ...APP_ROLES.flatMap(({ role, db }) => [
+                `psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \\`,
+                `  -c "CREATE ROLE \\"${role}\\" WITH LOGIN PASSWORD '$APP_PASSWORD'" \\`,
+                `  -c "GRANT CONNECT ON DATABASE ${db} TO \\"${role}\\""`,
+                `psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname ${db} \\`,
+                `  -c "GRANT USAGE, CREATE ON SCHEMA public TO \\"${role}\\""`,
+              ]),
               "",
             ].join("\n"),
           ).toString("base64"),
@@ -265,6 +283,7 @@ export function postgresMachineConfig(region: string, password: string) {
     },
   };
 }
+
 
 export function prismNodeMachineConfig(region: string, pgHost: string, password: string) {
   return {
@@ -303,6 +322,7 @@ export function agentMachineConfig(
   adminKey: string,
   appName: string,
   guest: Guest = { cpus: 4, memoryMb: 4096 },
+  appPassword: string = password,
 ) {
   return {
     name: "identus-cloud-agent",
@@ -320,16 +340,25 @@ export function agentMachineConfig(
         POLLUX_DB_PORT: "5432",
         POLLUX_DB_USER: "postgres",
         POLLUX_DB_PASSWORD: password,
+        // Migrations run as `postgres` and then GRANT to these roles, which the
+        // Postgres init script creates on first boot.
+        POLLUX_DB_APP_USER: "pollux-application-user",
+        POLLUX_DB_APP_PASSWORD: appPassword,
         CONNECT_DB_NAME: "connect",
         CONNECT_DB_HOST: pgHost,
         CONNECT_DB_PORT: "5432",
         CONNECT_DB_USER: "postgres",
         CONNECT_DB_PASSWORD: password,
+        CONNECT_DB_APP_USER: "connect-application-user",
+        CONNECT_DB_APP_PASSWORD: appPassword,
         AGENT_DB_NAME: "agent",
         AGENT_DB_HOST: pgHost,
         AGENT_DB_PORT: "5432",
         AGENT_DB_USER: "postgres",
         AGENT_DB_PASSWORD: password,
+        AGENT_DB_APP_USER: "agent-application-user",
+        AGENT_DB_APP_PASSWORD: appPassword,
+
         PRISM_NODE_HOST: prismHost,
         PRISM_NODE_PORT: "50053",
         API_KEY_ENABLED: "true",
@@ -752,6 +781,13 @@ const LOG_RULES: { test: RegExp; fatal: boolean; diagnosis: string }[] = [
       "The agent ran out of memory. Redeploy with at least 4 GB for the Cloud Agent machine.",
   },
   {
+    test: /role "(pollux|connect|agent)-application-user" does not exist/i,
+    fatal: true,
+    diagnosis:
+      "Postgres is missing the Identus application roles (pollux-application-user, connect-application-user, agent-application-user). The agent's first-boot migration GRANTs to them and aborts. The init script only runs on an empty volume — deploy a fresh app.",
+  },
+  {
+
     test: /database "(pollux|connect|agent|node)" does not exist/i,
     fatal: true,
     diagnosis:

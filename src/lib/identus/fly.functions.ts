@@ -79,7 +79,11 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
 
     const steps: Step[] = [];
     const password = data.pgPassword ?? crypto.randomUUID().replace(/-/g, "");
+    // Each Identus component migrates as `postgres` and then GRANTs to its own
+    // `<component>-application-user` role; those roles share this password.
+    const appPassword = crypto.randomUUID().replace(/-/g, "");
     const adminKey = data.adminKey ?? crypto.randomUUID().replace(/-/g, "");
+
     // The Cloud Agent is a JVM service that migrates four databases on first
     // boot; 2 GB gets OOM-killed, so 4 GB is the default.
     const guest = { cpus: data.cpus ?? 2, memoryMb: data.memoryMb ?? 4096 };
@@ -191,7 +195,7 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
         "Start Postgres machine",
         `POST /apps/${data.appName}/machines`,
         () => {
-          const pgConfig = postgresMachineConfig(data.region, password);
+          const pgConfig = postgresMachineConfig(data.region, password, appPassword);
           pgConfig.config.mounts = [{ volume: volume.id, path: "/var/lib/postgresql/data" }];
           return fly(`/apps/${data.appName}/machines`, {
             method: "POST",
@@ -254,6 +258,7 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
                 adminKey,
                 data.appName,
                 guest,
+                appPassword,
               ),
             ),
           }),

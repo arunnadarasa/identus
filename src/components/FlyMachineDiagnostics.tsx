@@ -23,6 +23,7 @@ export function FlyMachineDiagnostics({
   autoRefresh?: boolean;
 }) {
   const load = useServerFn(flyMachineDiagnostics);
+  const allocate = useServerFn(flyAllocateIps);
   const query = useQuery({
     queryKey: ["fly-diagnostics", connectionId],
     queryFn: () => load({ data: { id: connectionId } }),
@@ -30,7 +31,19 @@ export function FlyMachineDiagnostics({
     staleTime: 10_000,
   });
 
+  const repair = useMutation({
+    mutationFn: () => allocate({ data: { id: connectionId } }),
+    onSuccess: (result) => {
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.message);
+      query.refetch();
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not allocate an IP."),
+  });
+
   const machines = query.data?.machines ?? [];
+  const ips: { address: string; type: string }[] = query.data?.ips ?? [];
 
   return (
     <Collapsible>

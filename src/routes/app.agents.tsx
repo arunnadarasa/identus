@@ -20,6 +20,7 @@ import { FlyMachineDiagnostics } from "@/components/FlyMachineDiagnostics";
 import { FlyAgentLogs } from "@/components/FlyAgentLogs";
 
 import { FlyAgentPicker } from "@/components/FlyAgentPicker";
+import { FlyPresenceBadge } from "@/components/FlyPresenceBadge";
 import { ActiveAgentCard } from "@/components/ActiveAgentCard";
 import { RotateKeyDialog } from "@/components/RotateKeyDialog";
 import { ModeRecommendation } from "@/components/ModeRecommendation";

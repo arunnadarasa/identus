@@ -64,6 +64,10 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [steps, setSteps] = useState<StepEntry[]>([]);
   const [error, setError] = useState("");
+  const [failureReason, setFailureReason] = useState("");
+  // False when the failure happened before the app existed: nothing on Fly
+  // belongs to this attempt, so machines and cleanup must not be offered.
+  const [appCreated, setAppCreated] = useState(true);
   const [connectionId, setConnectionId] = useState<string | null>(null);
   const [baseUrl, setBaseUrl] = useState("");
   const [agentState, setAgentState] = useState<"booting" | "healthy" | "">("");
@@ -104,16 +108,38 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
   const tokenProblem = preflightQuery.data && !preflightQuery.data.ok ? preflightQuery.data.message : "";
   const nameValid = /^[a-z0-9-]{4,40}$/.test(appName);
 
+  // Fly rejects a duplicate app name with a 422 on the very first call, so the
+  // name is checked while it is being typed and the deploy button is gated on
+  // the result — retrying a taken name can never succeed.
+  const [debouncedName, setDebouncedName] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedName(appName), 400);
+    return () => clearTimeout(t);
+  }, [appName]);
+
+  const nameCheck = useQuery({
+    queryKey: ["fly-name-check", debouncedName],
+    queryFn: () => preflight({ data: { appName: debouncedName } }),
+    enabled: /^[a-z0-9-]{4,40}$/.test(debouncedName),
+    staleTime: 15_000,
+  });
+  const nameTaken = Boolean(
+    nameCheck.data?.ok && nameCheck.data.taken && debouncedName === appName,
+  );
+  const checkingName = nameCheck.isFetching && debouncedName === appName;
+
   const copy = async (value: string, label: string) => {
     await navigator.clipboard.writeText(value);
     toast.success(`${label} copied`);
   };
 
   const deploy = async () => {
-    if (!nameValid || !orgSlug) return;
+    if (!nameValid || !orgSlug || nameTaken) return;
     setPhase("deploying");
     setSteps([]);
     setError("");
+    setFailureReason("");
+    setAppCreated(true);
     setAgentState("");
     setDeployedAt(null);
     setConnectionId(null);
@@ -131,6 +157,7 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     });
     setSteps(result.steps as StepEntry[]);
     setConnectionId(result.connectionId);
+    setAppCreated(result.appCreated);
 
     onChanged();
     qc.invalidateQueries({ queryKey: ["connections"] });
@@ -142,6 +169,13 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
       toast.success(`${appName} deployed — checking readiness automatically.`);
     } else {
       setError(result.message ?? "Provisioning failed");
+      setFailureReason(result.reason ?? "");
+      // A name collision is only fixable with a different name, so a free one is
+      // filled in immediately and Retry becomes a deploy that can work.
+      if (result.reason === "name_taken" && result.suggestedName) {
+        setAppName(result.suggestedName);
+        setAdvanced(true);
+      }
       setPhase("failed");
       toast.error(result.message ?? "Provisioning failed");
     }
@@ -165,6 +199,23 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     onChanged();
     toast.success("Fly app cleaned up");
   };
+
+  /**
+   * Clears a failed attempt that never created anything on Fly. It touches no
+   * Fly resources — the pre-existing app of the same name stays exactly as it is.
+   */
+  const discard = () => {
+    setPhase("idle");
+    setSteps([]);
+    setError("");
+    setFailureReason("");
+    setConnectionId(null);
+    setAppCreated(true);
+    onChanged();
+    qc.invalidateQueries({ queryKey: ["connections"] });
+  };
+
+
 
   return (
     <div className="space-y-5 pt-4">
@@ -221,6 +272,14 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
               <p className="text-xs text-destructive">
                 4–40 characters: lowercase letters, numbers and dashes.
               </p>
+            ) : nameTaken ? (
+              <p className="text-xs text-destructive">
+                Already taken in your Fly organisation — pick another name.
+              </p>
+            ) : checkingName ? (
+              <p className="text-xs text-muted-foreground">Checking availability…</p>
+            ) : nameValid && nameCheck.data?.ok ? (
+              <p className="text-xs text-muted-foreground">Name is available.</p>
             ) : null}
           </div>
           <div className="space-y-2">
@@ -310,13 +369,22 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <Button
           className="h-11 w-full sm:h-10 sm:w-auto"
-          disabled={phase === "deploying" || !nameValid || !orgSlug || !!tokenProblem}
+          disabled={
+            phase === "deploying" ||
+            !nameValid ||
+            !orgSlug ||
+            !!tokenProblem ||
+            nameTaken ||
+            checkingName
+          }
           onClick={deploy}
         >
           {phase === "deploying" ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" /> Deploying…
             </>
+          ) : nameTaken ? (
+            "Choose a free app name"
           ) : (
             "Deploy Cloud Agent to Fly.io"
           )}
@@ -331,11 +399,25 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
         </Button>
       </div>
 
+      {nameTaken ? (
+        <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
+          An app named <span className="font-mono">{appName}</span> already exists in your Fly
+          organisation. Pick a different name, or adopt that app from the{" "}
+          <span className="font-medium">Existing apps</span> list instead of deploying a duplicate.
+        </p>
+      ) : null}
+
       {connectionId || steps.length ? (
         <ProvisionLogViewer
           connectionId={connectionId}
           live={phase === "deploying"}
           fallbackSteps={steps as ProvisionStep[]}
+          showMachines={appCreated}
+          machinesNote={
+            appCreated
+              ? ""
+              : `Nothing was deployed: an app named ${appName} already existed, so no machines belong to this attempt.`
+          }
         />
       ) : null}
 
@@ -344,13 +426,27 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
         <div className="space-y-3 rounded-md border border-destructive/40 bg-destructive/10 p-4">
           <p className="text-sm text-destructive">{error}</p>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={deploy}>
+            <Button size="sm" variant="outline" onClick={deploy} disabled={nameTaken || checkingName}>
               Retry
             </Button>
-            <Button size="sm" variant="ghost" className="text-destructive" onClick={cleanup}>
-              Clean up app
-            </Button>
+            {/* Destroying by name is only safe when this run created the app;
+                otherwise it would delete a pre-existing app of the same name. */}
+            {appCreated && connectionId ? (
+              <Button size="sm" variant="ghost" className="text-destructive" onClick={cleanup}>
+                Clean up app
+              </Button>
+            ) : (
+              <Button size="sm" variant="ghost" onClick={discard}>
+                Discard this attempt
+              </Button>
+            )}
           </div>
+          {failureReason === "name_taken" ? (
+            <p className="text-xs text-muted-foreground">
+              A free name has been filled in for you, so Retry will deploy a fresh app. Your existing
+              Fly app was left untouched.
+            </p>
+          ) : null}
         </div>
       ) : null}
 

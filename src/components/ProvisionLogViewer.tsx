@@ -83,6 +83,12 @@ interface Props {
   /** Steps returned synchronously by provisionFlyAgent, used until the poll lands. */
   fallbackSteps?: ProvisionStep[];
   showMachines?: boolean;
+  /**
+   * Shown in place of the machine list when machines are hidden — e.g. when the
+   * deploy failed before creating the app, so any machines under that name
+   * belong to a different, pre-existing app.
+   */
+  machinesNote?: string;
 }
 
 export function ProvisionLogViewer({
@@ -90,6 +96,7 @@ export function ProvisionLogViewer({
   live = false,
   fallbackSteps = [],
   showMachines = true,
+  machinesNote = "",
 }: Props) {
   const fetchLog = useServerFn(getProvisionLog);
   const scroller = useRef<HTMLDivElement>(null);
@@ -204,6 +211,10 @@ export function ProvisionLogViewer({
               </Badge>
             </div>
           ))}
+        </div>
+      ) : machinesNote ? (
+        <div className="border-t border-border/60 px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">{machinesNote}</p>
         </div>
       ) : null}
     </div>

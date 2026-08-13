@@ -313,12 +313,39 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
       return {
         ok: true as const,
         connectionId: conn.id as string,
+        appCreated: true,
+        reason: "" as const,
+        suggestedName: "",
         steps,
         adminKey,
         baseUrl: `https://${data.appName}.fly.dev`,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      const nameTaken =
+        !appCreated &&
+        (error instanceof FlyApiError
+          ? error.status === 422 && /already been taken/i.test(error.body)
+          : /already been taken/i.test(message));
+
+      // Nothing was created, so the console row is noise — and keeping it would
+      // point this connection at somebody else's app of the same name, whose
+      // machines would then show up as this deploy's output and whose app the
+      // "clean up" action would destroy. Drop the row instead.
+      if (nameTaken) {
+        const { suggestAppName } = await import("./fly.server");
+        await context.supabase.from("agent_connections").delete().eq("id", conn.id);
+        return {
+          ok: false as const,
+          connectionId: null as string | null,
+          appCreated: false,
+          reason: "name_taken" as const,
+          suggestedName: suggestAppName(),
+          steps,
+          message: `An app named ${data.appName} already exists in your Fly organisation, so nothing was deployed. Pick a different name, or adopt the existing app from the "Existing apps" list.`,
+        };
+      }
+
       steps.push({
         step: "Provisioning failed",
         status: "error",
@@ -334,7 +361,15 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
         message,
         "error",
       );
-      return { ok: false as const, connectionId: conn.id as string, steps, message };
+      return {
+        ok: false as const,
+        connectionId: conn.id as string,
+        appCreated,
+        reason: "" as const,
+        suggestedName: "",
+        steps,
+        message,
+      };
     }
   });
 

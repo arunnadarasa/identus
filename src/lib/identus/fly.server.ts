@@ -829,15 +829,43 @@ export async function getAgentLogs(
   machineId?: string | null,
 ): Promise<FlyLogReport> {
   let target = machineId ?? null;
-  if (!target) {
-    try {
-      const machines = await listMachines(appName);
-      target = (machines.find((m) => m.name.includes("cloud-agent")) ?? machines[0])?.id ?? null;
-    } catch {
-      target = null;
+  let machineName: string | null = null;
+  let machineState: string | null = null;
+  try {
+    const machines = await listMachines(appName);
+    const picked = target
+      ? machines.find((m) => m.id === target)
+      : (machines.find((m) => m.name.includes("cloud-agent")) ?? machines[0]);
+    if (picked) {
+      target = picked.id;
+      machineName = picked.name;
+      machineState = picked.state;
     }
+  } catch {
+    /* fall back to whatever machine id we were given */
   }
   const lines = await fetchAppLogs(appName, target);
-  const { diagnosis, fatal } = classifyLogs(lines);
-  return { appName, machineId: target, lines: lines.slice(-300), diagnosis, fatal };
+  const isAgent = !machineName || machineName.includes("cloud-agent");
+  let { diagnosis, fatal } = classifyLogs(lines);
+
+  // No output from the agent machine is the loudest signal there is: the JVM
+  // never got far enough to log, or the machine is not running at all.
+  if (!lines.length && isAgent) {
+    diagnosis =
+      machineState && machineState !== "started"
+        ? `The Cloud Agent machine is "${machineState}" and printed nothing, so it never reached the point of logging. Repair the machine with more memory and start it again.`
+        : "The Cloud Agent machine printed no output at all. Either it has not started its process yet, or it exited before logging — check machine diagnostics for the exit code.";
+    fatal = Boolean(machineState && machineState !== "started");
+  }
+
+  return {
+    appName,
+    machineId: target,
+    machineName,
+    machineState,
+    producedOutput: lines.length > 0,
+    lines: lines.slice(-300),
+    diagnosis,
+    fatal,
+  };
 }

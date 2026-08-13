@@ -302,7 +302,7 @@ export function agentMachineConfig(
   password: string,
   adminKey: string,
   appName: string,
-  guest: Guest = { cpus: 2, memoryMb: 2048 },
+  guest: Guest = { cpus: 4, memoryMb: 4096 },
 ) {
   return {
     name: "identus-cloud-agent",
@@ -424,10 +424,26 @@ function diagnose(raw: any, events: MachineDiagnostic["events"], checks: Machine
     return {
       fatal: true,
       diagnosis:
-        "The container was killed for running out of memory. Redeploy with more memory (4 GB or more for the Cloud Agent).",
+        "The container was killed for running out of memory. Repair the machine with 4 GB or more for the Cloud Agent.",
     };
   }
   const exits = events.filter((e) => e.exitCode !== null && e.exitCode !== 0);
+  const state = String(raw?.state ?? "unknown");
+  const isAgent = String(raw?.name ?? "").includes("cloud-agent");
+
+  // A stopped agent machine is the whole failure: Fly's edge accepts the TLS
+  // handshake and then has nothing to forward to, so every probe just hangs.
+  if (isAgent && state !== "started") {
+    const last = exits[0] ?? events.find((e) => e.exitCode !== null);
+    return {
+      fatal: true,
+      diagnosis: `The Cloud Agent machine is "${state}", so nothing is listening on port 8085 and every request to the public URL hangs.${
+        last?.exitCode !== undefined && last?.exitCode !== null
+          ? ` It last exited with code ${last.exitCode}.`
+          : ""
+      } The usual cause is too little memory for the first-boot database migrations — repair the machine with 4 GB and start it again.`,
+    };
+  }
   if (exits.length >= 3) {
     return {
       fatal: true,
@@ -449,15 +465,15 @@ function diagnose(raw: any, events: MachineDiagnostic["events"], checks: Machine
       }`,
     };
   }
-  if (String(raw?.state) === "started" && checks.length && checks.every((c) => c.status === "passing")) {
+  if (state === "started" && checks.length && checks.every((c) => c.status === "passing")) {
     return { fatal: false, diagnosis: "Machine is up and all Fly health checks pass." };
   }
   return {
-    fatal: false,
+    fatal: state !== "started" && state !== "starting" && state !== "created",
     diagnosis:
-      String(raw?.state) === "started"
+      state === "started"
         ? "Machine is up. The service is still starting — the Cloud Agent migrates four databases on first boot, which can take several minutes."
-        : `Machine state is "${raw?.state}".`,
+        : `Machine state is "${state}".`,
   };
 }
 

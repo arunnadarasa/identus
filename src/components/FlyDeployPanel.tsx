@@ -10,6 +10,8 @@ import {
 } from "@/lib/identus/fly.functions";
 import { listConnections, setActiveConnection } from "@/lib/identus.functions";
 import { ProvisionLogViewer } from "@/components/ProvisionLogViewer";
+import { FlyMachineDiagnostics } from "@/components/FlyMachineDiagnostics";
+import { FlyAgentLogs } from "@/components/FlyAgentLogs";
 import type { ProvisionStep } from "@/lib/identus/types";
 import {
   useAgentReadiness,
@@ -24,9 +26,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const REGIONS = ["lhr", "ams", "fra", "iad", "ord", "sjc", "syd", "nrt"];
 const SIZES = [
-  { label: "2 shared CPUs · 2 GB (recommended)", cpus: 2, memoryMb: 2048 },
-  { label: "1 shared CPU · 1 GB (cheapest)", cpus: 1, memoryMb: 1024 },
-  { label: "4 shared CPUs · 4 GB", cpus: 4, memoryMb: 4096 },
+  { label: "4 shared CPUs · 4 GB (recommended)", cpus: 4, memoryMb: 4096 },
+  { label: "2 shared CPUs · 2 GB (may fail on first boot)", cpus: 2, memoryMb: 2048 },
+  { label: "8 shared CPUs · 8 GB", cpus: 8, memoryMb: 8192 },
 ];
 
 function randomKey() {
@@ -420,6 +422,18 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
               </Button>
             ) : null}
           </div>
+
+          {/* Machine state and container logs, so a silent agent can be
+              diagnosed and repaired without leaving the deploy flow. */}
+          {connectionId ? (
+            <div className="space-y-2">
+              <FlyMachineDiagnostics
+                connectionId={connectionId}
+                autoRefresh={readiness.status !== "ready"}
+              />
+              <FlyAgentLogs connectionId={connectionId} />
+            </div>
+          ) : null}
 
           <Button
             size="sm"

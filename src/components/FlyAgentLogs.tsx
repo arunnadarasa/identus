@@ -51,6 +51,12 @@ export function FlyAgentLogs({
               Agent logs
             </Button>
           </CollapsibleTrigger>
+          {report?.machineName ? (
+            <Badge variant="outline" className="font-mono text-xs">
+              {report.machineName}
+              {report.machineState ? ` · ${report.machineState}` : ""}
+            </Badge>
+          ) : null}
           {report?.fatal ? (
             <Badge variant="destructive" className="gap-1">
               <AlertTriangle className="h-3 w-3" aria-hidden="true" />
@@ -58,6 +64,10 @@ export function FlyAgentLogs({
             </Badge>
           ) : lines.length ? (
             <Badge variant="outline">{lines.length} lines</Badge>
+          ) : report && !report.producedOutput ? (
+            <Badge variant="outline" className="border-destructive/50 text-destructive">
+              no output
+            </Badge>
           ) : null}
           <div className="ml-auto flex items-center gap-1">
             {lines.length ? (

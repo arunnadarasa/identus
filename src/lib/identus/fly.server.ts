@@ -302,7 +302,7 @@ export function agentMachineConfig(
   password: string,
   adminKey: string,
   appName: string,
-  guest: Guest = { cpus: 2, memoryMb: 2048 },
+  guest: Guest = { cpus: 4, memoryMb: 4096 },
 ) {
   return {
     name: "identus-cloud-agent",
@@ -424,10 +424,26 @@ function diagnose(raw: any, events: MachineDiagnostic["events"], checks: Machine
     return {
       fatal: true,
       diagnosis:
-        "The container was killed for running out of memory. Redeploy with more memory (4 GB or more for the Cloud Agent).",
+        "The container was killed for running out of memory. Repair the machine with 4 GB or more for the Cloud Agent.",
     };
   }
   const exits = events.filter((e) => e.exitCode !== null && e.exitCode !== 0);
+  const state = String(raw?.state ?? "unknown");
+  const isAgent = String(raw?.name ?? "").includes("cloud-agent");
+
+  // A stopped agent machine is the whole failure: Fly's edge accepts the TLS
+  // handshake and then has nothing to forward to, so every probe just hangs.
+  if (isAgent && state !== "started") {
+    const last = exits[0] ?? events.find((e) => e.exitCode !== null);
+    return {
+      fatal: true,
+      diagnosis: `The Cloud Agent machine is "${state}", so nothing is listening on port 8085 and every request to the public URL hangs.${
+        last?.exitCode !== undefined && last?.exitCode !== null
+          ? ` It last exited with code ${last.exitCode}.`
+          : ""
+      } The usual cause is too little memory for the first-boot database migrations — repair the machine with 4 GB and start it again.`,
+    };
+  }
   if (exits.length >= 3) {
     return {
       fatal: true,
@@ -449,15 +465,15 @@ function diagnose(raw: any, events: MachineDiagnostic["events"], checks: Machine
       }`,
     };
   }
-  if (String(raw?.state) === "started" && checks.length && checks.every((c) => c.status === "passing")) {
+  if (state === "started" && checks.length && checks.every((c) => c.status === "passing")) {
     return { fatal: false, diagnosis: "Machine is up and all Fly health checks pass." };
   }
   return {
-    fatal: false,
+    fatal: state !== "started" && state !== "starting" && state !== "created",
     diagnosis:
-      String(raw?.state) === "started"
+      state === "started"
         ? "Machine is up. The service is still starting — the Cloud Agent migrates four databases on first boot, which can take several minutes."
-        : `Machine state is "${raw?.state}".`,
+        : `Machine state is "${state}".`,
   };
 }
 
@@ -520,7 +536,62 @@ export async function getAppDiagnostics(appName: string): Promise<MachineDiagnos
   );
   const rank = (name: string) =>
     name.includes("cloud-agent") ? 0 : name.includes("prism") ? 1 : 2;
-  return details.sort((a, b) => rank(a.name) - rank(b.name));
+  // Anything not running is the reason you opened this panel, so it goes first.
+  const broken = (m: MachineDiagnostic) => (m.fatal || m.state !== "started" ? 0 : 1);
+  return details.sort(
+    (a, b) => broken(a) - broken(b) || rank(a.name) - rank(b.name),
+  );
+}
+
+/** The Cloud Agent machine, or null when the app has none. */
+export async function findAgentMachine(appName: string) {
+  const machines = await listMachines(appName);
+  return machines.find((m) => m.name.includes("cloud-agent")) ?? null;
+}
+
+/**
+ * Repairs an agent machine that exited during first boot: applies a bigger guest
+ * (the four first-boot migrations OOM at 2 GB) and starts it again.
+ *
+ * Fly replaces the whole machine config on update, so the current config is read
+ * first and only `guest` is patched.
+ */
+export async function resizeAndStartAgentMachine(
+  appName: string,
+  machineId: string,
+  guest: Guest = { cpus: 4, memoryMb: 4096 },
+) {
+  const machine = await getMachine(appName, machineId);
+  const previous = (machine.config["guest"] ?? {}) as { cpus?: number; memory_mb?: number };
+  const resized =
+    previous.memory_mb !== guest.memoryMb || previous.cpus !== guest.cpus;
+
+  if (resized) {
+    await fly(`/apps/${appName}/machines/${machineId}`, {
+      method: "POST",
+      body: JSON.stringify({
+        config: {
+          ...machine.config,
+          guest: { cpu_kind: "shared", cpus: guest.cpus, memory_mb: guest.memoryMb },
+        },
+      }),
+    });
+  }
+
+  // A machine that is already started stays started; only a stopped/failed one
+  // needs the explicit start.
+  if (machine.state !== "started") {
+    await fly(`/apps/${appName}/machines/${machineId}/start`, { method: "POST" });
+  }
+  await waitForMachineState(appName, machineId, "started", 120);
+
+  return {
+    resized,
+    previousMemoryMb: previous.memory_mb ?? null,
+    previousCpus: previous.cpus ?? null,
+    memoryMb: guest.memoryMb,
+    cpus: guest.cpus,
+  };
 }
 
 
@@ -623,6 +694,11 @@ export interface FlyLogLine {
 export interface FlyLogReport {
   appName: string;
   machineId: string | null;
+  /** Which machine the tail belongs to, so agent output is never confused with the PRISM node's. */
+  machineName: string | null;
+  machineState: string | null;
+  /** False when the Cloud Agent machine printed nothing at all — itself a finding. */
+  producedOutput: boolean;
   lines: FlyLogLine[];
   /** Plain-language reading of the log tail. */
   diagnosis: string;
@@ -753,15 +829,43 @@ export async function getAgentLogs(
   machineId?: string | null,
 ): Promise<FlyLogReport> {
   let target = machineId ?? null;
-  if (!target) {
-    try {
-      const machines = await listMachines(appName);
-      target = (machines.find((m) => m.name.includes("cloud-agent")) ?? machines[0])?.id ?? null;
-    } catch {
-      target = null;
+  let machineName: string | null = null;
+  let machineState: string | null = null;
+  try {
+    const machines = await listMachines(appName);
+    const picked = target
+      ? machines.find((m) => m.id === target)
+      : (machines.find((m) => m.name.includes("cloud-agent")) ?? machines[0]);
+    if (picked) {
+      target = picked.id;
+      machineName = picked.name;
+      machineState = picked.state;
     }
+  } catch {
+    /* fall back to whatever machine id we were given */
   }
   const lines = await fetchAppLogs(appName, target);
-  const { diagnosis, fatal } = classifyLogs(lines);
-  return { appName, machineId: target, lines: lines.slice(-300), diagnosis, fatal };
+  const isAgent = !machineName || machineName.includes("cloud-agent");
+  let { diagnosis, fatal } = classifyLogs(lines);
+
+  // No output from the agent machine is the loudest signal there is: the JVM
+  // never got far enough to log, or the machine is not running at all.
+  if (!lines.length && isAgent) {
+    diagnosis =
+      machineState && machineState !== "started"
+        ? `The Cloud Agent machine is "${machineState}" and printed nothing, so it never reached the point of logging. Repair the machine with more memory and start it again.`
+        : "The Cloud Agent machine printed no output at all. Either it has not started its process yet, or it exited before logging — check machine diagnostics for the exit code.";
+    fatal = Boolean(machineState && machineState !== "started");
+  }
+
+  return {
+    appName,
+    machineId: target,
+    machineName,
+    machineState,
+    producedOutput: lines.length > 0,
+    lines: lines.slice(-300),
+    diagnosis,
+    fatal,
+  };
 }

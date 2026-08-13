@@ -258,6 +258,7 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
                 adminKey,
                 data.appName,
                 guest,
+                appPassword,
               ),
             ),
           }),

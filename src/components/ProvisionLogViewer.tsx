@@ -96,6 +96,8 @@ interface Props {
    * belong to a different, pre-existing app.
    */
   machinesNote?: string;
+  /** Called after a recovery action changes the connection. */
+  onChanged?: () => void;
 }
 
 export function ProvisionLogViewer({
@@ -104,9 +106,14 @@ export function ProvisionLogViewer({
   fallbackSteps = [],
   showMachines = true,
   machinesNote = "",
+  onChanged,
 }: Props) {
+  const qc = useQueryClient();
   const fetchLog = useServerFn(getProvisionLog);
+  const resume = useServerFn(resumeFlyProvisioning);
+  const destroy = useServerFn(destroyFlyApp);
   const scroller = useRef<HTMLDivElement>(null);
+  const [recovering, setRecovering] = useState("");
 
   const query = useQuery({
     queryKey: ["provision-log", connectionId],
@@ -123,6 +130,48 @@ export function ProvisionLogViewer({
   }, [query.data, fallbackSteps]);
 
   const running = steps.some((s) => s.status === "running");
+
+  // A serverless deploy request can be cut off mid-sequence: the machines exist
+  // but the row never reaches a terminal status, so nothing polls readiness.
+  const lastStepAt = steps.length ? Date.parse(steps[steps.length - 1]!.at) : NaN;
+  const stalled =
+    query.data?.status === "provisioning" &&
+    !live &&
+    Number.isFinite(lastStepAt) &&
+    Date.now() - lastStepAt > STALL_MS;
+  const lastStepClock = Number.isFinite(lastStepAt) ? formatClock(new Date(lastStepAt).toISOString()) : "";
+
+  const afterRecovery = () => {
+    qc.invalidateQueries({ queryKey: ["provision-log", connectionId] });
+    qc.invalidateQueries({ queryKey: ["connections"] });
+    onChanged?.();
+  };
+
+  const doResume = async () => {
+    if (!connectionId) return;
+    setRecovering("resume");
+    try {
+      const result = await resume({ data: { id: connectionId } });
+      afterRecovery();
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.message);
+    } finally {
+      setRecovering("");
+    }
+  };
+
+  const doDestroy = async () => {
+    if (!connectionId) return;
+    if (!confirm("Destroy this Fly app and remove it from the console? This is permanent.")) return;
+    setRecovering("destroy");
+    try {
+      const result: any = await destroy({ data: { id: connectionId } });
+      afterRecovery();
+      toast.success(result?.message ?? "Fly app destroyed");
+    } finally {
+      setRecovering("");
+    }
+  };
 
   // Keep the newest line in view while the deploy streams in.
   useEffect(() => {

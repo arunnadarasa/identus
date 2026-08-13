@@ -1,12 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { AlertTriangle, Check, ChevronRight, Copy, Loader2 } from "lucide-react";
-import { getProvisionLog } from "@/lib/identus/fly.functions";
+import {
+  getProvisionLog,
+  resumeFlyProvisioning,
+  destroyFlyApp,
+} from "@/lib/identus/fly.functions";
 import type { ProvisionStep } from "@/lib/identus/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
+/** No new step for this long while still "provisioning" means the deploy request died. */
+const STALL_MS = 3 * 60_000;
 
 function formatMs(ms?: number) {
   if (ms === undefined) return "";

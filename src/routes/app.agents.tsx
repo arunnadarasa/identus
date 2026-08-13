@@ -368,10 +368,12 @@ function ProvisionLogSection({
   connectionId,
   status,
   stepCount,
+  onChanged,
 }: {
   connectionId: string;
   status: string | null;
   stepCount: number;
+  onChanged?: () => void;
 }) {
   const [open, setOpen] = useState(status === "provisioning" || status === "failed");
   if (!stepCount && !status) return null;
@@ -384,7 +386,7 @@ function ProvisionLogSection({
           <span className="ml-1 text-muted-foreground">({stepCount} steps)</span>
         ) : null}
       </Button>
-      {open ? <ProvisionLogViewer connectionId={connectionId} /> : null}
+      {open ? <ProvisionLogViewer connectionId={connectionId} onChanged={onChanged} /> : null}
     </div>
   );
 }

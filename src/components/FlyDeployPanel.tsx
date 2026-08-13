@@ -24,9 +24,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const REGIONS = ["lhr", "ams", "fra", "iad", "ord", "sjc", "syd", "nrt"];
 const SIZES = [
-  { label: "2 shared CPUs · 2 GB (recommended)", cpus: 2, memoryMb: 2048 },
-  { label: "1 shared CPU · 1 GB (cheapest)", cpus: 1, memoryMb: 1024 },
-  { label: "4 shared CPUs · 4 GB", cpus: 4, memoryMb: 4096 },
+  { label: "4 shared CPUs · 4 GB (recommended)", cpus: 4, memoryMb: 4096 },
+  { label: "2 shared CPUs · 2 GB (may fail on first boot)", cpus: 2, memoryMb: 2048 },
+  { label: "8 shared CPUs · 8 GB", cpus: 8, memoryMb: 8192 },
 ];
 
 function randomKey() {

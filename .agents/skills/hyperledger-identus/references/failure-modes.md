@@ -23,8 +23,13 @@
 | 401/403 on non-system probe checks | API key rejected | Re-run `rotateFlyAdminKey` or re-enter the key; verify `ADMIN_TOKEN` matches the stored key. |
 | Postgres init script didn't run | pgdata volume already existed | `docker compose down -v` (local) or destroy and redeploy the Fly app so the volume is fresh. |
 | Port bind already in use (docker) | Another process holds the host port | Change the host side in `.env` (e.g. `POSTGRES_PORT=5433`). |
+| `<app>.fly.dev` does not resolve at all (probes fail with a transport error, not 502) | App has no public IP; Fly only publishes DNS once one is allocated | `listIpAddresses(app)` returns empty -> run `flyAllocateIps` / `allocateSharedIpv4`, which now verifies the allocation instead of trusting the mutation. A deploy-scoped token cannot allocate IPs; use an organisation token. |
 | `no matching manifest for linux/arm64` | Image has no arm64 build | Add `platform: linux/amd64` to that service (emulation is slower). |
 
 ## Readiness vs health
 
 `checkHealth` hits only `/_system/health`. `probeAgent` hits four endpoints and is the real readiness signal — an agent can pass system health but fail DID registrar while migrations are still running. Use `awaitAgentReady` (which calls `probeAgent`) before declaring an agent usable.
+
+## Container logs
+
+The Machines API has no logs endpoint. `getAgentLogs(app, machineId?)` reads `https://api.fly.io/api/v1/apps/<app>/logs` (JSON:API, `data[].attributes.message`) and `classifyLogs` maps the tail to a plain-language cause (OOM, missing database, DNS on `.internal`, connection refused, still migrating, port bind). Surface it with `FlyAgentLogs` on the Agents page.

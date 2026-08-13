@@ -155,15 +155,54 @@ export async function listOrganizations() {
   return data.organizations.nodes;
 }
 
-export async function allocateSharedIpv4(appName: string) {
-  await flyGraphql(
-    `mutation($input: AllocateIPAddressInput!) { allocateIpAddress(input: $input) { ipAddress { address type } } }`,
-    { input: { appId: appName, type: "shared_v4" } },
-  );
-  await flyGraphql(
-    `mutation($input: AllocateIPAddressInput!) { allocateIpAddress(input: $input) { ipAddress { address type } } }`,
-    { input: { appId: appName, type: "v6" } },
-  );
+export interface FlyIpAddress {
+  address: string;
+  type: string;
+}
+
+/** Public IPs currently attached to the app. Empty means `<app>.fly.dev` has no DNS. */
+export async function listIpAddresses(appName: string): Promise<FlyIpAddress[]> {
+  const data = (await flyGraphql(
+    `query($name: String!) { app(name: $name) { ipAddresses { nodes { address type } } } }`,
+    { name: appName },
+  )) as { app?: { ipAddresses?: { nodes?: FlyIpAddress[] } } } | null;
+  return (data?.app?.ipAddresses?.nodes ?? []).map((n) => ({
+    address: String(n.address),
+    type: String(n.type),
+  }));
+}
+
+/**
+ * Attaches a shared IPv4 and a dedicated IPv6 to the app.
+ *
+ * Fly only publishes `<app>.fly.dev` DNS once an IP exists, so this verifies the
+ * result instead of trusting the mutation: a silently no-op allocation leaves an
+ * app whose hostname never resolves, which looks exactly like an agent that
+ * booted but never answers.
+ */
+export async function allocateSharedIpv4(appName: string): Promise<FlyIpAddress[]> {
+  const allocate = async (type: "shared_v4" | "v6") => {
+    try {
+      await flyGraphql(
+        `mutation($input: AllocateIPAddressInput!) { allocateIpAddress(input: $input) { ipAddress { address type } } }`,
+        { input: { appId: appName, type } },
+      );
+    } catch (error) {
+      // "already allocated" is success from our point of view.
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/already|exists|taken/i.test(message)) throw error;
+    }
+  };
+  await allocate("shared_v4");
+  await allocate("v6");
+
+  const ips = await listIpAddresses(appName);
+  if (!ips.length) {
+    throw new Error(
+      `Fly accepted the allocation but ${appName} still has no public IP, so ${appName}.fly.dev will not resolve. This usually means the API token is scoped to a deploy-only role that cannot allocate IPs — use an organisation token.`,
+    );
+  }
+  return ips;
 }
 
 export interface Guest {
@@ -568,3 +607,161 @@ export async function waitForMachineState(
     : new Error(`Machine ${machineId} did not reach state "${state}" in time`);
 }
 
+
+// ---------------------------------------------------------------------------
+// Container logs
+// ---------------------------------------------------------------------------
+
+export interface FlyLogLine {
+  at: string;
+  level: string;
+  instance: string;
+  region: string;
+  message: string;
+}
+
+export interface FlyLogReport {
+  appName: string;
+  machineId: string | null;
+  lines: FlyLogLine[];
+  /** Plain-language reading of the log tail. */
+  diagnosis: string;
+  /** True when the logs name a failure that will not fix itself. */
+  fatal: boolean;
+}
+
+/**
+ * Fly's Machines API does not expose logs, so this reads the app log stream on
+ * api.fly.io. Oldest first, so the newest lines land at the bottom of the tail.
+ */
+export async function fetchAppLogs(
+  appName: string,
+  machineId?: string | null,
+): Promise<FlyLogLine[]> {
+  const params = new URLSearchParams();
+  if (machineId) params.set("instance", machineId);
+  const url = `https://api.fly.io/api/v1/apps/${encodeURIComponent(appName)}/logs${
+    params.size ? `?${params.toString()}` : ""
+  }`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token()}`, Accept: "application/json" },
+    signal: AbortSignal.timeout(30000),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new FlyApiError(`/apps/${appName}/logs`, res.status, text);
+  let parsed: any;
+  try {
+    parsed = text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(`Fly returned a log payload that is not JSON: ${text.slice(0, 200)}`);
+  }
+  const rows = (parsed?.data ?? []) as any[];
+  return rows.map((row) => {
+    const a = row?.attributes ?? {};
+    return {
+      at: String(a.timestamp ?? ""),
+      level: String(a.level ?? "info"),
+      instance: String(a.instance ?? ""),
+      region: String(a.region ?? ""),
+      message: String(a.message ?? ""),
+    } satisfies FlyLogLine;
+  });
+}
+
+const LOG_RULES: { test: RegExp; fatal: boolean; diagnosis: string }[] = [
+  {
+    test: /OutOfMemoryError|Killed process|oom-kill|Out of memory/i,
+    fatal: true,
+    diagnosis:
+      "The agent ran out of memory. Redeploy with at least 4 GB for the Cloud Agent machine.",
+  },
+  {
+    test: /database "(pollux|connect|agent|node)" does not exist/i,
+    fatal: true,
+    diagnosis:
+      "Postgres is missing one of the four Identus databases (pollux, connect, agent, node). The Postgres init script did not run — destroy the app and redeploy so the volume is created fresh.",
+  },
+  {
+    test: /password authentication failed|FATAL:\s+role .* does not exist/i,
+    fatal: true,
+    diagnosis:
+      "Postgres rejected the agent's credentials. The stored Postgres password and the database no longer match; redeploy with a fresh volume.",
+  },
+  {
+    test: /UnknownHostException|Name or service not known|Temporary failure in name resolution/i,
+    fatal: true,
+    diagnosis:
+      "The agent cannot resolve its Postgres or PRISM node hostname on Fly's private network. Internal DNS only resolves process-group names, so the machines' fly_process_group metadata must match the hostnames in the agent env.",
+  },
+  {
+    test: /Connection refused|ConnectException|connect timed out|Connection to .* refused/i,
+    fatal: false,
+    diagnosis:
+      "The agent resolved Postgres or the PRISM node but could not open a connection — the dependency is probably still booting, or the JVM is still preferring IPv4 on Fly's IPv6-only private network.",
+  },
+  {
+    test: /Address already in use|Failed to bind/i,
+    fatal: true,
+    diagnosis:
+      "The REST service could not bind its port. Two processes are competing for 8085 inside the machine.",
+  },
+  {
+    test: /Flyway|Migrating schema|migration|Successfully applied/i,
+    fatal: false,
+    diagnosis:
+      "The agent is running its first-boot database migrations. This is normal and can take several minutes — keep waiting before changing anything.",
+  },
+  {
+    test: /Server online at|started on port|Netty started|http server started/i,
+    fatal: false,
+    diagnosis:
+      "The agent reports its HTTP server as started. If probes still fail, the problem is between Fly's edge and the machine, not inside the container.",
+  },
+];
+
+/** Reads the log tail and names the failure in plain language. */
+export function classifyLogs(lines: FlyLogLine[]): { diagnosis: string; fatal: boolean } {
+  if (!lines.length) {
+    return {
+      diagnosis:
+        "Fly has no log lines for this machine yet. Either it has not produced output, or the log retention window has passed.",
+      fatal: false,
+    };
+  }
+  // Newest lines carry the most relevant signal, so read the tail backwards.
+  const recent = lines.slice(-400).map((l) => l.message).reverse();
+  for (const message of recent) {
+    const hit = LOG_RULES.find((rule) => rule.test.test(message));
+    if (hit) return { diagnosis: hit.diagnosis, fatal: hit.fatal };
+  }
+  const errors = recent.filter((m) => /error|exception|fatal/i.test(m));
+  if (errors.length) {
+    return {
+      diagnosis: `No known failure pattern matched, but the log contains errors. Most recent: ${errors[0]?.slice(0, 300)}`,
+      fatal: false,
+    };
+  }
+  return {
+    diagnosis: "No errors in the recent log tail. The agent looks like it is still starting up.",
+    fatal: false,
+  };
+}
+
+/** Log tail for the Cloud Agent machine (or a named machine) plus a diagnosis. */
+export async function getAgentLogs(
+  appName: string,
+  machineId?: string | null,
+): Promise<FlyLogReport> {
+  let target = machineId ?? null;
+  if (!target) {
+    try {
+      const machines = await listMachines(appName);
+      target = (machines.find((m) => m.name.includes("cloud-agent")) ?? machines[0])?.id ?? null;
+    } catch {
+      target = null;
+    }
+  }
+  const lines = await fetchAppLogs(appName, target);
+  const { diagnosis, fatal } = classifyLogs(lines);
+  return { appName, machineId: target, lines: lines.slice(-300), diagnosis, fatal };
+}

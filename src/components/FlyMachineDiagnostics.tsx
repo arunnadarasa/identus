@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, Check, Cpu, RefreshCw, Stethoscope } from "lucide-react";
-import { flyMachineDiagnostics } from "@/lib/identus/fly.functions";
+import { AlertTriangle, Check, Cpu, Globe, RefreshCw, Stethoscope } from "lucide-react";
+import { toast } from "sonner";
+import { flyAllocateIps, flyMachineDiagnostics } from "@/lib/identus/fly.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -23,6 +24,7 @@ export function FlyMachineDiagnostics({
   autoRefresh?: boolean;
 }) {
   const load = useServerFn(flyMachineDiagnostics);
+  const allocate = useServerFn(flyAllocateIps);
   const query = useQuery({
     queryKey: ["fly-diagnostics", connectionId],
     queryFn: () => load({ data: { id: connectionId } }),
@@ -30,7 +32,19 @@ export function FlyMachineDiagnostics({
     staleTime: 10_000,
   });
 
+  const repair = useMutation({
+    mutationFn: () => allocate({ data: { id: connectionId } }),
+    onSuccess: (result) => {
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.message);
+      query.refetch();
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not allocate an IP."),
+  });
+
   const machines = query.data?.machines ?? [];
+  const ips: { address: string; type: string }[] = query.data?.ips ?? [];
 
   return (
     <Collapsible>
@@ -66,6 +80,31 @@ export function FlyMachineDiagnostics({
           ) : null}
           {query.data?.ok && machines.length === 0 ? (
             <p className="text-muted-foreground">No machines found in this app.</p>
+          ) : null}
+
+          {query.data?.ok && ips.length === 0 ? (
+            <div className="space-y-2 rounded-md border border-destructive/40 bg-destructive/10 p-2">
+              <p className="text-destructive">
+                This app has no public IP, so <span className="font-mono">{query.data.appName}.fly.dev</span>{" "}
+                does not resolve — every health probe fails before it reaches the container, however
+                healthy the machines are.
+                {query.data.ipsMessage ? ` (${query.data.ipsMessage})` : ""}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                disabled={repair.isPending}
+                onClick={() => repair.mutate()}
+              >
+                <Globe className="mr-2 h-3 w-3" />
+                {repair.isPending ? "Allocating…" : "Allocate public IP"}
+              </Button>
+            </div>
+          ) : ips.length ? (
+            <p className="text-muted-foreground">
+              Public IPs: {ips.map((ip) => `${ip.type} ${ip.address}`).join(", ")}
+            </p>
           ) : null}
 
           {machines.map((m) => (

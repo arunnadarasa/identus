@@ -17,6 +17,7 @@ import { AgentHealthPanel } from "@/components/AgentHealthPanel";
 import { AgentReadinessStatus } from "@/components/AgentReadinessWatcher";
 import { ProvisionLogViewer } from "@/components/ProvisionLogViewer";
 import { FlyMachineDiagnostics } from "@/components/FlyMachineDiagnostics";
+import { FlyAgentLogs } from "@/components/FlyAgentLogs";
 
 import { FlyAgentPicker } from "@/components/FlyAgentPicker";
 import { ActiveAgentCard } from "@/components/ActiveAgentCard";
@@ -215,6 +216,10 @@ function Agents() {
               {conn.mode === "fly" ? (
                 <>
                   <FlyMachineDiagnostics
+                    connectionId={conn.id}
+                    autoRefresh={conn.readiness_status === "waiting"}
+                  />
+                  <FlyAgentLogs
                     connectionId={conn.id}
                     autoRefresh={conn.readiness_status === "waiting"}
                   />

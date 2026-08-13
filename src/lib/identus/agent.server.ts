@@ -81,6 +81,84 @@ export async function agentFetch(
   return text ? JSON.parse(text) : null;
 }
 
+/**
+ * Turns a failed fetch into text that says what actually went wrong. "down" on
+ * its own is useless: a DNS failure, a TCP timeout and a TLS error each mean a
+ * different fix.
+ */
+function describeFetchFailure(error: unknown) {
+  const msg = error instanceof Error ? error.message : String(error);
+  const name = error instanceof Error ? error.name : "";
+  if (name === "TimeoutError" || /timed out|timeout/i.test(msg)) {
+    return "No response before the timeout — nothing is listening behind this URL (a localhost agent is only reachable from the machine running it).";
+  }
+  if (/ENOTFOUND|getaddrinfo|dns/i.test(msg)) {
+    return "Hostname could not be resolved — check the agent URL.";
+  }
+  if (/ECONNREFUSED|refused/i.test(msg)) {
+    return "Connection refused — the host answered but no service is bound to that port.";
+  }
+  if (/certificate|TLS|SSL/i.test(msg)) {
+    return `TLS handshake failed: ${msg.slice(0, 140)}`;
+  }
+  if (/ECONNRESET|socket hang up/i.test(msg)) {
+    return "Connection reset mid-request — the service accepted the socket then dropped it, which usually means it is still starting.";
+  }
+  return `Request failed: ${msg.slice(0, 160)}`;
+}
+
+/** Explains a non-2xx reply from the agent in terms of the likely cause. */
+function describeHttpFailure(status: number, body: string) {
+  const snippet = body.replace(/\s+/g, " ").slice(0, 160);
+  if (status === 401 || status === 403) return "API key rejected by the agent";
+  if (status === 404)
+    return `HTTP 404 — the agent answered but this path does not exist on it. ${snippet}`;
+  if (status === 502 || status === 503)
+    return `HTTP ${status} — Fly's edge has no healthy instance for this app yet (the container is down or still booting). ${snippet}`;
+  if (status === 504) return `HTTP 504 — the machine accepted the request but never replied in time.`;
+  return `HTTP ${status} ${snippet}`;
+}
+
+/**
+ * Identus serves its API at the root when the machine is hit directly, but the
+ * upstream compose stack fronts it with a gateway that adds `/cloud-agent`.
+ * Trying both rules out a whole class of false "down" readings on adopted or
+ * gateway-fronted agents.
+ */
+const PATH_PREFIXES = ["", "/cloud-agent"] as const;
+
+async function probeOnce(url: string, apiKey: string | null | undefined, timeoutMs: number) {
+  const res = await fetch(url, {
+    headers: apiKey ? { apikey: apiKey } : {},
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  const text = (await res.text()).trim();
+  return { res, text };
+}
+
+/** Finds which path prefix the agent answers health on, if any. */
+async function resolvePrefix(
+  base: string,
+  apiKey: string | null | undefined,
+  timeoutMs: number,
+): Promise<{ prefix: string; res?: Response; text?: string; failure: string }> {
+  let failure = "";
+  for (const prefix of PATH_PREFIXES) {
+    try {
+      const { res, text } = await probeOnce(`${base}${prefix}/_system/health`, apiKey, timeoutMs);
+      if (res.ok) return { prefix, res, text, failure: "" };
+      // A 401 still proves something is listening on this prefix.
+      if (res.status === 401 || res.status === 403) return { prefix, res, text, failure: "" };
+      failure = describeHttpFailure(res.status, text);
+    } catch (error) {
+      failure = describeFetchFailure(error);
+      // A transport failure will repeat on every prefix, so stop early.
+      break;
+    }
+  }
+  return { prefix: PATH_PREFIXES[0], failure };
+}
+
 export async function checkHealth(conn: {
   mode: string;
   base_url: string | null;
@@ -92,31 +170,23 @@ export async function checkHealth(conn: {
   }
   const base = agentBaseUrl(conn as AgentConnection);
   if (!base) return { healthy: false, message: "No base URL configured for this agent." };
-  try {
-    const res = await fetch(`${base}/_system/health`, {
-      headers: conn.api_key ? { apikey: conn.api_key } : {},
-      signal: AbortSignal.timeout(10000),
-    });
-
-    const text = (await res.text()).trim();
-    if (!res.ok) return { healthy: false, message: `Agent replied ${res.status}: ${text.slice(0, 200)}` };
-    let version = text;
-    try {
-      const parsed = JSON.parse(text);
-      version = parsed.version ?? text;
-    } catch {
-      /* plain text body */
-    }
-    return { healthy: true, version, message: `Reachable — agent version ${version || "unknown"}.` };
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    return {
-      healthy: false,
-      message: msg.includes("timed out")
-        ? "Timed out. A localhost agent is only reachable from the machine running it."
-        : `Could not reach the agent: ${msg}`,
-    };
+  const resolved = await resolvePrefix(base, conn.api_key, 10000);
+  if (!resolved.res) return { healthy: false, message: resolved.failure || "Could not reach the agent." };
+  const text = resolved.text ?? "";
+  if (!resolved.res.ok) {
+    return { healthy: false, message: describeHttpFailure(resolved.res.status, text) };
   }
+  let version = text;
+  try {
+    version = JSON.parse(text).version ?? text;
+  } catch {
+    /* plain text body */
+  }
+  return {
+    healthy: true,
+    version,
+    message: `Reachable at ${base}${resolved.prefix} — agent version ${version || "unknown"}.`,
+  };
 }
 
 const PROBE_CHECKS = [
@@ -166,15 +236,17 @@ export async function probeAgent(conn: {
   const t0 = Date.now();
   let version: string | undefined;
   const checks: ProbeCheck[] = [];
+  const resolved = await resolvePrefix(base, conn.api_key, 6000);
+  const prefix = resolved.prefix;
 
   for (const check of PROBE_CHECKS) {
     const started = Date.now();
     try {
-      const res = await fetch(`${base}${check.path}`, {
-        headers: conn.api_key ? { apikey: conn.api_key } : {},
-        signal: AbortSignal.timeout(5000),
-      });
-      const text = (await res.text()).trim();
+      const { res, text } = await probeOnce(
+        `${base}${prefix}${check.path}`,
+        conn.api_key,
+        6000,
+      );
       const ms = Date.now() - started;
       if (check.id === "system" && res.ok) {
         try {
@@ -183,7 +255,6 @@ export async function probeAgent(conn: {
           version = text;
         }
       }
-      const unauthorized = res.status === 401 || res.status === 403;
       checks.push({
         id: check.id,
         label: check.label,
@@ -192,22 +263,17 @@ export async function probeAgent(conn: {
         ms,
         detail: res.ok
           ? check.id === "system"
-            ? `version ${version || "unknown"}`
+            ? `version ${version || "unknown"}${prefix ? ` at ${prefix}` : ""}`
             : `HTTP ${res.status}`
-          : unauthorized
-            ? "API key rejected by the agent"
-            : `HTTP ${res.status} ${text.slice(0, 120)}`,
+          : describeHttpFailure(res.status, text),
       });
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
       checks.push({
         id: check.id,
         label: check.label,
         ok: false,
         ms: Date.now() - started,
-        detail: msg.includes("timed out")
-          ? "Timed out after 5s — is the agent reachable from the internet?"
-          : msg.slice(0, 160),
+        detail: describeFetchFailure(error),
       });
     }
   }
@@ -223,7 +289,7 @@ export async function probeAgent(conn: {
     message: !systemOk
       ? `Agent is not responding — ${checks.find((c) => c.id === "system")?.detail ?? "no reply"}`
       : failed.length
-        ? `Agent is up but ${failed.length} of ${checks.length} checks failed (${failed
+        ? `Agent is up${prefix ? ` (under ${prefix})` : ""} but ${failed.length} of ${checks.length} checks failed (${failed
             .map((c) => c.label)
             .join(", ")}).`
         : `All ${checks.length} checks passed — agent version ${version || "unknown"}.`,

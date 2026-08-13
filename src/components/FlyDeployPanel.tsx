@@ -413,10 +413,12 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
         </Button>
       </div>
 
-      {nameTaken ? (
+      {/* Only ever about a name that was taken before this session deployed it. */}
+      {nameTaken || failureReason === "name_taken" ? (
         <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
-          An app named <span className="font-mono">{appName}</span> already exists in your Fly
-          organisation. Pick a different name, or adopt that app from the{" "}
+          An app named{" "}
+          <span className="font-mono">{nameTaken ? appName : deployingName || appName}</span> already
+          exists in your Fly organisation. Pick a different name, or adopt that app from the{" "}
           <span className="font-medium">Existing apps</span> list instead of deploying a duplicate.
         </p>
       ) : null}
@@ -427,10 +429,11 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
           live={phase === "deploying"}
           fallbackSteps={steps as ProvisionStep[]}
           showMachines={appCreated}
+          onChanged={onChanged}
           machinesNote={
             appCreated
               ? ""
-              : `Nothing was deployed: an app named ${appName} already existed, so no machines belong to this attempt.`
+              : `Nothing was deployed: an app named ${deployingName || appName} already existed, so no machines belong to this attempt.`
           }
         />
       ) : null}

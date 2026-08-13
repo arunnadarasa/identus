@@ -200,6 +200,23 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
     toast.success("Fly app cleaned up");
   };
 
+  /**
+   * Clears a failed attempt that never created anything on Fly. It touches no
+   * Fly resources — the pre-existing app of the same name stays exactly as it is.
+   */
+  const discard = () => {
+    setPhase("idle");
+    setSteps([]);
+    setError("");
+    setFailureReason("");
+    setConnectionId(null);
+    setAppCreated(true);
+    onChanged();
+    qc.invalidateQueries({ queryKey: ["connections"] });
+  };
+
+
+
   return (
     <div className="space-y-5 pt-4">
       {tokenProblem ? (

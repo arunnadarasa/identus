@@ -244,6 +244,7 @@ function Agents() {
                     connectionId={conn.id}
                     status={conn.provision_status ?? null}
                     stepCount={Array.isArray(conn.provision_log) ? conn.provision_log.length : 0}
+                    onChanged={invalidate}
                   />
                 </>
               ) : null}

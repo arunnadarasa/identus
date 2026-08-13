@@ -421,6 +421,18 @@ export function FlyDeployPanel({ onChanged }: { onChanged: () => void }) {
             ) : null}
           </div>
 
+          {/* Machine state and container logs, so a silent agent can be
+              diagnosed and repaired without leaving the deploy flow. */}
+          {connectionId ? (
+            <div className="space-y-2">
+              <FlyMachineDiagnostics
+                connectionId={connectionId}
+                autoRefresh={readiness.status !== "ready"}
+              />
+              <FlyAgentLogs connectionId={connectionId} />
+            </div>
+          ) : null}
+
           <Button
             size="sm"
             className="h-11 w-full sm:h-9 sm:w-auto"

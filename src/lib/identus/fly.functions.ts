@@ -195,7 +195,7 @@ export const provisionFlyAgent = createServerFn({ method: "POST" })
         "Start Postgres machine",
         `POST /apps/${data.appName}/machines`,
         () => {
-          const pgConfig = postgresMachineConfig(data.region, password);
+          const pgConfig = postgresMachineConfig(data.region, password, appPassword);
           pgConfig.config.mounts = [{ volume: volume.id, path: "/var/lib/postgresql/data" }];
           return fly(`/apps/${data.appName}/machines`, {
             method: "POST",

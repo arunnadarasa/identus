@@ -781,6 +781,13 @@ const LOG_RULES: { test: RegExp; fatal: boolean; diagnosis: string }[] = [
       "The agent ran out of memory. Redeploy with at least 4 GB for the Cloud Agent machine.",
   },
   {
+    test: /role "(pollux|connect|agent)-application-user" does not exist/i,
+    fatal: true,
+    diagnosis:
+      "Postgres is missing the Identus application roles (pollux-application-user, connect-application-user, agent-application-user). The agent's first-boot migration GRANTs to them and aborts. The init script only runs on an empty volume — deploy a fresh app.",
+  },
+  {
+
     test: /database "(pollux|connect|agent|node)" does not exist/i,
     fatal: true,
     diagnosis:

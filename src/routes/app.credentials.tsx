@@ -105,36 +105,52 @@ function Credentials() {
               </div>
             ) : null}
             <div className="space-y-2">
-
               <Label>Issuer DID</Label>
               <Select value={issuerDid} onValueChange={setIssuerDid}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select an issuer DID" />
+                  <SelectValue
+                    placeholder={issuerLoading ? "Loading agent DIDs…" : "Select an issuer DID"}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {dids.map((did) => (
-                    <SelectItem key={did.id} value={did.did}>
-                      {did.alias} · {did.role}
+                  {issuerOptions.map((did) => (
+                    <SelectItem key={did.did} value={did.did}>
+                      {did.alias}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {isRealAgent && !issuerLoading && issuerOptions.length === 0 ? (
+                <p className="text-xs text-destructive">
+                  This agent has no published issuer DID with an assertion key. Create and publish
+                  one on the DIDs page first — the seeded demo DIDs only work in simulated mode.
+                  {issuerData?.error ? ` (${issuerData.error})` : ""}
+                </p>
+              ) : null}
+              {isRealAgent && issuerOptions.length > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Showing published DIDs owned by the connected agent.
+                </p>
+              ) : null}
             </div>
-            <div className="space-y-2">
-              <Label>Holder DID</Label>
-              <Select value={holderDid} onValueChange={setHolderDid}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a holder DID" />
-                </SelectTrigger>
-                <SelectContent>
-                  {dids.map((did) => (
-                    <SelectItem key={`h-${did.id}`} value={did.did}>
-                      {did.alias} · {did.role}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!isRealAgent || target !== "connectionless" ? (
+              <div className="space-y-2">
+                <Label>Holder DID</Label>
+                <Select value={holderDid} onValueChange={setHolderDid}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a holder DID" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dids.map((did) => (
+                      <SelectItem key={`h-${did.id}`} value={did.did}>
+                        {did.alias} · {did.role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
             <div className="space-y-2">
               <Label htmlFor="subject">Subject name</Label>
               <Input

@@ -250,7 +250,39 @@ function Learn() {
         </div>
       </section>
 
+      {/* Section nav */}
+      <nav className="sticky top-0 z-20 border-b border-border/60 bg-background/90 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4 py-2 sm:px-6">
+          {sectionNav.map((s) => (
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              className="whitespace-nowrap rounded-md px-3 py-1.5 font-mono text-xs text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
+            >
+              {s.label}
+            </a>
+          ))}
+        </div>
+      </nav>
+
       <article className="mx-auto max-w-5xl space-y-16 px-4 py-14 sm:space-y-24 sm:px-6 sm:py-20">
+        {/* How it works at a glance */}
+        <section>
+          <Badge
+            variant="outline"
+            className="mb-4 border-primary/40 text-primary"
+          >
+            At a glance
+          </Badge>
+          <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+            How SSI works, in one picture
+          </h2>
+          <div className="mt-8">
+            <TrustTriangle />
+          </div>
+        </section>
+
+
         {/* Problem */}
         <section id="problem">
           <Badge

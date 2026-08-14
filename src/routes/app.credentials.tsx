@@ -9,7 +9,9 @@ import {
   acceptCredential,
   verifyCredential,
   createSchema,
+  listAgentConnections,
 } from "@/lib/identus.functions";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

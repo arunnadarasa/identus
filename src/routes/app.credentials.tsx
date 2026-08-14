@@ -32,15 +32,23 @@ function Credentials() {
   const accept = useServerFn(acceptCredential);
   const verify = useServerFn(verifyCredential);
   const addSchema = useServerFn(createSchema);
+  const fetchAgentConnections = useServerFn(listAgentConnections);
 
   const { data } = useQuery({ queryKey: ["workspace"], queryFn: () => fetchWorkspace() });
+  const { data: agentConns, isLoading: connsLoading } = useQuery({
+    queryKey: ["agent-didcomm-connections"],
+    queryFn: () => fetchAgentConnections(),
+  });
   const invalidate = () => qc.invalidateQueries({ queryKey: ["workspace"] });
 
   const dids = (data?.dids ?? []) as any[];
   const schemas = (data?.schemas ?? []) as any[];
+  const isRealAgent = (data?.active?.mode ?? "simulated") !== "simulated";
+  const didcomm = (agentConns?.connections ?? []) as any[];
 
   const [issuerDid, setIssuerDid] = useState("");
   const [holderDid, setHolderDid] = useState("");
+  const [target, setTarget] = useState("");
   const [subject, setSubject] = useState("");
   const [schemaName, setSchemaName] = useState("");
   const [claimsText, setClaimsText] = useState('{\n  "degree": "BSc Computer Science",\n  "year": "2026"\n}');
@@ -48,6 +56,7 @@ function Credentials() {
   const [schemaVersion, setSchemaVersion] = useState("1.0.0");
   const [schemaAttrs, setSchemaAttrs] = useState("degree, year");
   const [busy, setBusy] = useState(false);
+
 
   return (
     <div className="space-y-8">

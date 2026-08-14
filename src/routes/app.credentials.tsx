@@ -198,10 +198,11 @@ function Credentials() {
               disabled={
                 busy ||
                 !issuerDid ||
-                !holderDid ||
+                (!holderDid && !(isRealAgent && target === "connectionless")) ||
                 !subject ||
                 !schemaName ||
-                (isRealAgent && !target)
+                (isRealAgent && !target) ||
+                (isRealAgent && !issuerLoading && issuerOptions.length === 0)
               }
               onClick={async () => {
                 let claims: Record<string, string>;
@@ -219,7 +220,8 @@ function Credentials() {
                   await issue({
                     data: {
                       issuerDid,
-                      holderDid,
+                      ...(holderDid ? { holderDid } : {}),
+
                       subject,
                       schemaName,
                       claims,

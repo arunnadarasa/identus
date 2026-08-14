@@ -702,10 +702,14 @@ function Learn() {
             None of this needs a new stack. Identus already gives you the
             pieces these protocols assume: DIDs for agents and humans,
             credential issuance and verification, and revocation when a
-            delegation should stop working. You can model a delegation-style
-            credential in the console today.
+            delegation should stop working. All four protocols above run as
+            live demos in the console — real A2A messages, real signatures, and
+            a real testnet payment.
           </p>
-          <div className="mt-5">
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+            <Button asChild className="w-full sm:w-auto">
+              <Link to="/app/demos">Run the agentic demos</Link>
+            </Button>
             <Button asChild variant="outline" className="w-full sm:w-auto">
               <Link to="/app/credentials">Issue a delegation credential</Link>
             </Button>

@@ -363,23 +363,10 @@ function Learn() {
             things work. No scans, no waiting, no handing over more than you need
             to.
           </p>
-          <div className="mt-8 grid gap-5 sm:grid-cols-2">
-            {dayInLife.map((d) => (
-              <Card key={d.step} className="border-border/60 bg-card/60">
-                <CardHeader className="flex flex-row items-center gap-4">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/40 font-mono text-sm text-primary">
-                    {d.step}
-                  </span>
-                  <CardTitle className="font-display text-lg">
-                    {d.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  {d.body}
-                </CardContent>
-              </Card>
-            ))}
+          <div className="mt-8">
+            <SsiTimeline items={dayInLife} />
           </div>
+
         </section>
 
         {/* Web2 opportunity */}

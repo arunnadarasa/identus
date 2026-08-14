@@ -105,7 +105,7 @@ const dayInLife = [
   {
     step: "4",
     title: "Pick up a parcel",
-    body: "The courier needs to confirm it's you. You present a minimal proof — "this phone's owner is verified" — without revealing your name or address.",
+    body: "The courier needs to confirm it's you. You present a minimal proof — just that this phone's owner is verified — without revealing your name or address.",
   },
 ];
 

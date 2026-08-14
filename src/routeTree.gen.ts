@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as LearnRouteImport } from './routes/learn'
+import { Route as NhsRouteImport } from './routes/nhs'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppActivityRouteImport } from './routes/app.activity'
 import { Route as AppAgentsRouteImport } from './routes/app.agents'
@@ -53,6 +54,11 @@ const DocsRoute = DocsRouteImport.update({
 const LearnRoute = LearnRouteImport.update({
   id: '/learn',
   path: '/learn',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NhsRoute = NhsRouteImport.update({
+  id: '/nhs',
+  path: '/nhs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -137,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteWithChildren
   '/docs': typeof DocsRoute
   '/learn': typeof LearnRoute
+  '/nhs': typeof NhsRoute
   '/app/activity': typeof AppActivityRoute
   '/app/agents': typeof AppAgentsRoute
   '/app/credentials': typeof AppCredentialsRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/docs': typeof DocsRoute
   '/learn': typeof LearnRoute
+  '/nhs': typeof NhsRoute
   '/app/activity': typeof AppActivityRoute
   '/app/agents': typeof AppAgentsRoute
   '/app/credentials': typeof AppCredentialsRoute
@@ -181,6 +189,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRouteWithChildren
   '/docs': typeof DocsRoute
   '/learn': typeof LearnRoute
+  '/nhs': typeof NhsRoute
   '/app/activity': typeof AppActivityRoute
   '/app/agents': typeof AppAgentsRoute
   '/app/credentials': typeof AppCredentialsRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/docs'
     | '/learn'
+    | '/nhs'
     | '/app/activity'
     | '/app/agents'
     | '/app/credentials'
@@ -226,6 +236,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/docs'
     | '/learn'
+    | '/nhs'
     | '/app/activity'
     | '/app/agents'
     | '/app/credentials'
@@ -248,6 +259,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/docs'
     | '/learn'
+    | '/nhs'
     | '/app/activity'
     | '/app/agents'
     | '/app/credentials'
@@ -271,6 +283,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   DocsRoute: typeof DocsRoute
   LearnRoute: typeof LearnRoute
+  NhsRoute: typeof NhsRoute
   ApiPublicA2aSellerRoute: typeof ApiPublicA2aSellerRoute
   ApiPublicUcpMerchantRoute: typeof ApiPublicUcpMerchantRoute
   ApiPublicX402ProxyRoute: typeof ApiPublicX402ProxyRoute
@@ -311,6 +324,13 @@ declare module '@tanstack/react-router' {
       path: '/learn'
       fullPath: '/learn'
       preLoaderRoute: typeof LearnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nhs': {
+      id: '/nhs'
+      path: '/nhs'
+      fullPath: '/nhs'
+      preLoaderRoute: typeof NhsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/': {
@@ -467,6 +487,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   DocsRoute: DocsRoute,
   LearnRoute: LearnRoute,
+  NhsRoute: NhsRoute,
   ApiPublicA2aSellerRoute: ApiPublicA2aSellerRoute,
   ApiPublicUcpMerchantRoute: ApiPublicUcpMerchantRoute,
   ApiPublicX402ProxyRoute: ApiPublicX402ProxyRoute,

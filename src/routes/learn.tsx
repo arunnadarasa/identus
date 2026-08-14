@@ -636,6 +636,84 @@ function Learn() {
           </p>
         </section>
 
+        {/* Agentic opportunity */}
+        <section id="agents" className="scroll-mt-16">
+          <Badge
+            variant="outline"
+            className="mb-4 border-primary/40 text-primary"
+          >
+            <Bot className="mr-1.5 h-3.5 w-3.5" />
+            The agentic opportunity
+          </Badge>
+          <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+            AI agents need identity too
+          </h2>
+          <p className="mt-3 max-w-2xl text-muted-foreground">
+            Agents are starting to act on our behalf — booking, buying,
+            negotiating with other agents. That makes two questions urgent:{" "}
+            <em>who is this agent, and who does it act for?</em> and{" "}
+            <em>is it allowed to do this?</em> Passwords and API keys can't
+            answer either. DIDs and verifiable credentials can.
+          </p>
+
+          <div className="mt-8">
+            <AgenticStack />
+          </div>
+
+          <h3 className="mt-10 font-display text-lg font-semibold">
+            The delegation chain
+          </h3>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            Instead of handing an agent your credentials, you hand it a narrow,
+            time-boxed permission that anyone downstream can verify.
+          </p>
+          <div className="mt-4">
+            <DelegationChain />
+          </div>
+
+          <h3 className="mt-10 font-display text-lg font-semibold">
+            What this unlocks
+          </h3>
+          <div className="mt-4 grid gap-5 sm:grid-cols-3">
+            {[
+              [
+                "Buy within a budget",
+                "Your agent books a flight and the merchant can prove the mandate was signed by you, capped and unexpired.",
+              ],
+              [
+                "Prove without sharing",
+                "An agent shows you're a verified customer over 18 without revealing your account or date of birth.",
+              ],
+              [
+                "Agent-to-agent trust",
+                "Two agents negotiate and each checks the other's issuer before exchanging anything of value.",
+              ],
+            ].map(([title, body]) => (
+              <div key={title} className="border-l-2 border-primary/50 pl-4">
+                <h4 className="font-mono text-sm font-medium text-primary">
+                  {title}
+                </h4>
+                <p className="mt-1 text-sm text-muted-foreground">{body}</p>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-8 max-w-2xl text-sm text-muted-foreground">
+            None of this needs a new stack. Identus already gives you the
+            pieces these protocols assume: DIDs for agents and humans,
+            credential issuance and verification, and revocation when a
+            delegation should stop working. You can model a delegation-style
+            credential in the console today.
+          </p>
+          <div className="mt-5">
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link to="/app/credentials">Issue a delegation credential</Link>
+            </Button>
+          </div>
+        </section>
+
+
+
         {/* Where Identus fits */}
         <section className="rounded-lg border border-border/60 bg-card/30 p-6 sm:p-10">
           <Badge

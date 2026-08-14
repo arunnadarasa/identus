@@ -63,12 +63,13 @@ export function ActiveAgentCard({
         </Row>
         <Row label="Admin key">
           {connection.has_api_key ? (
-            <span className="flex flex-wrap items-center gap-2">
+            <span className="grid gap-2">
               <span className="break-all font-mono">{key ?? "••••••••••••••••"}</span>
+              <span className="flex flex-wrap items-center gap-2">
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-7 px-2"
+                className="h-9 px-3 sm:h-7 sm:px-2"
                 onClick={async () => {
                   if (key) {
                     setKey(null);
@@ -87,7 +88,7 @@ export function ActiveAgentCard({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-7 px-2"
+                className="h-9 px-3 sm:h-7 sm:px-2"
                 onClick={async () => {
                   const value = key ?? (await reveal({ data: { id: connection.id } })).apiKey;
                   if (!value) {
@@ -100,6 +101,7 @@ export function ActiveAgentCard({
               >
                 Copy
               </Button>
+              </span>
             </span>
           ) : (
             <span className="text-muted-foreground">not required</span>

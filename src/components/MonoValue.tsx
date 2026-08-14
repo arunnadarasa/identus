@@ -32,7 +32,23 @@ export function TruncatedMono({ value, label, className, copy = true }: Truncate
 
   return (
     <div className={cn("min-w-0 space-y-2", className)}>
-      {label ? <p className="text-xs text-muted-foreground">{label}</p> : null}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+        <p className="truncate text-xs text-muted-foreground">{label ?? ""}</p>
+        {copy ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-9 shrink-0 px-3 text-xs"
+            onClick={() => {
+              navigator.clipboard.writeText(value);
+              toast.success("Copied");
+            }}
+          >
+            Copy
+          </Button>
+        ) : null}
+      </div>
       <p
         className={cn(
           "w-full min-w-0 overflow-hidden break-all rounded-md bg-secondary/40 p-2 font-mono text-[11px] text-muted-foreground",
@@ -51,20 +67,6 @@ export function TruncatedMono({ value, label, className, copy = true }: Truncate
         >
           {open ? "Hide" : "Show full"}
         </Button>
-        {copy ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-8 px-2 text-xs"
-            onClick={() => {
-              navigator.clipboard.writeText(value);
-              toast.success("Copied");
-            }}
-          >
-            Copy
-          </Button>
-        ) : null}
       </div>
     </div>
   );

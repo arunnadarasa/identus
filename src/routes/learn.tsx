@@ -2,6 +2,23 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Wallet, EyeOff, ShieldCheck } from "lucide-react";
+import { TrustTriangle } from "@/components/learn/TrustTriangle";
+import { FlowCompare } from "@/components/learn/FlowCompare";
+import { DisclosureChips } from "@/components/learn/DisclosureChips";
+import { SsiTimeline } from "@/components/learn/SsiTimeline";
+import { Web2Web3Split } from "@/components/learn/Web2Web3Split";
+
+const sectionNav = [
+  { id: "problem", label: "The problem" },
+  { id: "pillars", label: "Three ideas" },
+  { id: "day", label: "A day with SSI" },
+  { id: "web2", label: "Web2" },
+  { id: "web3", label: "Web3" },
+];
+
+const pillarIcons = [Wallet, EyeOff, ShieldCheck];
+
 
 export const Route = createFileRoute("/learn")({
   head: () => ({
@@ -233,9 +250,41 @@ function Learn() {
         </div>
       </section>
 
+      {/* Section nav */}
+      <nav className="sticky top-0 z-20 border-b border-border/60 bg-background/90 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4 py-2 sm:px-6">
+          {sectionNav.map((s) => (
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              className="whitespace-nowrap rounded-md px-3 py-1.5 font-mono text-xs text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
+            >
+              {s.label}
+            </a>
+          ))}
+        </div>
+      </nav>
+
       <article className="mx-auto max-w-5xl space-y-16 px-4 py-14 sm:space-y-24 sm:px-6 sm:py-20">
+        {/* How it works at a glance */}
+        <section>
+          <Badge
+            variant="outline"
+            className="mb-4 border-primary/40 text-primary"
+          >
+            At a glance
+          </Badge>
+          <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+            How SSI works, in one picture
+          </h2>
+          <div className="mt-8">
+            <TrustTriangle />
+          </div>
+        </section>
+
+
         {/* Problem */}
-        <section id="problem">
+        <section id="problem" className="scroll-mt-16">
           <Badge
             variant="outline"
             className="mb-4 border-primary/40 text-primary"
@@ -265,10 +314,13 @@ function Learn() {
               </Card>
             ))}
           </div>
+          <div className="mt-8">
+            <FlowCompare />
+          </div>
         </section>
 
         {/* What SSI changes */}
-        <section>
+        <section id="pillars" className="scroll-mt-16">
           <Badge
             variant="outline"
             className="mb-4 border-primary/40 text-primary"
@@ -283,29 +335,49 @@ function Learn() {
             "photocopy-and-hope" model with something you actually control.
           </p>
           <div className="mt-8 grid gap-5 md:grid-cols-3">
-            {pillars.map((p) => (
-              <Card key={p.title} className="border-border/60 bg-card/60">
-                <CardHeader>
-                  <Badge
-                    variant="secondary"
-                    className="w-fit font-mono text-xs"
+            {pillars.map((p, i) => {
+              const Icon = pillarIcons[i % pillarIcons.length]!;
+              return (
+                <Card
+                  key={p.title}
+                  className="relative overflow-hidden border-border/60 bg-card/60"
+                >
+                  <span
+                    className="font-display pointer-events-none absolute right-4 top-2 text-5xl font-semibold text-primary/10"
+                    aria-hidden="true"
                   >
-                    {p.tag}
-                  </Badge>
-                  <CardTitle className="font-display pt-2 text-lg">
-                    {p.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  {p.body}
-                </CardContent>
-              </Card>
-            ))}
+                    {i + 1}
+                  </span>
+                  <CardHeader>
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-primary">
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <Badge
+                      variant="secondary"
+                      className="mt-3 w-fit font-mono text-xs"
+                    >
+                      {p.tag}
+                    </Badge>
+                    <CardTitle className="font-display pt-2 text-lg">
+                      {p.title}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-sm text-muted-foreground">
+                    {p.body}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Selective disclosure visual */}
+          <div className="mt-10">
+            <DisclosureChips />
           </div>
 
           {/* Before / After table */}
-          <div className="mt-10 overflow-hidden rounded-lg border border-border/60">
-            <table className="w-full text-left text-sm">
+          <div className="mt-10 overflow-x-auto rounded-lg border border-border/60">
+            <table className="w-full min-w-[36rem] text-left text-sm">
               <thead className="bg-card/60 text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-mono font-medium">Scenario</th>
@@ -330,8 +402,9 @@ function Learn() {
           </div>
         </section>
 
+
         {/* A day with SSI */}
-        <section>
+        <section id="day" className="scroll-mt-16">
           <Badge
             variant="outline"
             className="mb-4 border-primary/40 text-primary"
@@ -346,27 +419,14 @@ function Learn() {
             things work. No scans, no waiting, no handing over more than you need
             to.
           </p>
-          <div className="mt-8 grid gap-5 sm:grid-cols-2">
-            {dayInLife.map((d) => (
-              <Card key={d.step} className="border-border/60 bg-card/60">
-                <CardHeader className="flex flex-row items-center gap-4">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/40 font-mono text-sm text-primary">
-                    {d.step}
-                  </span>
-                  <CardTitle className="font-display text-lg">
-                    {d.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  {d.body}
-                </CardContent>
-              </Card>
-            ))}
+          <div className="mt-8">
+            <SsiTimeline items={dayInLife} />
           </div>
+
         </section>
 
         {/* Web2 opportunity */}
-        <section>
+        <section id="web2" className="scroll-mt-16">
           <Badge
             variant="outline"
             className="mb-4 border-primary/40 text-primary"
@@ -397,7 +457,7 @@ function Learn() {
         </section>
 
         {/* Web3 opportunity */}
-        <section>
+        <section id="web3" className="scroll-mt-16">
           <Badge
             variant="outline"
             className="mb-4 border-primary/40 text-primary"
@@ -412,7 +472,11 @@ function Learn() {
             on the other end. SSI fills that gap — and the two complement each
             other more than they compete.
           </p>
+          <div className="mt-8">
+            <Web2Web3Split />
+          </div>
           <div className="mt-8 grid gap-5 sm:grid-cols-2">
+
             {web3Opportunities.map((o) => (
               <Card key={o.title} className="border-border/60 bg-card/60">
                 <CardHeader>
@@ -427,8 +491,8 @@ function Learn() {
             ))}
           </div>
 
-          <div className="mt-10 overflow-hidden rounded-lg border border-border/60">
-            <table className="w-full text-left text-sm">
+          <div className="mt-10 overflow-x-auto rounded-lg border border-border/60">
+            <table className="w-full min-w-[36rem] text-left text-sm">
               <thead className="bg-card/60 text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-mono font-medium">Question</th>

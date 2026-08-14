@@ -284,7 +284,7 @@ function Learn() {
 
 
         {/* Problem */}
-        <section id="problem">
+        <section id="problem" className="scroll-mt-16">
           <Badge
             variant="outline"
             className="mb-4 border-primary/40 text-primary"
@@ -320,7 +320,7 @@ function Learn() {
         </section>
 
         {/* What SSI changes */}
-        <section id="pillars">
+        <section id="pillars" className="scroll-mt-16">
           <Badge
             variant="outline"
             className="mb-4 border-primary/40 text-primary"
@@ -404,7 +404,7 @@ function Learn() {
 
 
         {/* A day with SSI */}
-        <section id="day">
+        <section id="day" className="scroll-mt-16">
           <Badge
             variant="outline"
             className="mb-4 border-primary/40 text-primary"
@@ -426,7 +426,7 @@ function Learn() {
         </section>
 
         {/* Web2 opportunity */}
-        <section id="web2">
+        <section id="web2" className="scroll-mt-16">
           <Badge
             variant="outline"
             className="mb-4 border-primary/40 text-primary"
@@ -457,7 +457,7 @@ function Learn() {
         </section>
 
         {/* Web3 opportunity */}
-        <section id="web3">
+        <section id="web3" className="scroll-mt-16">
           <Badge
             variant="outline"
             className="mb-4 border-primary/40 text-primary"
@@ -491,8 +491,8 @@ function Learn() {
             ))}
           </div>
 
-          <div className="mt-10 overflow-hidden rounded-lg border border-border/60">
-            <table className="w-full text-left text-sm">
+          <div className="mt-10 overflow-x-auto rounded-lg border border-border/60">
+            <table className="w-full min-w-[36rem] text-left text-sm">
               <thead className="bg-card/60 text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-mono font-medium">Question</th>

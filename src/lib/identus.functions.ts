@@ -271,21 +271,49 @@ export const createDid = createServerFn({ method: "POST" })
 
     let did: string;
     let status = "CREATED";
+    let longFormDid: string | null = null;
+    let publishError: string | null = null;
     if (conn.mode === "simulated") {
       did = await makePrismDid(`${context.userId}:${data.alias}`);
       status = "PUBLISHED";
     } else {
+      // The agent only signs credentials with a key it holds for the right
+      // purpose, so the role has to shape the document template.
+      const publicKeys =
+        data.role === "issuer"
+          ? [
+              { id: "auth-1", purpose: "authentication" },
+              { id: "assert-1", purpose: "assertionMethod" },
+              { id: "agree-1", purpose: "keyAgreement" },
+            ]
+          : data.role === "verifier"
+            ? [
+                { id: "auth-1", purpose: "authentication" },
+                { id: "agree-1", purpose: "keyAgreement" },
+              ]
+            : [{ id: "auth-1", purpose: "authentication" }];
+
       const created = await agentFetch(conn, "/did-registrar/dids", {
         method: "POST",
-        body: JSON.stringify({
-          documentTemplate: {
-            publicKeys: [{ id: "key-1", purpose: "authentication" }],
-            services: [],
-          },
-        }),
+        body: JSON.stringify({ documentTemplate: { publicKeys, services: [] } }),
       });
-      did = created?.longFormDid ?? created?.did ?? "unknown";
+      longFormDid = created?.longFormDid ?? null;
+      did = created?.did ?? created?.longFormDid ?? "unknown";
       status = created?.status ?? "CREATED";
+
+      // Unpublished DIDs cannot be used as issuers, so publish immediately.
+      if (data.role !== "holder" && did !== "unknown") {
+        try {
+          const published = await agentFetch(
+            conn,
+            `/did-registrar/dids/${encodeURIComponent(did)}/publications`,
+            { method: "POST" },
+          );
+          status = published?.scheduledOperation ? "PUBLICATION_PENDING" : (published?.status ?? "PUBLICATION_PENDING");
+        } catch (error) {
+          publishError = error instanceof Error ? error.message : "Publication request failed";
+        }
+      }
     }
 
     const { data: row, error } = await context.supabase
@@ -294,6 +322,8 @@ export const createDid = createServerFn({ method: "POST" })
         user_id: context.userId,
         connection_id: conn.id,
         did,
+        long_form_did: longFormDid,
+        publish_error: publishError,
         alias: data.alias,
         role: data.role,
         status,
@@ -302,6 +332,7 @@ export const createDid = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
+
     await logActivity(
       context.supabase,
       context.userId,

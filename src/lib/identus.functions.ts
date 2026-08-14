@@ -271,21 +271,49 @@ export const createDid = createServerFn({ method: "POST" })
 
     let did: string;
     let status = "CREATED";
+    let longFormDid: string | null = null;
+    let publishError: string | null = null;
     if (conn.mode === "simulated") {
       did = await makePrismDid(`${context.userId}:${data.alias}`);
       status = "PUBLISHED";
     } else {
+      // The agent only signs credentials with a key it holds for the right
+      // purpose, so the role has to shape the document template.
+      const publicKeys =
+        data.role === "issuer"
+          ? [
+              { id: "auth-1", purpose: "authentication" },
+              { id: "assert-1", purpose: "assertionMethod" },
+              { id: "agree-1", purpose: "keyAgreement" },
+            ]
+          : data.role === "verifier"
+            ? [
+                { id: "auth-1", purpose: "authentication" },
+                { id: "agree-1", purpose: "keyAgreement" },
+              ]
+            : [{ id: "auth-1", purpose: "authentication" }];
+
       const created = await agentFetch(conn, "/did-registrar/dids", {
         method: "POST",
-        body: JSON.stringify({
-          documentTemplate: {
-            publicKeys: [{ id: "key-1", purpose: "authentication" }],
-            services: [],
-          },
-        }),
+        body: JSON.stringify({ documentTemplate: { publicKeys, services: [] } }),
       });
-      did = created?.longFormDid ?? created?.did ?? "unknown";
+      longFormDid = created?.longFormDid ?? null;
+      did = created?.did ?? created?.longFormDid ?? "unknown";
       status = created?.status ?? "CREATED";
+
+      // Unpublished DIDs cannot be used as issuers, so publish immediately.
+      if (data.role !== "holder" && did !== "unknown") {
+        try {
+          const published = await agentFetch(
+            conn,
+            `/did-registrar/dids/${encodeURIComponent(did)}/publications`,
+            { method: "POST" },
+          );
+          status = published?.scheduledOperation ? "PUBLICATION_PENDING" : (published?.status ?? "PUBLICATION_PENDING");
+        } catch (error) {
+          publishError = error instanceof Error ? error.message : "Publication request failed";
+        }
+      }
     }
 
     const { data: row, error } = await context.supabase
@@ -294,6 +322,8 @@ export const createDid = createServerFn({ method: "POST" })
         user_id: context.userId,
         connection_id: conn.id,
         did,
+        long_form_did: longFormDid,
+        publish_error: publishError,
         alias: data.alias,
         role: data.role,
         status,
@@ -302,6 +332,7 @@ export const createDid = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
+
     await logActivity(
       context.supabase,
       context.userId,
@@ -313,6 +344,91 @@ export const createDid = createServerFn({ method: "POST" })
     );
     return row;
   });
+
+/** Submits an existing agent DID for publication (for DIDs created before roles were sent). */
+export const publishDid = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { getActiveConnection, agentFetch } = await import("./identus/agent.server");
+    const conn = await getActiveConnection(context.supabase, context.userId);
+    if (!conn) throw new Error("No agent connection configured yet.");
+    if (conn.mode === "simulated") throw new Error("Simulated DIDs are already published.");
+
+    const { data: row } = await context.supabase
+      .from("saved_dids")
+      .select("*")
+      .eq("id", data.id)
+      .single();
+    if (!row) throw new Error("DID not found.");
+
+    let status = row.status as string;
+    let publishError: string | null = null;
+    try {
+      const published = await agentFetch(
+        conn,
+        `/did-registrar/dids/${encodeURIComponent(row.did)}/publications`,
+        { method: "POST" },
+      );
+      status = published?.scheduledOperation
+        ? "PUBLICATION_PENDING"
+        : (published?.status ?? "PUBLICATION_PENDING");
+    } catch (error) {
+      publishError = error instanceof Error ? error.message : "Publication request failed";
+    }
+
+    const { data: updated, error } = await context.supabase
+      .from("saved_dids")
+      .update({ status, publish_error: publishError })
+      .eq("id", data.id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    if (publishError) throw new Error(publishError);
+    return updated;
+  });
+
+/**
+ * Publication is asynchronous, so re-read every non-published DID from the
+ * agent and write the current status (and short-form DID) back.
+ */
+export const refreshDidStatuses = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { getActiveConnection, agentFetch } = await import("./identus/agent.server");
+    const conn = await getActiveConnection(context.supabase, context.userId);
+    if (!conn || conn.mode === "simulated") return { updated: 0 };
+
+    const { data: rows } = await context.supabase
+      .from("saved_dids")
+      .select("*")
+      .eq("connection_id", conn.id)
+      .neq("status", "PUBLISHED");
+
+    let updated = 0;
+    for (const row of rows ?? []) {
+      try {
+        const res = await agentFetch(
+          conn,
+          `/did-registrar/dids/${encodeURIComponent(row.did)}`,
+        );
+        const status = String(res?.status ?? row.status).toUpperCase();
+        const shortForm = res?.did ?? row.did;
+        if (status !== row.status || shortForm !== row.did) {
+          await context.supabase
+            .from("saved_dids")
+            .update({ status, did: shortForm, publish_error: null })
+            .eq("id", row.id);
+          updated += 1;
+        }
+      } catch {
+        // Leave the row alone; the agent may still be catching up.
+      }
+    }
+    return { updated };
+  });
+
+
 
 export const createPeerConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -444,7 +560,14 @@ export const listIssuerDids = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { getActiveConnection, agentFetch } = await import("./identus/agent.server");
     const conn = await getActiveConnection(context.supabase, context.userId);
-    if (!conn) return { mode: null as string | null, dids: [], error: null as string | null };
+    if (!conn)
+      return {
+        mode: null as string | null,
+        dids: [],
+        error: null as string | null,
+        reason: "no_dids",
+        pendingCount: 0,
+      };
 
     if (conn.mode === "simulated") {
       const { data } = await context.supabase
@@ -459,40 +582,62 @@ export const listIssuerDids = createServerFn({ method: "GET" })
           status: d.status as string,
         })),
         error: null,
+        reason: "ok",
+        pendingCount: 0,
       };
     }
+
 
     try {
       const res = await agentFetch(conn, "/did-registrar/dids?offset=0&limit=100");
       const items = (res?.contents ?? res?.items ?? []) as any[];
-      const dids = items
-        .filter((d) => String(d?.status ?? "").toUpperCase() === "PUBLISHED")
-        .filter((d) => {
-          const keys = (d?.didDocumentMetadata?.publicKeys ??
-            d?.publicKeys ??
-            d?.documentTemplate?.publicKeys ??
-            []) as any[];
-          // Some agent builds omit key purposes in the list response; treat an
-          // unknown key set as usable rather than hiding a valid issuer DID.
-          if (keys.length === 0) return true;
-          return keys.some((k) =>
-            String(k?.purpose ?? k?.usage ?? "").toLowerCase().includes("assertion"),
-          );
-        })
+      const hasAssertionKey = (d: any) => {
+        const keys = (d?.didDocumentMetadata?.publicKeys ??
+          d?.publicKeys ??
+          d?.documentTemplate?.publicKeys ??
+          []) as any[];
+        // Some agent builds omit key purposes in the list response; treat an
+        // unknown key set as usable rather than hiding a valid issuer DID.
+        if (keys.length === 0) return true;
+        return keys.some((k) =>
+          String(k?.purpose ?? k?.usage ?? "").toLowerCase().includes("assertion"),
+        );
+      };
+      const published = items.filter(
+        (d) => String(d?.status ?? "").toUpperCase() === "PUBLISHED",
+      );
+      const dids = published
+        .filter(hasAssertionKey)
         .map((d) => ({
           did: String(d?.did ?? d?.longFormDid ?? ""),
           alias: String(d?.did ?? "").slice(0, 40),
           status: String(d?.status ?? "PUBLISHED"),
         }))
         .filter((d) => d.did);
-      return { mode: conn.mode, dids, error: null };
+
+      const pending = items.filter((d) =>
+        ["PUBLICATION_PENDING", "CREATED"].includes(String(d?.status ?? "").toUpperCase()),
+      );
+      const reason =
+        dids.length > 0
+          ? "ok"
+          : items.length === 0
+            ? "no_dids"
+            : pending.length > 0
+              ? "publishing"
+              : "no_assertion_key";
+
+      return { mode: conn.mode, dids, error: null, reason, pendingCount: pending.length };
     } catch (error) {
       return {
         mode: conn.mode,
         dids: [],
         error: error instanceof Error ? error.message : "Could not list agent DIDs",
+        reason: "error",
+        pendingCount: 0,
       };
     }
+
   });
 
 /** Turns an agent offer failure into something actionable. */

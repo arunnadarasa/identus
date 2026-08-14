@@ -129,12 +129,28 @@ function Credentials() {
                 </SelectContent>
               </Select>
               {isRealAgent && !issuerLoading && issuerOptions.length === 0 ? (
-                <p className="text-xs text-destructive">
-                  This agent has no published issuer DID with an assertion key. Create and publish
-                  one on the DIDs page first — the seeded demo DIDs only work in simulated mode.
-                  {issuerData?.error ? ` (${issuerData.error})` : ""}
-                </p>
+                (issuerData?.reason ?? "no_dids") === "publishing" ? (
+                  <p className="text-xs text-muted-foreground">
+                    Your issuer DID is still publishing on this agent — this can take a few
+                    minutes. The DIDs page shows live status.
+                  </p>
+                ) : (issuerData?.reason ?? "") === "no_assertion_key" ? (
+                  <p className="text-xs text-destructive">
+                    The DIDs on this agent have no assertion key, so they cannot sign credentials.
+                    Create a new Issuer DID on the DIDs page.
+                  </p>
+                ) : (issuerData?.reason ?? "") === "error" ? (
+                  <p className="text-xs text-destructive">
+                    Could not read DIDs from the agent{issuerData?.error ? `: ${issuerData.error}` : "."}
+                  </p>
+                ) : (
+                  <p className="text-xs text-destructive">
+                    This agent has no DIDs yet. Create an Issuer DID on the DIDs page first — the
+                    seeded demo DIDs only work in simulated mode.
+                  </p>
+                )
               ) : null}
+
               {isRealAgent && issuerOptions.length > 0 ? (
                 <p className="text-xs text-muted-foreground">
                   Showing published DIDs owned by the connected agent.

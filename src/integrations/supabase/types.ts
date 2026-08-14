@@ -291,6 +291,8 @@ export type Database = {
           created_at: string
           did: string
           id: string
+          long_form_did: string | null
+          publish_error: string | null
           purpose: string | null
           role: string
           status: string
@@ -302,6 +304,8 @@ export type Database = {
           created_at?: string
           did: string
           id?: string
+          long_form_did?: string | null
+          publish_error?: string | null
           purpose?: string | null
           role?: string
           status?: string
@@ -313,6 +317,8 @@ export type Database = {
           created_at?: string
           did?: string
           id?: string
+          long_form_did?: string | null
+          publish_error?: string | null
           purpose?: string | null
           role?: string
           status?: string

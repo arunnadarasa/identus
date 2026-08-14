@@ -14,6 +14,7 @@ import { FlowCompare } from "@/components/learn/FlowCompare";
 import { DisclosureChips } from "@/components/learn/DisclosureChips";
 import { SsiTimeline } from "@/components/learn/SsiTimeline";
 import { Web2Web3Split } from "@/components/learn/Web2Web3Split";
+import { CredentialDemo } from "@/components/learn/CredentialDemo";
 
 const sectionNav = [
   { id: "problem", label: "The problem" },

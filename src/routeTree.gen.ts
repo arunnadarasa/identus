@@ -21,6 +21,12 @@ import { Route as AppCredentialsRouteImport } from './routes/app.credentials'
 import { Route as AppDidsRouteImport } from './routes/app.dids'
 import { Route as AppSandboxRouteImport } from './routes/app.sandbox'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as ApiPublicA2aSellerRouteImport } from './routes/api/public/a2a-seller'
+import { Route as ApiPublicUcpMerchantRouteImport } from './routes/api/public/ucp-merchant'
+import { Route as ApiPublicX402ProxyRouteImport } from './routes/api/public/x402-proxy'
+import { Route as AppDemosIndexRouteImport } from './routes/app.demos.index'
+import { Route as AppDemosA2aRouteImport } from './routes/app.demos.a2a'
+import { Route as AppDemosAp2RouteImport } from './routes/app.demos.ap2'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -82,6 +88,36 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/callback',
   getParentRoute: () => AuthRoute,
 } as any)
+const ApiPublicA2aSellerRoute = ApiPublicA2aSellerRouteImport.update({
+  id: '/api/public/a2a-seller',
+  path: '/api/public/a2a-seller',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicUcpMerchantRoute = ApiPublicUcpMerchantRouteImport.update({
+  id: '/api/public/ucp-merchant',
+  path: '/api/public/ucp-merchant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicX402ProxyRoute = ApiPublicX402ProxyRouteImport.update({
+  id: '/api/public/x402-proxy',
+  path: '/api/public/x402-proxy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppDemosIndexRoute = AppDemosIndexRouteImport.update({
+  id: '/demos/',
+  path: '/demos/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDemosA2aRoute = AppDemosA2aRouteImport.update({
+  id: '/demos/a2a',
+  path: '/demos/a2a',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDemosAp2Route = AppDemosAp2RouteImport.update({
+  id: '/demos/ap2',
+  path: '/demos/ap2',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -96,6 +132,12 @@ export interface FileRoutesByFullPath {
   '/app/sandbox': typeof AppSandboxRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/app/': typeof AppIndexRoute
+  '/api/public/a2a-seller': typeof ApiPublicA2aSellerRoute
+  '/api/public/ucp-merchant': typeof ApiPublicUcpMerchantRoute
+  '/api/public/x402-proxy': typeof ApiPublicX402ProxyRoute
+  '/app/demos/a2a': typeof AppDemosA2aRoute
+  '/app/demos/ap2': typeof AppDemosAp2Route
+  '/app/demos/': typeof AppDemosIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -109,6 +151,12 @@ export interface FileRoutesByTo {
   '/app/sandbox': typeof AppSandboxRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/app': typeof AppIndexRoute
+  '/api/public/a2a-seller': typeof ApiPublicA2aSellerRoute
+  '/api/public/ucp-merchant': typeof ApiPublicUcpMerchantRoute
+  '/api/public/x402-proxy': typeof ApiPublicX402ProxyRoute
+  '/app/demos/a2a': typeof AppDemosA2aRoute
+  '/app/demos/ap2': typeof AppDemosAp2Route
+  '/app/demos': typeof AppDemosIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -124,6 +172,12 @@ export interface FileRoutesById {
   '/app/sandbox': typeof AppSandboxRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/app/': typeof AppIndexRoute
+  '/api/public/a2a-seller': typeof ApiPublicA2aSellerRoute
+  '/api/public/ucp-merchant': typeof ApiPublicUcpMerchantRoute
+  '/api/public/x402-proxy': typeof ApiPublicX402ProxyRoute
+  '/app/demos/a2a': typeof AppDemosA2aRoute
+  '/app/demos/ap2': typeof AppDemosAp2Route
+  '/app/demos/': typeof AppDemosIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -140,6 +194,12 @@ export interface FileRouteTypes {
     | '/app/sandbox'
     | '/auth/callback'
     | '/app/'
+    | '/api/public/a2a-seller'
+    | '/api/public/ucp-merchant'
+    | '/api/public/x402-proxy'
+    | '/app/demos/a2a'
+    | '/app/demos/ap2'
+    | '/app/demos/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -153,6 +213,12 @@ export interface FileRouteTypes {
     | '/app/sandbox'
     | '/auth/callback'
     | '/app'
+    | '/api/public/a2a-seller'
+    | '/api/public/ucp-merchant'
+    | '/api/public/x402-proxy'
+    | '/app/demos/a2a'
+    | '/app/demos/ap2'
+    | '/app/demos'
   id:
     | '__root__'
     | '/'
@@ -167,6 +233,12 @@ export interface FileRouteTypes {
     | '/app/sandbox'
     | '/auth/callback'
     | '/app/'
+    | '/api/public/a2a-seller'
+    | '/api/public/ucp-merchant'
+    | '/api/public/x402-proxy'
+    | '/app/demos/a2a'
+    | '/app/demos/ap2'
+    | '/app/demos/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -175,6 +247,9 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   DocsRoute: typeof DocsRoute
   LearnRoute: typeof LearnRoute
+  ApiPublicA2aSellerRoute: typeof ApiPublicA2aSellerRoute
+  ApiPublicUcpMerchantRoute: typeof ApiPublicUcpMerchantRoute
+  ApiPublicX402ProxyRoute: typeof ApiPublicX402ProxyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -263,6 +338,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/api/public/a2a-seller': {
+      id: '/api/public/a2a-seller'
+      path: '/api/public/a2a-seller'
+      fullPath: '/api/public/a2a-seller'
+      preLoaderRoute: typeof ApiPublicA2aSellerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/ucp-merchant': {
+      id: '/api/public/ucp-merchant'
+      path: '/api/public/ucp-merchant'
+      fullPath: '/api/public/ucp-merchant'
+      preLoaderRoute: typeof ApiPublicUcpMerchantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/x402-proxy': {
+      id: '/api/public/x402-proxy'
+      path: '/api/public/x402-proxy'
+      fullPath: '/api/public/x402-proxy'
+      preLoaderRoute: typeof ApiPublicX402ProxyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/demos/': {
+      id: '/app/demos/'
+      path: '/demos'
+      fullPath: '/app/demos/'
+      preLoaderRoute: typeof AppDemosIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/demos/a2a': {
+      id: '/app/demos/a2a'
+      path: '/demos/a2a'
+      fullPath: '/app/demos/a2a'
+      preLoaderRoute: typeof AppDemosA2aRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/demos/ap2': {
+      id: '/app/demos/ap2'
+      path: '/demos/ap2'
+      fullPath: '/app/demos/ap2'
+      preLoaderRoute: typeof AppDemosAp2RouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -273,6 +390,9 @@ interface AppRouteChildren {
   AppDidsRoute: typeof AppDidsRoute
   AppSandboxRoute: typeof AppSandboxRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppDemosA2aRoute: typeof AppDemosA2aRoute
+  AppDemosAp2Route: typeof AppDemosAp2Route
+  AppDemosIndexRoute: typeof AppDemosIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -282,6 +402,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppDidsRoute: AppDidsRoute,
   AppSandboxRoute: AppSandboxRoute,
   AppIndexRoute: AppIndexRoute,
+  AppDemosA2aRoute: AppDemosA2aRoute,
+  AppDemosAp2Route: AppDemosAp2Route,
+  AppDemosIndexRoute: AppDemosIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -302,6 +425,9 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   DocsRoute: DocsRoute,
   LearnRoute: LearnRoute,
+  ApiPublicA2aSellerRoute: ApiPublicA2aSellerRoute,
+  ApiPublicUcpMerchantRoute: ApiPublicUcpMerchantRoute,
+  ApiPublicX402ProxyRoute: ApiPublicX402ProxyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

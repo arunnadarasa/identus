@@ -604,7 +604,7 @@ export const issueCredential = createServerFn({ method: "POST" })
         record_id: recordId,
         subject: data.subject,
         issuer_did: data.issuerDid,
-        holder_did: data.holderDid,
+        holder_did: data.holderDid ?? null,
         schema_name: data.schemaName,
         claims: data.claims,
         protocol_state: state,

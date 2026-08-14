@@ -13,7 +13,9 @@ export const LAB_DIR = `${SPRITE_DIR}/compose-lab`;
 
 export const AGENT_IMAGE = "identus/identus-cloud-agent:1.40.0";
 export const NODE_IMAGE = "identus/prism-node:2.5.0";
-export const POSTGRES_IMAGE = "postgres:16-alpine";
+// Identus 1.40 migrations fail on Postgres 16 (V27's `format json` column is a
+// syntax error once SQL/JSON's FORMAT clause exists). Keep local and hosted equal.
+export const POSTGRES_IMAGE = "postgres:13-alpine";
 
 export const COMPOSE_FILE = "docker-compose.yml";
 export const ENV_FILE = ".env";

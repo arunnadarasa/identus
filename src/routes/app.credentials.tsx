@@ -15,6 +15,7 @@ import {
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { StickyActionBar } from "@/components/StickyActionBar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -211,6 +212,7 @@ function Credentials() {
               />
             </div>
 
+            <StickyActionBar>
             <Button
               className="h-11 w-full sm:h-10 sm:w-auto"
               disabled={
@@ -263,6 +265,7 @@ function Credentials() {
             >
               Offer credential
             </Button>
+            </StickyActionBar>
           </CardContent>
         </Card>
 

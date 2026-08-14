@@ -127,6 +127,51 @@ export type Database = {
         }
         Relationships: []
       }
+      agentic_sessions: {
+        Row: {
+          buyer_did: string | null
+          created_at: string
+          id: string
+          kind: string
+          payload: Json
+          seller_did: string | null
+          simulated: boolean
+          status: string
+          transcript: Json
+          tx_hash: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          buyer_did?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          payload?: Json
+          seller_did?: string | null
+          simulated?: boolean
+          status?: string
+          transcript?: Json
+          tx_hash?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          buyer_did?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          payload?: Json
+          seller_did?: string | null
+          simulated?: boolean
+          status?: string
+          transcript?: Json
+          tx_hash?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       compose_files: {
         Row: {
           content: string

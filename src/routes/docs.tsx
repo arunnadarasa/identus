@@ -154,6 +154,9 @@ function Docs() {
             <Button asChild variant="ghost" size="sm">
               <Link to="/learn">Learn</Link>
             </Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/nhs">NHS</Link>
+            </Button>
             <Button asChild size="sm">
               <Link to="/app">Open console</Link>
             </Button>

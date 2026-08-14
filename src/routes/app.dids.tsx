@@ -1,13 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   getWorkspace,
   createDid,
   createPeerConnection,
   acceptPeerConnection,
+  publishDid,
+  refreshDidStatuses,
 } from "@/lib/identus.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,6 +29,8 @@ function Dids() {
   const addDid = useServerFn(createDid);
   const addPeer = useServerFn(createPeerConnection);
   const acceptPeer = useServerFn(acceptPeerConnection);
+  const publish = useServerFn(publishDid);
+  const refreshStatuses = useServerFn(refreshDidStatuses);
 
   const { data } = useQuery({ queryKey: ["workspace"], queryFn: () => fetchWorkspace() });
   const [alias, setAlias] = useState("");
@@ -34,6 +38,31 @@ function Dids() {
   const [label, setLabel] = useState("");
   const [busy, setBusy] = useState(false);
   const invalidate = () => qc.invalidateQueries({ queryKey: ["workspace"] });
+
+  const activeConnectionId = (data?.active?.id ?? null) as string | null;
+  const isRealAgent = (data?.active?.mode ?? "simulated") !== "simulated";
+  const allDids = (data?.dids ?? []) as any[];
+  const pendingCount = allDids.filter(
+    (d) => d.connection_id === activeConnectionId && d.status !== "PUBLISHED" && d.role !== "holder",
+  ).length;
+
+  // Publication is asynchronous on a real agent, so poll while anything is pending.
+  useEffect(() => {
+    if (!isRealAgent || pendingCount === 0) return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await refreshStatuses();
+        if (res?.updated) {
+          invalidate();
+          qc.invalidateQueries({ queryKey: ["agent-issuer-dids"] });
+        }
+      } catch {
+        // ignore transient agent errors while polling
+      }
+    }, 10_000);
+    return () => clearInterval(timer);
+  }, [isRealAgent, pendingCount]);
+
 
   return (
     <div className="space-y-8">

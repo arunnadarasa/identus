@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { TruncatedMono, shortenId } from "@/components/MonoValue";
 import {
   getWorkspace,
   createDid,
@@ -88,6 +89,7 @@ function Dids() {
             <div className="space-y-2">
               <Label htmlFor="alias">Alias</Label>
               <Input
+                className="h-11 sm:h-10"
                 id="alias"
                 placeholder="Acme University"
                 value={alias}
@@ -97,7 +99,7 @@ function Dids() {
             <div className="space-y-2">
               <Label>Role</Label>
               <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11 sm:h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -140,6 +142,7 @@ function Dids() {
             <div className="space-y-2">
               <Label htmlFor="label">Connection label</Label>
               <Input
+                className="h-11 sm:h-10"
                 id="label"
                 placeholder="Student wallet"
                 value={label}
@@ -190,7 +193,9 @@ function Dids() {
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium">{did.alias}</p>
-                    <p className="truncate font-mono text-xs text-muted-foreground">{did.did}</p>
+                    <p className="truncate font-mono text-xs text-muted-foreground" title={did.did}>
+                      {shortenId(did.did, 8, 6)}
+                    </p>
                     {isDemo ? (
                       <p className="mt-1 text-xs text-muted-foreground">
                         Simulated-only demo DID — the connected agent does not own it.
@@ -280,9 +285,7 @@ function Dids() {
                   )}
                 </div>
                 {peer.invitation_url ? (
-                  <p className="break-all rounded-md bg-secondary/40 p-2 font-mono text-[11px] text-muted-foreground">
-                    {peer.invitation_url}
-                  </p>
+                  <TruncatedMono label="Invitation URL" value={peer.invitation_url} />
                 ) : null}
               </div>
             ))

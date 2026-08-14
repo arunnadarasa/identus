@@ -42,7 +42,7 @@ export function AppShell({
   useEffect(() => setOpen(false), [pathname]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background text-foreground">
       <header className="sticky top-0 z-20 border-b border-border/60 bg-background/90 backdrop-blur">
         <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6 lg:flex lg:gap-4">
           <Link
@@ -130,7 +130,7 @@ export function AppShell({
           </Sheet>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+      <main className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
     </div>
   );
 }

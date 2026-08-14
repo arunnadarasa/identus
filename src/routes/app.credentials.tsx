@@ -20,6 +20,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TruncatedMono, shortenId } from "@/components/MonoValue";
+
 
 export const Route = createFileRoute("/app/credentials")({
   ssr: false,
@@ -77,8 +79,8 @@ function Credentials() {
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-border/60">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+        <Card className="min-w-0 border-border/60">
           <CardHeader>
             <CardTitle className="font-display text-lg">Issue a credential</CardTitle>
             <CardDescription>JWT format, signed by the issuing DID.</CardDescription>
@@ -88,7 +90,7 @@ function Credentials() {
               <div className="space-y-2">
                 <Label>Send over connection</Label>
                 <Select value={target} onValueChange={setTarget}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11 sm:h-10">
                     <SelectValue
                       placeholder={
                         connsLoading ? "Loading connections…" : "Select a DIDComm connection"
@@ -106,8 +108,7 @@ function Credentials() {
                 </Select>
                 {!connsLoading && didcomm.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    No established DIDComm connections on this agent yet — create one on the Wallet
-                    page, or send a connectionless invitation instead.
+                    No DIDComm connections yet — send a connectionless invitation instead.
                   </p>
                 ) : null}
               </div>
@@ -115,7 +116,7 @@ function Credentials() {
             <div className="space-y-2">
               <Label>Issuer DID</Label>
               <Select value={issuerDid} onValueChange={setIssuerDid}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11 sm:h-10">
                   <SelectValue
                     placeholder={issuerLoading ? "Loading agent DIDs…" : "Select an issuer DID"}
                   />
@@ -123,7 +124,9 @@ function Credentials() {
                 <SelectContent>
                   {issuerOptions.map((did) => (
                     <SelectItem key={did.did} value={did.did}>
-                      {did.alias}
+                      <span className="font-mono text-xs">
+                        {did.alias.startsWith("did:") ? shortenId(did.alias, 6, 6) : did.alias}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -131,13 +134,11 @@ function Credentials() {
               {isRealAgent && !issuerLoading && issuerOptions.length === 0 ? (
                 (issuerData?.reason ?? "no_dids") === "publishing" ? (
                   <p className="text-xs text-muted-foreground">
-                    Your issuer DID is still publishing on this agent — this can take a few
-                    minutes. The DIDs page shows live status.
+                    Your issuer DID is still publishing — the DIDs page shows live status.
                   </p>
                 ) : (issuerData?.reason ?? "") === "no_assertion_key" ? (
                   <p className="text-xs text-destructive">
-                    The DIDs on this agent have no assertion key, so they cannot sign credentials.
-                    Create a new Issuer DID on the DIDs page.
+                    No assertion key on this agent&apos;s DIDs — create a new Issuer DID.
                   </p>
                 ) : (issuerData?.reason ?? "") === "error" ? (
                   <p className="text-xs text-destructive">
@@ -145,15 +146,14 @@ function Credentials() {
                   </p>
                 ) : (
                   <p className="text-xs text-destructive">
-                    This agent has no DIDs yet. Create an Issuer DID on the DIDs page first — the
-                    seeded demo DIDs only work in simulated mode.
+                    No DIDs on this agent yet — create an Issuer DID on the DIDs page.
                   </p>
                 )
               ) : null}
 
               {isRealAgent && issuerOptions.length > 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  Showing published DIDs owned by the connected agent.
+                  Published DIDs owned by the connected agent.
                 </p>
               ) : null}
             </div>
@@ -161,7 +161,7 @@ function Credentials() {
               <div className="space-y-2">
                 <Label>Holder DID</Label>
                 <Select value={holderDid} onValueChange={setHolderDid}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11 sm:h-10">
                     <SelectValue placeholder="Select a holder DID" />
                   </SelectTrigger>
                   <SelectContent>
@@ -179,6 +179,7 @@ function Credentials() {
               <Label htmlFor="subject">Subject name</Label>
               <Input
                 id="subject"
+                className="h-11 sm:h-10"
                 placeholder="Ada Lovelace"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
@@ -187,7 +188,7 @@ function Credentials() {
             <div className="space-y-2">
               <Label>Schema</Label>
               <Select value={schemaName} onValueChange={setSchemaName}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11 sm:h-10">
                   <SelectValue placeholder="Select a schema" />
                 </SelectTrigger>
                 <SelectContent>
@@ -204,11 +205,12 @@ function Credentials() {
               <Textarea
                 id="claims"
                 rows={5}
-                className="font-mono text-xs"
+                className="w-full max-w-full overflow-x-auto whitespace-pre font-mono text-xs"
                 value={claimsText}
                 onChange={(e) => setClaimsText(e.target.value)}
               />
             </div>
+
             <Button
               className="h-11 w-full sm:h-10 sm:w-auto"
               disabled={
@@ -264,7 +266,7 @@ function Credentials() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60">
+        <Card className="min-w-0 border-border/60">
           <CardHeader>
             <CardTitle className="font-display text-lg">Credential schemas</CardTitle>
             <CardDescription>Versioned attribute sets for your credentials.</CardDescription>
@@ -274,6 +276,7 @@ function Credentials() {
               <Label htmlFor="schema-title">Name</Label>
               <Input
                 id="schema-title"
+                className="h-11 sm:h-10"
                 placeholder="UniversityDegree"
                 value={schemaTitle}
                 onChange={(e) => setSchemaTitle(e.target.value)}
@@ -284,6 +287,7 @@ function Credentials() {
                 <Label htmlFor="schema-version">Version</Label>
                 <Input
                   id="schema-version"
+                  className="h-11 sm:h-10"
                   value={schemaVersion}
                   onChange={(e) => setSchemaVersion(e.target.value)}
                 />
@@ -292,6 +296,7 @@ function Credentials() {
                 <Label htmlFor="schema-attrs">Attributes</Label>
                 <Input
                   id="schema-attrs"
+                  className="h-11 sm:h-10"
                   value={schemaAttrs}
                   onChange={(e) => setSchemaAttrs(e.target.value)}
                 />
@@ -337,7 +342,7 @@ function Credentials() {
         </Card>
       </div>
 
-      <Card className="border-border/60">
+      <Card className="min-w-0 border-border/60">
         <CardHeader>
           <CardTitle className="font-display text-lg">Credential records</CardTitle>
         </CardHeader>
@@ -348,83 +353,83 @@ function Credentials() {
             (data?.credentials ?? []).map((record: any) => (
               <div
                 key={record.id}
-                className="space-y-2 border-b border-border/50 pb-4 last:border-0"
+                className="min-w-0 space-y-3 border-b border-border/50 pb-4 last:border-0"
               >
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">
-                      {record.schema_name} · {record.subject}
-                    </p>
-                    <p className="break-all font-mono text-xs text-muted-foreground">
-                      {record.record_id} · {record.protocol_state}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
+                <div className="min-w-0 space-y-1">
+                  <p className="text-sm font-medium">
+                    {record.schema_name} · {record.subject}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className="text-[11px]">
+                      {record.protocol_state}
+                    </Badge>
                     {record.verified ? (
-                      <Badge className="bg-success text-success-foreground text-xs">verified</Badge>
+                      <Badge className="bg-success text-success-foreground text-[11px]">
+                        verified
+                      </Badge>
                     ) : null}
-                    {record.protocol_state !== "CredentialReceived" ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={async () => {
-                          await accept({ data: { id: record.id } });
-                          invalidate();
-                          toast.success("Credential stored in the holder wallet");
-                        }}
-                      >
-                        Accept
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={async () => {
-                          const result = await verify({ data: { id: record.id } });
-                          invalidate();
-                          const failed = result.checks.filter((c) => !c.ok);
-                          result.verified
-                            ? toast.success("Presentation verified — all checks passed")
-                            : toast.error(
-                                `Verification failed: ${failed.map((c) => c.name).join(", ")}`,
-                              );
-                        }}
-                      >
-                        Verify
-                      </Button>
-                    )}
+                    <span className="font-mono text-[11px] text-muted-foreground">
+                      {shortenId(record.record_id, 6, 4)}
+                    </span>
                   </div>
                 </div>
-                <p className="break-all font-mono text-xs text-muted-foreground">
-                  {Object.entries(record.claims ?? {})
-                    .map(([k, v]) => `${k}=${v}`)
-                    .join("  ")}
-                </p>
-                {record.jwt ? (
-                  <p className="break-all rounded-md bg-secondary/40 p-2 font-mono text-[11px] text-muted-foreground">
-                    {record.jwt.slice(0, 220)}…
-                  </p>
-                ) : null}
-                {record.invitation_url ? (
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <p className="min-w-0 flex-1 break-all rounded-md bg-secondary/40 p-2 font-mono text-[11px] text-muted-foreground">
-                      {record.invitation_url}
-                    </p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        navigator.clipboard.writeText(record.invitation_url);
-                        toast.success("Invitation copied");
-                      }}
-                    >
-                      Copy invitation
-                    </Button>
+
+                {Object.keys(record.claims ?? {}).length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(record.claims ?? {}).map(([k, v]) => (
+                      <span
+                        key={k}
+                        className="inline-flex max-w-full items-center gap-1 rounded-md bg-secondary/50 px-2 py-1 text-[11px]"
+                      >
+                        <span className="text-muted-foreground">{k}</span>
+                        <span className="min-w-0 truncate">{String(v)}</span>
+                      </span>
+                    ))}
                   </div>
                 ) : null}
 
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  {record.protocol_state !== "CredentialReceived" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-11 w-full sm:h-9 sm:w-auto"
+                      onClick={async () => {
+                        await accept({ data: { id: record.id } });
+                        invalidate();
+                        toast.success("Credential stored in the holder wallet");
+                      }}
+                    >
+                      Accept
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-11 w-full sm:h-9 sm:w-auto"
+                      onClick={async () => {
+                        const result = await verify({ data: { id: record.id } });
+                        invalidate();
+                        const failed = result.checks.filter((c) => !c.ok);
+                        result.verified
+                          ? toast.success("Presentation verified — all checks passed")
+                          : toast.error(
+                              `Verification failed: ${failed.map((c) => c.name).join(", ")}`,
+                            );
+                      }}
+                    >
+                      Verify
+                    </Button>
+                  )}
+                </div>
+
+                {record.jwt ? <TruncatedMono label="Credential JWT" value={record.jwt} /> : null}
+                {record.invitation_url ? (
+                  <TruncatedMono label="Invitation URL" value={record.invitation_url} />
+                ) : null}
               </div>
             ))
+
           )}
         </CardContent>
       </Card>

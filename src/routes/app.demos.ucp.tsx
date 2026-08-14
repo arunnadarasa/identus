@@ -42,6 +42,8 @@ type Probe = {
   url: string;
   status: number;
   body: unknown;
+  bodyText: string;
+  headers: Headers;
   verification: VerificationResult;
 };
 
@@ -93,7 +95,16 @@ function UcpDemo() {
         targetUri: url,
         jwk,
       });
-      const entry: Probe = { name, method, url, status: res.status, body: parsed, verification };
+      const entry: Probe = {
+        name,
+        method,
+        url,
+        status: res.status,
+        body: parsed,
+        bodyText,
+        headers: res.headers,
+        verification,
+      };
       collected.push(entry);
       setProbes([...collected]);
       return entry;
@@ -109,14 +120,14 @@ function UcpDemo() {
         credentialJwt: identity.credentialJwt,
       });
 
-      /* Tamper check: same signature, altered body — must fail. */
+      /* Tamper check: real signature headers, altered body — must fail. */
       const tampered = await verifySignedResponse({
-        response: quote.body ? ({ ...quote } as never) : ({} as never),
-        bodyText: `${JSON.stringify(quote.body)} `,
+        response: { headers: quote.headers, status: quote.status } as unknown as Response,
+        bodyText: `${quote.bodyText} `,
         method: "POST",
         targetUri: quote.url,
         jwk,
-      }).catch(() => null);
+      });
       setTamperResult(tampered);
 
       const allOk = collected.every((p) => p.verification.ok);

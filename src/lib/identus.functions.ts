@@ -473,8 +473,8 @@ export const issueCredential = createServerFn({ method: "POST" })
       const path = connectionless
         ? "/issue-credentials/credential-offers/invitation"
         : "/issue-credentials/credential-offers";
-      if (!connectionless) body.connectionId = data.connectionId;
-      else body.goalCode = "issue-vc";
+      if (!connectionless) body["connectionId"] = data.connectionId;
+      else body["goalCode"] = "issue-vc";
 
       const offer = await agentFetch(conn, path, {
         method: "POST",

@@ -79,8 +79,8 @@ function Credentials() {
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-border/60">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+        <Card className="min-w-0 border-border/60">
           <CardHeader>
             <CardTitle className="font-display text-lg">Issue a credential</CardTitle>
             <CardDescription>JWT format, signed by the issuing DID.</CardDescription>
@@ -266,7 +266,7 @@ function Credentials() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60">
+        <Card className="min-w-0 border-border/60">
           <CardHeader>
             <CardTitle className="font-display text-lg">Credential schemas</CardTitle>
             <CardDescription>Versioned attribute sets for your credentials.</CardDescription>
@@ -286,6 +286,7 @@ function Credentials() {
                 <Label htmlFor="schema-version">Version</Label>
                 <Input
                   id="schema-version"
+                  className="h-11 sm:h-10"
                   value={schemaVersion}
                   onChange={(e) => setSchemaVersion(e.target.value)}
                 />
@@ -294,6 +295,7 @@ function Credentials() {
                 <Label htmlFor="schema-attrs">Attributes</Label>
                 <Input
                   id="schema-attrs"
+                  className="h-11 sm:h-10"
                   value={schemaAttrs}
                   onChange={(e) => setSchemaAttrs(e.target.value)}
                 />
@@ -339,7 +341,7 @@ function Credentials() {
         </Card>
       </div>
 
-      <Card className="border-border/60">
+      <Card className="min-w-0 border-border/60">
         <CardHeader>
           <CardTitle className="font-display text-lg">Credential records</CardTitle>
         </CardHeader>

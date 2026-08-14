@@ -18,6 +18,7 @@ import { Web2Web3Split } from "@/components/learn/Web2Web3Split";
 const sectionNav = [
   { id: "problem", label: "The problem" },
   { id: "pillars", label: "Three ideas" },
+  { id: "demo", label: "Try it" },
   { id: "day", label: "A day with SSI" },
   { id: "web2", label: "Web2" },
   { id: "web3", label: "Web3" },

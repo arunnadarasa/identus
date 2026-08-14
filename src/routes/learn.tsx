@@ -294,6 +294,9 @@ function Learn() {
               <Link to="/learn">Learn</Link>
             </Button>
             <Button asChild variant="ghost" size="sm">
+              <Link to="/nhs">NHS</Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
               <Link to="/docs">Docs</Link>
             </Button>
             <Button asChild size="sm">

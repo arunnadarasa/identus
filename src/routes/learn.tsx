@@ -488,6 +488,25 @@ function Learn() {
           </div>
         </section>
 
+        {/* Interactive demo */}
+        <section id="demo" className="scroll-mt-16">
+          <Badge
+            variant="outline"
+            className="mb-4 border-primary/40 text-primary"
+          >
+            Try it
+          </Badge>
+          <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+            See it happen end-to-end
+          </h2>
+          <p className="mt-3 max-w-2xl text-muted-foreground">
+            Walk through a credential being issued to a wallet and then verified
+            by someone else — five clicks, no setup.
+          </p>
+          <div className="mt-8">
+            <CredentialDemo />
+          </div>
+        </section>
 
         {/* A day with SSI */}
         <section id="day" className="scroll-mt-16">
@@ -508,26 +527,8 @@ function Learn() {
           <div className="mt-8">
             <SsiTimeline items={dayInLife} />
           </div>
-
-        {/* Interactive demo */}
-        <section id="demo" className="scroll-mt-16">
-          <Badge
-            variant="outline"
-            className="mb-4 border-primary/40 text-primary"
-          >
-            Try it
-          </Badge>
-          <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-            See it happen end-to-end
-          </h2>
-          <p className="mt-3 max-w-2xl text-muted-foreground">
-            Walk through a credential being issued to a wallet and then verified
-            by someone else — five clicks, no setup.
-          </p>
-          <div className="mt-8">
-            <CredentialDemo />
-          </div>
         </section>
+
 
 
 

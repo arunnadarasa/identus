@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { Menu } from "lucide-react";
+import { Github, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -86,6 +86,11 @@ export function AppShell({
                 {email}
               </span>
             ) : null}
+            <Button asChild variant="ghost" size="icon" aria-label="View on GitHub">
+              <a href="https://github.com/arunnadarasa/identus" target="_blank" rel="noreferrer">
+                <Github className="h-4 w-4" />
+              </a>
+            </Button>
             <Button variant="ghost" size="sm" onClick={onSignOut}>
               Sign out
             </Button>

@@ -388,6 +388,52 @@ export const acceptPeerConnection = createServerFn({ method: "POST" })
     return row;
   });
 
+export const listAgentConnections = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { getActiveConnection, agentFetch } = await import("./identus/agent.server");
+    const conn = await getActiveConnection(context.supabase, context.userId);
+    if (!conn) return { mode: null as string | null, connections: [] };
+
+    const { data: local } = await context.supabase
+      .from("sim_connections")
+      .select("*")
+      .order("created_at", { ascending: false });
+    const localList = (local ?? []).map((row: any) => ({
+      connectionId: row.connection_ref ?? row.id,
+      label: row.label as string,
+      state: row.state as string,
+      source: "local" as const,
+    }));
+
+    if (conn.mode === "simulated") {
+      return { mode: conn.mode, connections: localList };
+    }
+
+    let remote: Array<{ connectionId: string; label: string; state: string; source: "agent" }> = [];
+    try {
+      const res = await agentFetch(conn, "/connections");
+      const items = (res?.contents ?? res?.items ?? []) as any[];
+      remote = items
+        .filter((c) =>
+          ["ConnectionResponseSent", "ConnectionResponseReceived"].includes(
+            String(c?.state ?? ""),
+          ),
+        )
+        .map((c) => ({
+          connectionId: String(c?.connectionId ?? c?.thid ?? ""),
+          label: String(c?.label ?? c?.theirDid ?? "connection"),
+          state: String(c?.state ?? ""),
+          source: "agent" as const,
+        }))
+        .filter((c) => c.connectionId);
+    } catch {
+      remote = [];
+    }
+
+    return { mode: conn.mode, connections: remote };
+  });
+
 export const issueCredential = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -398,6 +444,8 @@ export const issueCredential = createServerFn({ method: "POST" })
         subject: z.string().trim().min(1),
         schemaName: z.string().trim().min(1),
         claims: z.record(z.string(), z.string()),
+        connectionId: z.string().trim().optional(),
+        connectionless: z.boolean().optional(),
       })
       .parse(input),
   )
@@ -408,18 +456,34 @@ export const issueCredential = createServerFn({ method: "POST" })
 
     let recordId = `sim-${crypto.randomUUID().slice(0, 8)}`;
     let state = "OfferSent";
+    let invitationUrl: string | null = null;
     if (conn.mode !== "simulated") {
-      const offer = await agentFetch(conn, "/issue-credentials/credential-offers", {
+      const connectionless = data.connectionless === true || !data.connectionId;
+      if (!connectionless && !data.connectionId) {
+        throw new Error(
+          "Select an established DIDComm connection, or choose a connectionless offer.",
+        );
+      }
+      const body: Record<string, unknown> = {
+        issuingDID: data.issuerDid,
+        claims: data.claims,
+        credentialFormat: "JWT",
+        automaticIssuance: true,
+      };
+      const path = connectionless
+        ? "/issue-credentials/credential-offers/invitation"
+        : "/issue-credentials/credential-offers";
+      if (!connectionless) body.connectionId = data.connectionId;
+      else body.goalCode = "issue-vc";
+
+      const offer = await agentFetch(conn, path, {
         method: "POST",
-        body: JSON.stringify({
-          issuingDID: data.issuerDid,
-          claims: data.claims,
-          credentialFormat: "JWT",
-          automaticIssuance: true,
-        }),
+        body: JSON.stringify(body),
       });
       recordId = offer?.recordId ?? recordId;
       state = offer?.protocolState ?? state;
+      invitationUrl =
+        offer?.invitation?.invitationUrl ?? offer?.invitation?.invitation ?? null;
     }
 
     const { data: row, error } = await context.supabase
@@ -434,6 +498,8 @@ export const issueCredential = createServerFn({ method: "POST" })
         schema_name: data.schemaName,
         claims: data.claims,
         protocol_state: state,
+        invitation_url: invitationUrl,
+        agent_connection_ref: data.connectionId ?? null,
       })
       .select()
       .single();
@@ -447,6 +513,7 @@ export const issueCredential = createServerFn({ method: "POST" })
     );
     return row;
   });
+
 
 export const acceptCredential = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

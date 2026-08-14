@@ -39,12 +39,18 @@ function Credentials() {
     queryKey: ["agent-didcomm-connections"],
     queryFn: () => fetchAgentConnections(),
   });
+  const { data: issuerData, isLoading: issuerLoading } = useQuery({
+    queryKey: ["agent-issuer-dids"],
+    queryFn: () => fetchIssuerDids(),
+  });
   const invalidate = () => qc.invalidateQueries({ queryKey: ["workspace"] });
 
   const dids = (data?.dids ?? []) as any[];
   const schemas = (data?.schemas ?? []) as any[];
   const isRealAgent = (data?.active?.mode ?? "simulated") !== "simulated";
   const didcomm = (agentConns?.connections ?? []) as any[];
+  const issuerOptions = (issuerData?.dids ?? []) as Array<{ did: string; alias: string }>;
+
 
   const [issuerDid, setIssuerDid] = useState("");
   const [holderDid, setHolderDid] = useState("");

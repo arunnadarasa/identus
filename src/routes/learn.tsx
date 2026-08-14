@@ -2,6 +2,23 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Wallet, EyeOff, ShieldCheck } from "lucide-react";
+import { TrustTriangle } from "@/components/learn/TrustTriangle";
+import { FlowCompare } from "@/components/learn/FlowCompare";
+import { DisclosureChips } from "@/components/learn/DisclosureChips";
+import { SsiTimeline } from "@/components/learn/SsiTimeline";
+import { Web2Web3Split } from "@/components/learn/Web2Web3Split";
+
+const sectionNav = [
+  { id: "problem", label: "The problem" },
+  { id: "pillars", label: "Three ideas" },
+  { id: "day", label: "A day with SSI" },
+  { id: "web2", label: "Web2" },
+  { id: "web3", label: "Web3" },
+];
+
+const pillarIcons = [Wallet, EyeOff, ShieldCheck];
+
 
 export const Route = createFileRoute("/learn")({
   head: () => ({

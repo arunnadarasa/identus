@@ -27,6 +27,8 @@ import { Route as ApiPublicX402ProxyRouteImport } from './routes/api/public/x402
 import { Route as AppDemosIndexRouteImport } from './routes/app.demos.index'
 import { Route as AppDemosA2aRouteImport } from './routes/app.demos.a2a'
 import { Route as AppDemosAp2RouteImport } from './routes/app.demos.ap2'
+import { Route as AppDemosUcpRouteImport } from './routes/app.demos.ucp'
+import { Route as AppDemosX402RouteImport } from './routes/app.demos.x402'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -118,6 +120,16 @@ const AppDemosAp2Route = AppDemosAp2RouteImport.update({
   path: '/demos/ap2',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDemosUcpRoute = AppDemosUcpRouteImport.update({
+  id: '/demos/ucp',
+  path: '/demos/ucp',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDemosX402Route = AppDemosX402RouteImport.update({
+  id: '/demos/x402',
+  path: '/demos/x402',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -137,6 +149,8 @@ export interface FileRoutesByFullPath {
   '/api/public/x402-proxy': typeof ApiPublicX402ProxyRoute
   '/app/demos/a2a': typeof AppDemosA2aRoute
   '/app/demos/ap2': typeof AppDemosAp2Route
+  '/app/demos/ucp': typeof AppDemosUcpRoute
+  '/app/demos/x402': typeof AppDemosX402Route
   '/app/demos/': typeof AppDemosIndexRoute
 }
 export interface FileRoutesByTo {
@@ -156,6 +170,8 @@ export interface FileRoutesByTo {
   '/api/public/x402-proxy': typeof ApiPublicX402ProxyRoute
   '/app/demos/a2a': typeof AppDemosA2aRoute
   '/app/demos/ap2': typeof AppDemosAp2Route
+  '/app/demos/ucp': typeof AppDemosUcpRoute
+  '/app/demos/x402': typeof AppDemosX402Route
   '/app/demos': typeof AppDemosIndexRoute
 }
 export interface FileRoutesById {
@@ -177,6 +193,8 @@ export interface FileRoutesById {
   '/api/public/x402-proxy': typeof ApiPublicX402ProxyRoute
   '/app/demos/a2a': typeof AppDemosA2aRoute
   '/app/demos/ap2': typeof AppDemosAp2Route
+  '/app/demos/ucp': typeof AppDemosUcpRoute
+  '/app/demos/x402': typeof AppDemosX402Route
   '/app/demos/': typeof AppDemosIndexRoute
 }
 export interface FileRouteTypes {
@@ -199,6 +217,8 @@ export interface FileRouteTypes {
     | '/api/public/x402-proxy'
     | '/app/demos/a2a'
     | '/app/demos/ap2'
+    | '/app/demos/ucp'
+    | '/app/demos/x402'
     | '/app/demos/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -218,6 +238,8 @@ export interface FileRouteTypes {
     | '/api/public/x402-proxy'
     | '/app/demos/a2a'
     | '/app/demos/ap2'
+    | '/app/demos/ucp'
+    | '/app/demos/x402'
     | '/app/demos'
   id:
     | '__root__'
@@ -238,6 +260,8 @@ export interface FileRouteTypes {
     | '/api/public/x402-proxy'
     | '/app/demos/a2a'
     | '/app/demos/ap2'
+    | '/app/demos/ucp'
+    | '/app/demos/x402'
     | '/app/demos/'
   fileRoutesById: FileRoutesById
 }
@@ -380,6 +404,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDemosAp2RouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/demos/ucp': {
+      id: '/app/demos/ucp'
+      path: '/demos/ucp'
+      fullPath: '/app/demos/ucp'
+      preLoaderRoute: typeof AppDemosUcpRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/demos/x402': {
+      id: '/app/demos/x402'
+      path: '/demos/x402'
+      fullPath: '/app/demos/x402'
+      preLoaderRoute: typeof AppDemosX402RouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -392,6 +430,8 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppDemosA2aRoute: typeof AppDemosA2aRoute
   AppDemosAp2Route: typeof AppDemosAp2Route
+  AppDemosUcpRoute: typeof AppDemosUcpRoute
+  AppDemosX402Route: typeof AppDemosX402Route
   AppDemosIndexRoute: typeof AppDemosIndexRoute
 }
 
@@ -404,6 +444,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppDemosA2aRoute: AppDemosA2aRoute,
   AppDemosAp2Route: AppDemosAp2Route,
+  AppDemosUcpRoute: AppDemosUcpRoute,
+  AppDemosX402Route: AppDemosX402Route,
   AppDemosIndexRoute: AppDemosIndexRoute,
 }
 

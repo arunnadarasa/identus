@@ -150,9 +150,14 @@ function Docs() {
           <Link to="/" className="font-display min-w-0 truncate text-base sm:text-lg font-semibold tracking-tight">
             Identus<span className="text-primary">.</span>Companion
           </Link>
-          <Button asChild size="sm">
-            <Link to="/app">Open console</Link>
-          </Button>
+          <nav className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/learn">Learn</Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link to="/app">Open console</Link>
+            </Button>
+          </nav>
         </div>
       </header>
 

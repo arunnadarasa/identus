@@ -1,14 +1,48 @@
-# Welcome to your Lovable project
+# Hyperledger Identus NHS
+
+Create an app for Hyperledger Identus
+
+
+
+
+
+https://identus.io/documentation/develop/
+
+
+
+https://github.com/hyperledger-identus/docs
+
+
+
+https://github.com/hyperledger-identus/hyperledger-identus
+
+
+
+https://github.com/hyperledger-identus/cloud-agent
+
+
+
+https://github.com/hyperledger-identus/sdk-ts
+
+
+
+https://github.com/hyperledger-identus/mediator
+
+
+
+https://github.com/hyperledger-identus/sdk-kmp
 
 This project was built with [Lovable](https://lovable.dev).
 
+**Live app**: https://identus.lovable.app
+
 ## Build with Lovable
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/abda5469-f7b0-4cb1-98ba-916ab1137f4e).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
@@ -20,10 +54,3 @@ cd <repository-name>
 npm i
 npm run dev
 ```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS

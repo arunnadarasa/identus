@@ -69,6 +69,7 @@ function Landing() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const signedIn = Boolean(session);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   async function handleSignOut() {
     await queryClient.cancelQueries();

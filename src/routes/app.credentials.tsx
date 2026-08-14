@@ -363,6 +363,24 @@ function Credentials() {
                     {record.jwt.slice(0, 220)}…
                   </p>
                 ) : null}
+                {record.invitation_url ? (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <p className="min-w-0 flex-1 break-all rounded-md bg-secondary/40 p-2 font-mono text-[11px] text-muted-foreground">
+                      {record.invitation_url}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(record.invitation_url);
+                        toast.success("Invitation copied");
+                      }}
+                    >
+                      Copy invitation
+                    </Button>
+                  </div>
+                ) : null}
+
               </div>
             ))
           )}

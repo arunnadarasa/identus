@@ -2,7 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, EyeOff, ShieldCheck } from "lucide-react";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
+import { Wallet, EyeOff, ShieldCheck, HelpCircle } from "lucide-react";
 import { TrustTriangle } from "@/components/learn/TrustTriangle";
 import { FlowCompare } from "@/components/learn/FlowCompare";
 import { DisclosureChips } from "@/components/learn/DisclosureChips";
@@ -15,6 +21,85 @@ const sectionNav = [
   { id: "day", label: "A day with SSI" },
   { id: "web2", label: "Web2" },
   { id: "web3", label: "Web3" },
+  { id: "faq", label: "FAQ" },
+];
+
+const faqGroups: { heading: string; items: { q: string; a: string }[] }[] = [
+  {
+    heading: "DIDs",
+    items: [
+      {
+        q: "What is a DID?",
+        a: "A DID (Decentralised Identifier) is a unique identifier you create and control yourself — like a web address for your identity that no company can take away or change.",
+      },
+      {
+        q: "Is a DID like a username?",
+        a: "Not quite. A username only works inside one app and someone else owns it. A DID is yours, works across any service that supports it, and proves who you are with cryptography instead of a password.",
+      },
+      {
+        q: "Where does a DID live?",
+        a: "Your DID lives in a wallet you control — on your phone, laptop, or a cloud you chose. The proof that it is real is published openly so anyone can check it, but the keys that control it stay with you.",
+      },
+      {
+        q: "What does 'published' mean?",
+        a: "Publishing a DID means recording its public keys on a shared ledger (like the PRISM blockchain) so others can look it up and confirm it is genuine. It does not reveal your personal data — only the cryptographic proof.",
+      },
+      {
+        q: "Can I have more than one DID?",
+        a: "Yes. You can keep separate DIDs for work, banking, and social life, so they cannot be linked back to each other. Think of them as different keys for different doors.",
+      },
+    ],
+  },
+  {
+    heading: "Credentials",
+    items: [
+      {
+        q: "What is a verifiable credential?",
+        a: "It is a digital version of a document — a degree, a licence, a membership — that comes with a cryptographic signature so anyone can confirm it was really issued by the organisation it claims to be from.",
+      },
+      {
+        q: "Who issues them?",
+        a: "Any organisation or person with a published DID can issue credentials: universities, employers, governments, banks. In this app you act as the issuer and create them yourself.",
+      },
+      {
+        q: "Where are they stored?",
+        a: "Inside your wallet, alongside your DIDs. They are not stored on the issuer's servers or on a public blockchain — only you hold them, and only you decide when to show them.",
+      },
+      {
+        q: "Can they expire or be revoked?",
+        a: "Yes. A credential can have an expiry date, and an issuer can revoke it if it should no longer be valid (say, a suspended licence). Verification checks for both.",
+      },
+      {
+        q: "Are they stored on a blockchain?",
+        a: "No. Only the DID and its public keys are published on the ledger. The credential itself, with its personal details, stays in your wallet and is shared only when you choose.",
+      },
+    ],
+  },
+  {
+    heading: "Verification",
+    items: [
+      {
+        q: "How does someone check a credential?",
+        a: "A verifier asks your wallet for a proof. Your wallet sends a cryptographic presentation built from the credential. The verifier checks the signature against the issuer's published DID and confirms it is genuine.",
+      },
+      {
+        q: "Do they call the issuer?",
+        a: "No. That is the whole point. Because the credential is signed and the keys are published, a verifier can confirm it independently — no phone call, no database lookup, no middleman.",
+      },
+      {
+        q: "What can a verifier see?",
+        a: "Only what you choose to share. You can prove you are over 18 without showing your birthdate, or prove you have a degree without revealing your grades. This is called selective disclosure.",
+      },
+      {
+        q: "Can a credential be faked?",
+        a: "Not without the issuer's private key, which never leaves the issuer. A forged credential will fail the signature check, so the verifier knows instantly it is not genuine.",
+      },
+      {
+        q: "Does verification need the internet?",
+        a: "The verifier needs to reach the ledger once to look up the issuer's published keys. After that the cryptography does the rest — it does not need to contact you, the issuer, or any central service.",
+      },
+    ],
+  },
 ];
 
 const pillarIcons = [Wallet, EyeOff, ShieldCheck];
@@ -570,6 +655,58 @@ function Learn() {
               <Link to="/docs">Read the primer</Link>
             </Button>
           </div>
+        </section>
+
+        {/* FAQ */}
+        <section id="faq" className="scroll-mt-24">
+          <Badge
+            variant="outline"
+            className="mb-4 border-primary/40 text-primary"
+          >
+            <HelpCircle className="mr-1.5 h-3.5 w-3.5" />
+            Quick answers
+          </Badge>
+          <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+            Frequently asked questions
+          </h2>
+          <p className="mt-3 max-w-2xl text-muted-foreground">
+            Short, plain-English answers to the questions that come up most
+            when people first meet DIDs, credentials, and verification.
+          </p>
+
+          <div className="mt-8 grid gap-8 lg:grid-cols-3">
+            {faqGroups.map((group) => (
+              <div key={group.heading}>
+                <h3 className="mb-2 font-mono text-sm font-medium uppercase tracking-wide text-primary">
+                  {group.heading}
+                </h3>
+                <Accordion type="multiple" className="border-b-0">
+                  {group.items.map((item) => (
+                    <AccordionItem
+                      key={item.q}
+                      value={item.q}
+                      className="border-b border-border/60"
+                    >
+                      <AccordionTrigger className="text-sm font-medium">
+                        {item.q}
+                      </AccordionTrigger>
+                      <AccordionContent className="text-sm text-muted-foreground">
+                        {item.a}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-8 text-sm text-muted-foreground">
+            Want the technical version?{" "}
+            <Link to="/docs" className="text-primary hover:underline">
+              Read the primer
+            </Link>
+            .
+          </p>
         </section>
       </article>
 

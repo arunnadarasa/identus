@@ -26,6 +26,7 @@ const sectionNav = [
   { id: "day", label: "A day with SSI" },
   { id: "web2", label: "Web2" },
   { id: "web3", label: "Web3" },
+  { id: "zk", label: "Zero-knowledge" },
   { id: "agents", label: "AI agents" },
   { id: "faq", label: "FAQ" },
 ];

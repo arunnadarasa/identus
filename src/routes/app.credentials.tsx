@@ -171,7 +171,14 @@ function Credentials() {
             </div>
             <Button
               className="h-11 w-full sm:h-10 sm:w-auto"
-              disabled={busy || !issuerDid || !holderDid || !subject || !schemaName}
+              disabled={
+                busy ||
+                !issuerDid ||
+                !holderDid ||
+                !subject ||
+                !schemaName ||
+                (isRealAgent && !target)
+              }
               onClick={async () => {
                 let claims: Record<string, string>;
                 try {
@@ -186,8 +193,21 @@ function Credentials() {
                 setBusy(true);
                 try {
                   await issue({
-                    data: { issuerDid, holderDid, subject, schemaName, claims },
+                    data: {
+                      issuerDid,
+                      holderDid,
+                      subject,
+                      schemaName,
+                      claims,
+                      ...(isRealAgent && target !== "connectionless"
+                        ? { connectionId: target }
+                        : {}),
+                      ...(isRealAgent && target === "connectionless"
+                        ? { connectionless: true }
+                        : {}),
+                    },
                   });
+
                   invalidate();
                   toast.success("Credential offered");
                 } catch (error) {

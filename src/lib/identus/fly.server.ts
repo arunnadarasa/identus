@@ -792,6 +792,12 @@ const LOG_RULES: { test: RegExp; fatal: boolean; diagnosis: string }[] = [
       "Postgres is missing the Identus application roles (pollux-application-user, connect-application-user, agent-application-user). The agent's first-boot migration GRANTs to them and aborts. The init script only runs on an empty volume — deploy a fresh app.",
   },
   {
+    test: /syntax error at or near "format"|V27__presentation_definition_table\.sql failed/i,
+    fatal: true,
+    diagnosis:
+      "Postgres is too new for this Cloud Agent version — its V27 migration uses a bare `format json` column, which Postgres 16+ rejects as a syntax error. Redeploy a fresh app so it gets Postgres 13; the volume cannot be downgraded in place.",
+  },
+  {
 
     test: /database "(pollux|connect|agent|node)" does not exist/i,
     fatal: true,

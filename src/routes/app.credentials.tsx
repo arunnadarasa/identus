@@ -10,6 +10,7 @@ import {
   verifyCredential,
   createSchema,
   listAgentConnections,
+  listIssuerDids,
 } from "@/lib/identus.functions";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,11 +34,16 @@ function Credentials() {
   const verify = useServerFn(verifyCredential);
   const addSchema = useServerFn(createSchema);
   const fetchAgentConnections = useServerFn(listAgentConnections);
+  const fetchIssuerDids = useServerFn(listIssuerDids);
 
   const { data } = useQuery({ queryKey: ["workspace"], queryFn: () => fetchWorkspace() });
   const { data: agentConns, isLoading: connsLoading } = useQuery({
     queryKey: ["agent-didcomm-connections"],
     queryFn: () => fetchAgentConnections(),
+  });
+  const { data: issuerData, isLoading: issuerLoading } = useQuery({
+    queryKey: ["agent-issuer-dids"],
+    queryFn: () => fetchIssuerDids(),
   });
   const invalidate = () => qc.invalidateQueries({ queryKey: ["workspace"] });
 
@@ -45,6 +51,8 @@ function Credentials() {
   const schemas = (data?.schemas ?? []) as any[];
   const isRealAgent = (data?.active?.mode ?? "simulated") !== "simulated";
   const didcomm = (agentConns?.connections ?? []) as any[];
+  const issuerOptions = (issuerData?.dids ?? []) as Array<{ did: string; alias: string }>;
+
 
   const [issuerDid, setIssuerDid] = useState("");
   const [holderDid, setHolderDid] = useState("");
@@ -105,36 +113,52 @@ function Credentials() {
               </div>
             ) : null}
             <div className="space-y-2">
-
               <Label>Issuer DID</Label>
               <Select value={issuerDid} onValueChange={setIssuerDid}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select an issuer DID" />
+                  <SelectValue
+                    placeholder={issuerLoading ? "Loading agent DIDs…" : "Select an issuer DID"}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {dids.map((did) => (
-                    <SelectItem key={did.id} value={did.did}>
-                      {did.alias} · {did.role}
+                  {issuerOptions.map((did) => (
+                    <SelectItem key={did.did} value={did.did}>
+                      {did.alias}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {isRealAgent && !issuerLoading && issuerOptions.length === 0 ? (
+                <p className="text-xs text-destructive">
+                  This agent has no published issuer DID with an assertion key. Create and publish
+                  one on the DIDs page first — the seeded demo DIDs only work in simulated mode.
+                  {issuerData?.error ? ` (${issuerData.error})` : ""}
+                </p>
+              ) : null}
+              {isRealAgent && issuerOptions.length > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Showing published DIDs owned by the connected agent.
+                </p>
+              ) : null}
             </div>
-            <div className="space-y-2">
-              <Label>Holder DID</Label>
-              <Select value={holderDid} onValueChange={setHolderDid}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a holder DID" />
-                </SelectTrigger>
-                <SelectContent>
-                  {dids.map((did) => (
-                    <SelectItem key={`h-${did.id}`} value={did.did}>
-                      {did.alias} · {did.role}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!isRealAgent || target !== "connectionless" ? (
+              <div className="space-y-2">
+                <Label>Holder DID</Label>
+                <Select value={holderDid} onValueChange={setHolderDid}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a holder DID" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dids.map((did) => (
+                      <SelectItem key={`h-${did.id}`} value={did.did}>
+                        {did.alias} · {did.role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
             <div className="space-y-2">
               <Label htmlFor="subject">Subject name</Label>
               <Input
@@ -174,10 +198,11 @@ function Credentials() {
               disabled={
                 busy ||
                 !issuerDid ||
-                !holderDid ||
+                (!holderDid && !(isRealAgent && target === "connectionless")) ||
                 !subject ||
                 !schemaName ||
-                (isRealAgent && !target)
+                (isRealAgent && !target) ||
+                (isRealAgent && !issuerLoading && issuerOptions.length === 0)
               }
               onClick={async () => {
                 let claims: Record<string, string>;
@@ -195,7 +220,8 @@ function Credentials() {
                   await issue({
                     data: {
                       issuerDid,
-                      holderDid,
+                      ...(holderDid ? { holderDid } : {}),
+
                       subject,
                       schemaName,
                       claims,

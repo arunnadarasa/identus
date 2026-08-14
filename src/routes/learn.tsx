@@ -641,6 +641,28 @@ function Learn() {
           </p>
         </section>
 
+        {/* Zero-knowledge opportunity */}
+        <section id="zk" className="scroll-mt-16">
+          <Badge
+            variant="outline"
+            className="mb-4 border-primary/40 text-primary"
+          >
+            <EyeOff className="mr-1.5 h-3.5 w-3.5" />
+            The zero-knowledge opportunity
+          </Badge>
+          <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+            Prove it without showing it
+          </h2>
+          <p className="mt-3 max-w-2xl text-muted-foreground">
+            We said SSI lets you prove a fact without handing over the whole
+            document. Zero-knowledge proofs are the cryptography that makes that
+            real — and they go further than you might expect.
+          </p>
+          <div className="mt-8">
+            <ZkProof />
+          </div>
+        </section>
+
         {/* Agentic opportunity */}
         <section id="agents" className="scroll-mt-16">
           <Badge

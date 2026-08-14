@@ -581,34 +581,53 @@ export const listIssuerDids = createServerFn({ method: "GET" })
     try {
       const res = await agentFetch(conn, "/did-registrar/dids?offset=0&limit=100");
       const items = (res?.contents ?? res?.items ?? []) as any[];
-      const dids = items
-        .filter((d) => String(d?.status ?? "").toUpperCase() === "PUBLISHED")
-        .filter((d) => {
-          const keys = (d?.didDocumentMetadata?.publicKeys ??
-            d?.publicKeys ??
-            d?.documentTemplate?.publicKeys ??
-            []) as any[];
-          // Some agent builds omit key purposes in the list response; treat an
-          // unknown key set as usable rather than hiding a valid issuer DID.
-          if (keys.length === 0) return true;
-          return keys.some((k) =>
-            String(k?.purpose ?? k?.usage ?? "").toLowerCase().includes("assertion"),
-          );
-        })
+      const hasAssertionKey = (d: any) => {
+        const keys = (d?.didDocumentMetadata?.publicKeys ??
+          d?.publicKeys ??
+          d?.documentTemplate?.publicKeys ??
+          []) as any[];
+        // Some agent builds omit key purposes in the list response; treat an
+        // unknown key set as usable rather than hiding a valid issuer DID.
+        if (keys.length === 0) return true;
+        return keys.some((k) =>
+          String(k?.purpose ?? k?.usage ?? "").toLowerCase().includes("assertion"),
+        );
+      };
+      const published = items.filter(
+        (d) => String(d?.status ?? "").toUpperCase() === "PUBLISHED",
+      );
+      const dids = published
+        .filter(hasAssertionKey)
         .map((d) => ({
           did: String(d?.did ?? d?.longFormDid ?? ""),
           alias: String(d?.did ?? "").slice(0, 40),
           status: String(d?.status ?? "PUBLISHED"),
         }))
         .filter((d) => d.did);
-      return { mode: conn.mode, dids, error: null };
+
+      const pending = items.filter((d) =>
+        ["PUBLICATION_PENDING", "CREATED"].includes(String(d?.status ?? "").toUpperCase()),
+      );
+      const reason =
+        dids.length > 0
+          ? "ok"
+          : items.length === 0
+            ? "no_dids"
+            : pending.length > 0
+              ? "publishing"
+              : "no_assertion_key";
+
+      return { mode: conn.mode, dids, error: null, reason, pendingCount: pending.length };
     } catch (error) {
       return {
         mode: conn.mode,
         dids: [],
         error: error instanceof Error ? error.message : "Could not list agent DIDs",
+        reason: "error",
+        pendingCount: 0,
       };
     }
+
   });
 
 /** Turns an agent offer failure into something actionable. */

@@ -17,6 +17,7 @@ import { Web2Web3Split } from "@/components/learn/Web2Web3Split";
 import { CredentialDemo } from "@/components/learn/CredentialDemo";
 import { AgenticStack } from "@/components/learn/AgenticStack";
 import { DelegationChain } from "@/components/learn/DelegationChain";
+import { ZkProof } from "@/components/learn/ZkProof";
 
 const sectionNav = [
   { id: "problem", label: "The problem" },
@@ -25,6 +26,7 @@ const sectionNav = [
   { id: "day", label: "A day with SSI" },
   { id: "web2", label: "Web2" },
   { id: "web3", label: "Web3" },
+  { id: "zk", label: "Zero-knowledge" },
   { id: "agents", label: "AI agents" },
   { id: "faq", label: "FAQ" },
 ];
@@ -637,6 +639,28 @@ function Learn() {
             you already have one, it makes a strong, shared trust anchor for
             resolving DIDs. They're partners, not rivals.
           </p>
+        </section>
+
+        {/* Zero-knowledge opportunity */}
+        <section id="zk" className="scroll-mt-16">
+          <Badge
+            variant="outline"
+            className="mb-4 border-primary/40 text-primary"
+          >
+            <EyeOff className="mr-1.5 h-3.5 w-3.5" />
+            The zero-knowledge opportunity
+          </Badge>
+          <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+            Prove it without showing it
+          </h2>
+          <p className="mt-3 max-w-2xl text-muted-foreground">
+            We said SSI lets you prove a fact without handing over the whole
+            document. Zero-knowledge proofs are the cryptography that makes that
+            real — and they go further than you might expect.
+          </p>
+          <div className="mt-8">
+            <ZkProof />
+          </div>
         </section>
 
         {/* Agentic opportunity */}

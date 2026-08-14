@@ -282,10 +282,13 @@ function Learn() {
               </Card>
             ))}
           </div>
+          <div className="mt-8">
+            <FlowCompare />
+          </div>
         </section>
 
         {/* What SSI changes */}
-        <section>
+        <section id="pillars">
           <Badge
             variant="outline"
             className="mb-4 border-primary/40 text-primary"

@@ -77,6 +77,9 @@ function Landing() {
           </span>
           <nav className="flex flex-wrap items-center gap-2">
             <Button asChild variant="ghost" size="sm">
+              <Link to="/learn">Learn</Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
               <Link to="/docs">Docs</Link>
             </Button>
             {signedIn ? (

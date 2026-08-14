@@ -287,7 +287,6 @@ function Credentials() {
                 <Label htmlFor="schema-version">Version</Label>
                 <Input
                   id="schema-version"
-                className="h-11 sm:h-10"
                   className="h-11 sm:h-10"
                   value={schemaVersion}
                   onChange={(e) => setSchemaVersion(e.target.value)}
@@ -297,7 +296,6 @@ function Credentials() {
                 <Label htmlFor="schema-attrs">Attributes</Label>
                 <Input
                   id="schema-attrs"
-                className="h-11 sm:h-10"
                   className="h-11 sm:h-10"
                   value={schemaAttrs}
                   onChange={(e) => setSchemaAttrs(e.target.value)}

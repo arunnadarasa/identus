@@ -89,6 +89,7 @@ function Dids() {
             <div className="space-y-2">
               <Label htmlFor="alias">Alias</Label>
               <Input
+                className="h-11 sm:h-10"
                 id="alias"
                 placeholder="Acme University"
                 value={alias}
@@ -98,7 +99,7 @@ function Dids() {
             <div className="space-y-2">
               <Label>Role</Label>
               <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11 sm:h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -141,6 +142,7 @@ function Dids() {
             <div className="space-y-2">
               <Label htmlFor="label">Connection label</Label>
               <Input
+                className="h-11 sm:h-10"
                 id="label"
                 placeholder="Student wallet"
                 value={label}

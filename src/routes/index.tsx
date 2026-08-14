@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Menu } from "lucide-react";
+import { Github, Menu } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -97,6 +97,11 @@ function Landing() {
             <Button asChild variant="ghost" size="sm">
               <Link to="/docs">Docs</Link>
             </Button>
+            <Button asChild variant="ghost" size="icon" aria-label="View on GitHub">
+              <a href="https://github.com/arunnadarasa/identus" target="_blank" rel="noreferrer">
+                <Github className="h-4 w-4" />
+              </a>
+            </Button>
             {signedIn ? (
               <>
                 <Button asChild size="sm">
@@ -131,15 +136,32 @@ function Landing() {
                   { to: "/learn", label: "Learn" },
                   { to: "/nhs", label: "NHS" },
                   { to: "/docs", label: "Docs" },
+                  {
+                    href: "https://github.com/arunnadarasa/identus",
+                    label: "GitHub",
+                  },
                 ].map((item) => (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    onClick={() => setMenuOpen(false)}
-                    className="rounded-md px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-                  >
-                    {item.label}
-                  </Link>
+                  {"href" in item ? (
+                    <a
+                      key={item.label}
+                      href={item.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => setMenuOpen(false)}
+                      className="rounded-md px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                    >
+                      {item.label}
+                    </a>
+                  ) : (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={() => setMenuOpen(false)}
+                      className="rounded-md px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                    >
+                      {item.label}
+                    </Link>
+                  )
                 ))}
                 <div className="mt-3 flex flex-col gap-2 border-t border-border/60 pt-4">
                   <Button asChild onClick={() => setMenuOpen(false)}>
@@ -238,14 +260,24 @@ function Landing() {
             Community project — not affiliated with the Hyperledger Foundation or the Linux
             Foundation.
           </span>
-          <a
-            className="text-primary hover:underline"
-            href="https://identus.io/documentation/develop/"
-            target="_blank"
-            rel="noreferrer"
-          >
-            identus.io documentation
-          </a>
+          <div className="flex items-center gap-4">
+            <a
+              className="text-primary hover:underline"
+              href="https://identus.io/documentation/develop/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              identus.io documentation
+            </a>
+            <a
+              className="text-primary hover:underline"
+              href="https://github.com/arunnadarasa/identus"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Github className="inline h-4 w-4" /> GitHub
+            </a>
+          </div>
         </div>
       </footer>
     </main>

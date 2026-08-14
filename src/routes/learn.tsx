@@ -8,7 +8,7 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
-import { Wallet, EyeOff, ShieldCheck, HelpCircle } from "lucide-react";
+import { Wallet, EyeOff, ShieldCheck, HelpCircle, Bot } from "lucide-react";
 import { TrustTriangle } from "@/components/learn/TrustTriangle";
 import { FlowCompare } from "@/components/learn/FlowCompare";
 import { DisclosureChips } from "@/components/learn/DisclosureChips";

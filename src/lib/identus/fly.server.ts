@@ -7,7 +7,12 @@ export const FLY_GRAPHQL = "https://api.fly.io/graphql";
 // silently break provisioning.
 export const AGENT_IMAGE = "docker.io/identus/identus-cloud-agent:1.40.0";
 export const PRISM_NODE_IMAGE = "docker.io/identus/prism-node:2.5.0";
-export const POSTGRES_IMAGE = "postgres:16-alpine";
+// Identus 1.40's Flyway migrations are written against the Postgres upstream's
+// compose stack ships. On Postgres 16 the SQL/JSON `FORMAT JSON` clause makes
+// V27's bare `format json` column a syntax error (SQLSTATE 42601), so the agent
+// dies mid-migration and never binds its port. Pin 13 until Identus supports newer.
+export const POSTGRES_VERSION = "13";
+export const POSTGRES_IMAGE = `postgres:${POSTGRES_VERSION}-alpine`;
 
 export interface Step {
   step: string;

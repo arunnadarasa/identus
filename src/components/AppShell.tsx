@@ -10,6 +10,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { ModeBadge } from "@/components/ModeBadge";
+import { useActiveConnection } from "@/hooks/useActiveConnection";
 
 const nav = [
   { to: "/app", label: "Overview" },
@@ -37,6 +39,7 @@ export function AppShell({
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
+  const active = useActiveConnection();
 
   // Close the mobile menu whenever navigation happens.
   useEffect(() => setOpen(false), [pathname]);
@@ -51,6 +54,13 @@ export function AppShell({
           >
             Identus<span className="text-primary">.</span>Companion
           </Link>
+
+          <ModeBadge
+            mode={active?.mode}
+            name={active?.fly_app_name ?? active?.name}
+            health={active?.last_health}
+            className="hidden lg:inline-flex"
+          />
 
           <nav className="hidden flex-1 items-center gap-1 lg:flex">
             {nav.map((item) => (
@@ -80,6 +90,13 @@ export function AppShell({
             </Button>
           </div>
 
+          <div className="flex min-w-0 items-center gap-2 lg:hidden">
+            <ModeBadge
+              mode={active?.mode}
+              name={active?.fly_app_name ?? active?.name}
+              health={active?.last_health}
+              compact
+            />
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild className="lg:hidden">
               <Button variant="outline" size="icon" aria-label="Open menu">
@@ -96,6 +113,12 @@ export function AppShell({
                     {email}
                   </span>
                 ) : null}
+                <ModeBadge
+                  mode={active?.mode}
+                  name={active?.fly_app_name ?? active?.name}
+                  health={active?.last_health}
+                  className="mt-2 w-full justify-center py-2 text-sm"
+                />
               </SheetHeader>
               <nav className="flex flex-col gap-1 p-3">
                 {nav.map((item) => (
@@ -128,6 +151,7 @@ export function AppShell({
               </div>
             </SheetContent>
           </Sheet>
+          </div>
         </div>
       </header>
       <main className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>

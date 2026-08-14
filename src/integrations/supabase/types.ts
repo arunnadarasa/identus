@@ -162,11 +162,13 @@ export type Database = {
       }
       credential_records: {
         Row: {
+          agent_connection_ref: string | null
           claims: Json
           connection_id: string | null
           created_at: string
           holder_did: string | null
           id: string
+          invitation_url: string | null
           issuer_did: string | null
           jwt: string | null
           protocol_state: string
@@ -178,11 +180,13 @@ export type Database = {
           verified: boolean | null
         }
         Insert: {
+          agent_connection_ref?: string | null
           claims?: Json
           connection_id?: string | null
           created_at?: string
           holder_did?: string | null
           id?: string
+          invitation_url?: string | null
           issuer_did?: string | null
           jwt?: string | null
           protocol_state?: string
@@ -194,11 +198,13 @@ export type Database = {
           verified?: boolean | null
         }
         Update: {
+          agent_connection_ref?: string | null
           claims?: Json
           connection_id?: string | null
           created_at?: string
           holder_did?: string | null
           id?: string
+          invitation_url?: string | null
           issuer_did?: string | null
           jwt?: string | null
           protocol_state?: string

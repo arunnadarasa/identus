@@ -1,0 +1,1 @@
+ALTER TABLE public.credential_records ADD COLUMN IF NOT EXISTS invitation_url text, ADD COLUMN IF NOT EXISTS agent_connection_ref text;

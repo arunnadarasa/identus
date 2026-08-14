@@ -9,7 +9,9 @@ import {
   acceptCredential,
   verifyCredential,
   createSchema,
+  listAgentConnections,
 } from "@/lib/identus.functions";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,15 +32,23 @@ function Credentials() {
   const accept = useServerFn(acceptCredential);
   const verify = useServerFn(verifyCredential);
   const addSchema = useServerFn(createSchema);
+  const fetchAgentConnections = useServerFn(listAgentConnections);
 
   const { data } = useQuery({ queryKey: ["workspace"], queryFn: () => fetchWorkspace() });
+  const { data: agentConns, isLoading: connsLoading } = useQuery({
+    queryKey: ["agent-didcomm-connections"],
+    queryFn: () => fetchAgentConnections(),
+  });
   const invalidate = () => qc.invalidateQueries({ queryKey: ["workspace"] });
 
   const dids = (data?.dids ?? []) as any[];
   const schemas = (data?.schemas ?? []) as any[];
+  const isRealAgent = (data?.active?.mode ?? "simulated") !== "simulated";
+  const didcomm = (agentConns?.connections ?? []) as any[];
 
   const [issuerDid, setIssuerDid] = useState("");
   const [holderDid, setHolderDid] = useState("");
+  const [target, setTarget] = useState("");
   const [subject, setSubject] = useState("");
   const [schemaName, setSchemaName] = useState("");
   const [claimsText, setClaimsText] = useState('{\n  "degree": "BSc Computer Science",\n  "year": "2026"\n}');
@@ -46,6 +56,7 @@ function Credentials() {
   const [schemaVersion, setSchemaVersion] = useState("1.0.0");
   const [schemaAttrs, setSchemaAttrs] = useState("degree, year");
   const [busy, setBusy] = useState(false);
+
 
   return (
     <div className="space-y-8">
@@ -65,7 +76,36 @@ function Credentials() {
             <CardDescription>JWT format, signed by the issuing DID.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {isRealAgent ? (
+              <div className="space-y-2">
+                <Label>Send over connection</Label>
+                <Select value={target} onValueChange={setTarget}>
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        connsLoading ? "Loading connections…" : "Select a DIDComm connection"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="connectionless">Connectionless (invitation)</SelectItem>
+                    {didcomm.map((c) => (
+                      <SelectItem key={c.connectionId} value={c.connectionId}>
+                        {c.label} · {c.state}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!connsLoading && didcomm.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No established DIDComm connections on this agent yet — create one on the Wallet
+                    page, or send a connectionless invitation instead.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="space-y-2">
+
               <Label>Issuer DID</Label>
               <Select value={issuerDid} onValueChange={setIssuerDid}>
                 <SelectTrigger>
@@ -131,7 +171,14 @@ function Credentials() {
             </div>
             <Button
               className="h-11 w-full sm:h-10 sm:w-auto"
-              disabled={busy || !issuerDid || !holderDid || !subject || !schemaName}
+              disabled={
+                busy ||
+                !issuerDid ||
+                !holderDid ||
+                !subject ||
+                !schemaName ||
+                (isRealAgent && !target)
+              }
               onClick={async () => {
                 let claims: Record<string, string>;
                 try {
@@ -146,8 +193,21 @@ function Credentials() {
                 setBusy(true);
                 try {
                   await issue({
-                    data: { issuerDid, holderDid, subject, schemaName, claims },
+                    data: {
+                      issuerDid,
+                      holderDid,
+                      subject,
+                      schemaName,
+                      claims,
+                      ...(isRealAgent && target !== "connectionless"
+                        ? { connectionId: target }
+                        : {}),
+                      ...(isRealAgent && target === "connectionless"
+                        ? { connectionless: true }
+                        : {}),
+                    },
                   });
+
                   invalidate();
                   toast.success("Credential offered");
                 } catch (error) {
@@ -303,6 +363,24 @@ function Credentials() {
                     {record.jwt.slice(0, 220)}…
                   </p>
                 ) : null}
+                {record.invitation_url ? (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <p className="min-w-0 flex-1 break-all rounded-md bg-secondary/40 p-2 font-mono text-[11px] text-muted-foreground">
+                      {record.invitation_url}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(record.invitation_url);
+                        toast.success("Invitation copied");
+                      }}
+                    >
+                      Copy invitation
+                    </Button>
+                  </div>
+                ) : null}
+
               </div>
             ))
           )}

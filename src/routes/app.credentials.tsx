@@ -348,83 +348,83 @@ function Credentials() {
             (data?.credentials ?? []).map((record: any) => (
               <div
                 key={record.id}
-                className="space-y-2 border-b border-border/50 pb-4 last:border-0"
+                className="min-w-0 space-y-3 border-b border-border/50 pb-4 last:border-0"
               >
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">
-                      {record.schema_name} · {record.subject}
-                    </p>
-                    <p className="break-all font-mono text-xs text-muted-foreground">
-                      {record.record_id} · {record.protocol_state}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
+                <div className="min-w-0 space-y-1">
+                  <p className="text-sm font-medium">
+                    {record.schema_name} · {record.subject}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className="text-[11px]">
+                      {record.protocol_state}
+                    </Badge>
                     {record.verified ? (
-                      <Badge className="bg-success text-success-foreground text-xs">verified</Badge>
+                      <Badge className="bg-success text-success-foreground text-[11px]">
+                        verified
+                      </Badge>
                     ) : null}
-                    {record.protocol_state !== "CredentialReceived" ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={async () => {
-                          await accept({ data: { id: record.id } });
-                          invalidate();
-                          toast.success("Credential stored in the holder wallet");
-                        }}
-                      >
-                        Accept
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={async () => {
-                          const result = await verify({ data: { id: record.id } });
-                          invalidate();
-                          const failed = result.checks.filter((c) => !c.ok);
-                          result.verified
-                            ? toast.success("Presentation verified — all checks passed")
-                            : toast.error(
-                                `Verification failed: ${failed.map((c) => c.name).join(", ")}`,
-                              );
-                        }}
-                      >
-                        Verify
-                      </Button>
-                    )}
+                    <span className="font-mono text-[11px] text-muted-foreground">
+                      {shortenId(record.record_id, 6, 4)}
+                    </span>
                   </div>
                 </div>
-                <p className="break-all font-mono text-xs text-muted-foreground">
-                  {Object.entries(record.claims ?? {})
-                    .map(([k, v]) => `${k}=${v}`)
-                    .join("  ")}
-                </p>
-                {record.jwt ? (
-                  <p className="break-all rounded-md bg-secondary/40 p-2 font-mono text-[11px] text-muted-foreground">
-                    {record.jwt.slice(0, 220)}…
-                  </p>
-                ) : null}
-                {record.invitation_url ? (
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <p className="min-w-0 flex-1 break-all rounded-md bg-secondary/40 p-2 font-mono text-[11px] text-muted-foreground">
-                      {record.invitation_url}
-                    </p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        navigator.clipboard.writeText(record.invitation_url);
-                        toast.success("Invitation copied");
-                      }}
-                    >
-                      Copy invitation
-                    </Button>
+
+                {Object.keys(record.claims ?? {}).length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(record.claims ?? {}).map(([k, v]) => (
+                      <span
+                        key={k}
+                        className="inline-flex max-w-full items-center gap-1 rounded-md bg-secondary/50 px-2 py-1 text-[11px]"
+                      >
+                        <span className="text-muted-foreground">{k}</span>
+                        <span className="min-w-0 truncate">{String(v)}</span>
+                      </span>
+                    ))}
                   </div>
                 ) : null}
 
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  {record.protocol_state !== "CredentialReceived" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-11 w-full sm:h-9 sm:w-auto"
+                      onClick={async () => {
+                        await accept({ data: { id: record.id } });
+                        invalidate();
+                        toast.success("Credential stored in the holder wallet");
+                      }}
+                    >
+                      Accept
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-11 w-full sm:h-9 sm:w-auto"
+                      onClick={async () => {
+                        const result = await verify({ data: { id: record.id } });
+                        invalidate();
+                        const failed = result.checks.filter((c) => !c.ok);
+                        result.verified
+                          ? toast.success("Presentation verified — all checks passed")
+                          : toast.error(
+                              `Verification failed: ${failed.map((c) => c.name).join(", ")}`,
+                            );
+                      }}
+                    >
+                      Verify
+                    </Button>
+                  )}
+                </div>
+
+                {record.jwt ? <TruncatedMono label="Credential JWT" value={record.jwt} /> : null}
+                {record.invitation_url ? (
+                  <TruncatedMono label="Invitation URL" value={record.invitation_url} />
+                ) : null}
               </div>
             ))
+
           )}
         </CardContent>
       </Card>

@@ -345,6 +345,91 @@ export const createDid = createServerFn({ method: "POST" })
     return row;
   });
 
+/** Submits an existing agent DID for publication (for DIDs created before roles were sent). */
+export const publishDid = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { getActiveConnection, agentFetch } = await import("./identus/agent.server");
+    const conn = await getActiveConnection(context.supabase, context.userId);
+    if (!conn) throw new Error("No agent connection configured yet.");
+    if (conn.mode === "simulated") throw new Error("Simulated DIDs are already published.");
+
+    const { data: row } = await context.supabase
+      .from("saved_dids")
+      .select("*")
+      .eq("id", data.id)
+      .single();
+    if (!row) throw new Error("DID not found.");
+
+    let status = row.status as string;
+    let publishError: string | null = null;
+    try {
+      const published = await agentFetch(
+        conn,
+        `/did-registrar/dids/${encodeURIComponent(row.did)}/publications`,
+        { method: "POST" },
+      );
+      status = published?.scheduledOperation
+        ? "PUBLICATION_PENDING"
+        : (published?.status ?? "PUBLICATION_PENDING");
+    } catch (error) {
+      publishError = error instanceof Error ? error.message : "Publication request failed";
+    }
+
+    const { data: updated, error } = await context.supabase
+      .from("saved_dids")
+      .update({ status, publish_error: publishError })
+      .eq("id", data.id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    if (publishError) throw new Error(publishError);
+    return updated;
+  });
+
+/**
+ * Publication is asynchronous, so re-read every non-published DID from the
+ * agent and write the current status (and short-form DID) back.
+ */
+export const refreshDidStatuses = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { getActiveConnection, agentFetch } = await import("./identus/agent.server");
+    const conn = await getActiveConnection(context.supabase, context.userId);
+    if (!conn || conn.mode === "simulated") return { updated: 0 };
+
+    const { data: rows } = await context.supabase
+      .from("saved_dids")
+      .select("*")
+      .eq("connection_id", conn.id)
+      .neq("status", "PUBLISHED");
+
+    let updated = 0;
+    for (const row of rows ?? []) {
+      try {
+        const res = await agentFetch(
+          conn,
+          `/did-registrar/dids/${encodeURIComponent(row.did)}`,
+        );
+        const status = String(res?.status ?? row.status).toUpperCase();
+        const shortForm = res?.did ?? row.did;
+        if (status !== row.status || shortForm !== row.did) {
+          await context.supabase
+            .from("saved_dids")
+            .update({ status, did: shortForm, publish_error: null })
+            .eq("id", row.id);
+          updated += 1;
+        }
+      } catch {
+        // Leave the row alone; the agent may still be catching up.
+      }
+    }
+    return { updated };
+  });
+
+
+
 export const createPeerConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ label: z.string().trim().min(1) }).parse(input))

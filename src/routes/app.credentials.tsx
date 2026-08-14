@@ -76,7 +76,36 @@ function Credentials() {
             <CardDescription>JWT format, signed by the issuing DID.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {isRealAgent ? (
+              <div className="space-y-2">
+                <Label>Send over connection</Label>
+                <Select value={target} onValueChange={setTarget}>
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        connsLoading ? "Loading connections…" : "Select a DIDComm connection"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="connectionless">Connectionless (invitation)</SelectItem>
+                    {didcomm.map((c) => (
+                      <SelectItem key={c.connectionId} value={c.connectionId}>
+                        {c.label} · {c.state}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!connsLoading && didcomm.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No established DIDComm connections on this agent yet — create one on the Wallet
+                    page, or send a connectionless invitation instead.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="space-y-2">
+
               <Label>Issuer DID</Label>
               <Select value={issuerDid} onValueChange={setIssuerDid}>
                 <SelectTrigger>

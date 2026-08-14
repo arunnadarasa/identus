@@ -140,8 +140,8 @@ function Landing() {
                     href: "https://github.com/arunnadarasa/identus",
                     label: "GitHub",
                   },
-                ].map((item) => (
-                  {"href" in item ? (
+                ].map((item) =>
+                  "href" in item ? (
                     <a
                       key={item.label}
                       href={item.href}
@@ -161,8 +161,8 @@ function Landing() {
                     >
                       {item.label}
                     </Link>
-                  )
-                ))}
+                  ),
+                )}
                 <div className="mt-3 flex flex-col gap-2 border-t border-border/60 pt-4">
                   <Button asChild onClick={() => setMenuOpen(false)}>
                     <Link to={signedIn ? "/app" : "/auth"}>Open console</Link>

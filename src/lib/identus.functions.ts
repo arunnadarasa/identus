@@ -434,13 +434,88 @@ export const listAgentConnections = createServerFn({ method: "GET" })
     return { mode: conn.mode, connections: remote };
   });
 
+/**
+ * Issuer DIDs a real agent can actually sign with: published PRISM DIDs that
+ * carry an assertionMethod key. Demo DIDs seeded into our own database are not
+ * known to the agent, and using one gives a bare 500 from the offer endpoint.
+ */
+export const listIssuerDids = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { getActiveConnection, agentFetch } = await import("./identus/agent.server");
+    const conn = await getActiveConnection(context.supabase, context.userId);
+    if (!conn) return { mode: null as string | null, dids: [], error: null as string | null };
+
+    if (conn.mode === "simulated") {
+      const { data } = await context.supabase
+        .from("saved_dids")
+        .select("*")
+        .order("created_at", { ascending: true });
+      return {
+        mode: conn.mode,
+        dids: (data ?? []).map((d: any) => ({
+          did: d.did as string,
+          alias: (d.alias ?? d.did) as string,
+          status: d.status as string,
+        })),
+        error: null,
+      };
+    }
+
+    try {
+      const res = await agentFetch(conn, "/did-registrar/dids?offset=0&limit=100");
+      const items = (res?.contents ?? res?.items ?? []) as any[];
+      const dids = items
+        .filter((d) => String(d?.status ?? "").toUpperCase() === "PUBLISHED")
+        .filter((d) => {
+          const keys = (d?.didDocumentMetadata?.publicKeys ??
+            d?.publicKeys ??
+            d?.documentTemplate?.publicKeys ??
+            []) as any[];
+          // Some agent builds omit key purposes in the list response; treat an
+          // unknown key set as usable rather than hiding a valid issuer DID.
+          if (keys.length === 0) return true;
+          return keys.some((k) =>
+            String(k?.purpose ?? k?.usage ?? "").toLowerCase().includes("assertion"),
+          );
+        })
+        .map((d) => ({
+          did: String(d?.did ?? d?.longFormDid ?? ""),
+          alias: String(d?.did ?? "").slice(0, 40),
+          status: String(d?.status ?? "PUBLISHED"),
+        }))
+        .filter((d) => d.did);
+      return { mode: conn.mode, dids, error: null };
+    } catch (error) {
+      return {
+        mode: conn.mode,
+        dids: [],
+        error: error instanceof Error ? error.message : "Could not list agent DIDs",
+      };
+    }
+  });
+
+/** Turns an agent offer failure into something actionable. */
+function explainOfferFailure(message: string, connectionless: boolean) {
+  if (/\[500\]/.test(message)) {
+    return `The agent could not build this offer. The most common cause is an issuing DID it does not own or has not published — pick a DID created on this agent from the DIDs page. Agent said: ${message}`;
+  }
+  if (/\[404\]/.test(message) && !connectionless) {
+    return `That DIDComm connection no longer exists on the agent. Refresh the connection list or send a connectionless invitation. Agent said: ${message}`;
+  }
+  if (/\[400\]/.test(message)) {
+    return `The agent rejected the offer payload — check that every claim matches the schema attributes. Agent said: ${message}`;
+  }
+  return message;
+}
+
 export const issueCredential = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
         issuerDid: z.string().trim().min(1),
-        holderDid: z.string().trim().min(1),
+        holderDid: z.string().trim().optional(),
         subject: z.string().trim().min(1),
         schemaName: z.string().trim().min(1),
         claims: z.record(z.string(), z.string()),
@@ -459,11 +534,26 @@ export const issueCredential = createServerFn({ method: "POST" })
     let invitationUrl: string | null = null;
     if (conn.mode !== "simulated") {
       const connectionless = data.connectionless === true || !data.connectionId;
-      if (!connectionless && !data.connectionId) {
-        throw new Error(
-          "Select an established DIDComm connection, or choose a connectionless offer.",
+
+      // Fail fast with a clear message when the issuing DID is not on the agent.
+      try {
+        const res = await agentFetch(conn, "/did-registrar/dids?offset=0&limit=100");
+        const items = (res?.contents ?? res?.items ?? []) as any[];
+        const known = items.flatMap((d) =>
+          [d?.did, d?.longFormDid].filter(Boolean).map((v: string) => String(v)),
         );
+        if (known.length > 0 && !known.includes(data.issuerDid)) {
+          throw new Error(
+            "This issuer DID does not exist on the connected agent. Create and publish an issuer DID on the DIDs page first — demo DIDs only work in simulated mode.",
+          );
+        }
+      } catch (error) {
+        if (error instanceof Error && /does not exist on the connected agent/.test(error.message)) {
+          throw error;
+        }
+        // DID listing unavailable: let the offer attempt speak for itself.
       }
+
       const body: Record<string, unknown> = {
         issuingDID: data.issuerDid,
         claims: data.claims,
@@ -473,18 +563,38 @@ export const issueCredential = createServerFn({ method: "POST" })
       const path = connectionless
         ? "/issue-credentials/credential-offers/invitation"
         : "/issue-credentials/credential-offers";
-      if (!connectionless) body["connectionId"] = data.connectionId;
-      else body["goalCode"] = "issue-vc";
+      if (!connectionless) {
+        body["connectionId"] = data.connectionId;
+      } else {
+        body["goalCode"] = "issue-vc";
+        body["goal"] = `Issue a ${data.schemaName} credential`;
+      }
 
-      const offer = await agentFetch(conn, path, {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
+      let offer: any;
+      try {
+        offer = await agentFetch(conn, path, {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+      } catch (error) {
+        const raw = error instanceof Error ? error.message : String(error);
+        await logActivity(
+          context.supabase,
+          context.userId,
+          conn.id,
+          "credential.offer_failed",
+          `Credential offer rejected by the agent`,
+          "error",
+          { path, raw },
+        );
+        throw new Error(explainOfferFailure(raw, connectionless));
+      }
       recordId = offer?.recordId ?? recordId;
       state = offer?.protocolState ?? state;
       invitationUrl =
         offer?.invitation?.invitationUrl ?? offer?.invitation?.invitation ?? null;
     }
+
 
     const { data: row, error } = await context.supabase
       .from("credential_records")

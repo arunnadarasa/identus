@@ -14,6 +14,7 @@ import {
 } from "@/lib/identus.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { StickyActionBar } from "@/components/StickyActionBar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -109,6 +110,7 @@ function Dids() {
                 </SelectContent>
               </Select>
             </div>
+            <StickyActionBar>
             <Button
               className="h-11 w-full sm:h-10 sm:w-auto"
               disabled={busy || !alias}
@@ -128,6 +130,7 @@ function Dids() {
             >
               Create DID
             </Button>
+            </StickyActionBar>
           </CardContent>
         </Card>
 
@@ -149,6 +152,7 @@ function Dids() {
                 onChange={(e) => setLabel(e.target.value)}
               />
             </div>
+            <StickyActionBar>
             <Button
               className="h-11 w-full sm:h-10 sm:w-auto"
               disabled={busy || !label}
@@ -170,6 +174,7 @@ function Dids() {
             >
               Create invitation
             </Button>
+            </StickyActionBar>
           </CardContent>
         </Card>
       </div>
@@ -221,6 +226,7 @@ function Dids() {
                       <Button
                         size="sm"
                         variant="outline"
+                        className="h-11 w-full sm:h-9 sm:w-auto"
                         disabled={busy}
                         onClick={async () => {
                           setBusy(true);
@@ -272,6 +278,7 @@ function Dids() {
                     <Button
                       size="sm"
                       variant="outline"
+                      className="h-11 w-full sm:h-9 sm:w-auto"
                       onClick={async () => {
                         await acceptPeer({ data: { id: peer.id } });
                         invalidate();

@@ -414,7 +414,7 @@ function Learn() {
         </section>
 
         {/* Web3 opportunity */}
-        <section>
+        <section id="web3">
           <Badge
             variant="outline"
             className="mb-4 border-primary/40 text-primary"
@@ -429,7 +429,11 @@ function Learn() {
             on the other end. SSI fills that gap — and the two complement each
             other more than they compete.
           </p>
+          <div className="mt-8">
+            <Web2Web3Split />
+          </div>
           <div className="mt-8 grid gap-5 sm:grid-cols-2">
+
             {web3Opportunities.map((o) => (
               <Card key={o.title} className="border-border/60 bg-card/60">
                 <CardHeader>

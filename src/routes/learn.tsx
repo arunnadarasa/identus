@@ -300,29 +300,49 @@ function Learn() {
             "photocopy-and-hope" model with something you actually control.
           </p>
           <div className="mt-8 grid gap-5 md:grid-cols-3">
-            {pillars.map((p) => (
-              <Card key={p.title} className="border-border/60 bg-card/60">
-                <CardHeader>
-                  <Badge
-                    variant="secondary"
-                    className="w-fit font-mono text-xs"
+            {pillars.map((p, i) => {
+              const Icon = pillarIcons[i % pillarIcons.length]!;
+              return (
+                <Card
+                  key={p.title}
+                  className="relative overflow-hidden border-border/60 bg-card/60"
+                >
+                  <span
+                    className="font-display pointer-events-none absolute right-4 top-2 text-5xl font-semibold text-primary/10"
+                    aria-hidden="true"
                   >
-                    {p.tag}
-                  </Badge>
-                  <CardTitle className="font-display pt-2 text-lg">
-                    {p.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  {p.body}
-                </CardContent>
-              </Card>
-            ))}
+                    {i + 1}
+                  </span>
+                  <CardHeader>
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-primary">
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <Badge
+                      variant="secondary"
+                      className="mt-3 w-fit font-mono text-xs"
+                    >
+                      {p.tag}
+                    </Badge>
+                    <CardTitle className="font-display pt-2 text-lg">
+                      {p.title}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-sm text-muted-foreground">
+                    {p.body}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Selective disclosure visual */}
+          <div className="mt-10">
+            <DisclosureChips />
           </div>
 
           {/* Before / After table */}
-          <div className="mt-10 overflow-hidden rounded-lg border border-border/60">
-            <table className="w-full text-left text-sm">
+          <div className="mt-10 overflow-x-auto rounded-lg border border-border/60">
+            <table className="w-full min-w-[36rem] text-left text-sm">
               <thead className="bg-card/60 text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-mono font-medium">Scenario</th>
@@ -346,6 +366,7 @@ function Learn() {
             </table>
           </div>
         </section>
+
 
         {/* A day with SSI */}
         <section id="day">

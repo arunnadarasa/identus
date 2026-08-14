@@ -383,7 +383,7 @@ function Learn() {
         </section>
 
         {/* Web2 opportunity */}
-        <section>
+        <section id="web2">
           <Badge
             variant="outline"
             className="mb-4 border-primary/40 text-primary"

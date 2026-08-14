@@ -15,6 +15,8 @@ import { DisclosureChips } from "@/components/learn/DisclosureChips";
 import { SsiTimeline } from "@/components/learn/SsiTimeline";
 import { Web2Web3Split } from "@/components/learn/Web2Web3Split";
 import { CredentialDemo } from "@/components/learn/CredentialDemo";
+import { AgenticStack } from "@/components/learn/AgenticStack";
+import { DelegationChain } from "@/components/learn/DelegationChain";
 
 const sectionNav = [
   { id: "problem", label: "The problem" },
@@ -23,6 +25,7 @@ const sectionNav = [
   { id: "day", label: "A day with SSI" },
   { id: "web2", label: "Web2" },
   { id: "web3", label: "Web3" },
+  { id: "agents", label: "AI agents" },
   { id: "faq", label: "FAQ" },
 ];
 

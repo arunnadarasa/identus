@@ -90,7 +90,7 @@ function Credentials() {
               <div className="space-y-2">
                 <Label>Send over connection</Label>
                 <Select value={target} onValueChange={setTarget}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11 sm:h-10">
                     <SelectValue
                       placeholder={
                         connsLoading ? "Loading connections…" : "Select a DIDComm connection"
@@ -108,8 +108,7 @@ function Credentials() {
                 </Select>
                 {!connsLoading && didcomm.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    No established DIDComm connections on this agent yet — create one on the Wallet
-                    page, or send a connectionless invitation instead.
+                    No DIDComm connections yet — send a connectionless invitation instead.
                   </p>
                 ) : null}
               </div>
@@ -117,7 +116,7 @@ function Credentials() {
             <div className="space-y-2">
               <Label>Issuer DID</Label>
               <Select value={issuerDid} onValueChange={setIssuerDid}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11 sm:h-10">
                   <SelectValue
                     placeholder={issuerLoading ? "Loading agent DIDs…" : "Select an issuer DID"}
                   />
@@ -125,7 +124,9 @@ function Credentials() {
                 <SelectContent>
                   {issuerOptions.map((did) => (
                     <SelectItem key={did.did} value={did.did}>
-                      {did.alias}
+                      <span className="font-mono text-xs">
+                        {did.alias.startsWith("did:") ? shortenId(did.alias, 6, 6) : did.alias}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -133,13 +134,11 @@ function Credentials() {
               {isRealAgent && !issuerLoading && issuerOptions.length === 0 ? (
                 (issuerData?.reason ?? "no_dids") === "publishing" ? (
                   <p className="text-xs text-muted-foreground">
-                    Your issuer DID is still publishing on this agent — this can take a few
-                    minutes. The DIDs page shows live status.
+                    Your issuer DID is still publishing — the DIDs page shows live status.
                   </p>
                 ) : (issuerData?.reason ?? "") === "no_assertion_key" ? (
                   <p className="text-xs text-destructive">
-                    The DIDs on this agent have no assertion key, so they cannot sign credentials.
-                    Create a new Issuer DID on the DIDs page.
+                    No assertion key on this agent&apos;s DIDs — create a new Issuer DID.
                   </p>
                 ) : (issuerData?.reason ?? "") === "error" ? (
                   <p className="text-xs text-destructive">
@@ -147,15 +146,14 @@ function Credentials() {
                   </p>
                 ) : (
                   <p className="text-xs text-destructive">
-                    This agent has no DIDs yet. Create an Issuer DID on the DIDs page first — the
-                    seeded demo DIDs only work in simulated mode.
+                    No DIDs on this agent yet — create an Issuer DID on the DIDs page.
                   </p>
                 )
               ) : null}
 
               {isRealAgent && issuerOptions.length > 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  Showing published DIDs owned by the connected agent.
+                  Published DIDs owned by the connected agent.
                 </p>
               ) : null}
             </div>
@@ -163,7 +161,7 @@ function Credentials() {
               <div className="space-y-2">
                 <Label>Holder DID</Label>
                 <Select value={holderDid} onValueChange={setHolderDid}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11 sm:h-10">
                     <SelectValue placeholder="Select a holder DID" />
                   </SelectTrigger>
                   <SelectContent>
@@ -181,6 +179,7 @@ function Credentials() {
               <Label htmlFor="subject">Subject name</Label>
               <Input
                 id="subject"
+                className="h-11 sm:h-10"
                 placeholder="Ada Lovelace"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
@@ -189,7 +188,7 @@ function Credentials() {
             <div className="space-y-2">
               <Label>Schema</Label>
               <Select value={schemaName} onValueChange={setSchemaName}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11 sm:h-10">
                   <SelectValue placeholder="Select a schema" />
                 </SelectTrigger>
                 <SelectContent>
@@ -206,11 +205,12 @@ function Credentials() {
               <Textarea
                 id="claims"
                 rows={5}
-                className="font-mono text-xs"
+                className="w-full max-w-full overflow-x-auto whitespace-pre font-mono text-xs"
                 value={claimsText}
                 onChange={(e) => setClaimsText(e.target.value)}
               />
             </div>
+
             <Button
               className="h-11 w-full sm:h-10 sm:w-auto"
               disabled={

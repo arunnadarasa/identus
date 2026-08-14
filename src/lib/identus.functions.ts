@@ -560,7 +560,14 @@ export const listIssuerDids = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { getActiveConnection, agentFetch } = await import("./identus/agent.server");
     const conn = await getActiveConnection(context.supabase, context.userId);
-    if (!conn) return { mode: null as string | null, dids: [], error: null as string | null };
+    if (!conn)
+      return {
+        mode: null as string | null,
+        dids: [],
+        error: null as string | null,
+        reason: "no_dids",
+        pendingCount: 0,
+      };
 
     if (conn.mode === "simulated") {
       const { data } = await context.supabase
@@ -575,8 +582,11 @@ export const listIssuerDids = createServerFn({ method: "GET" })
           status: d.status as string,
         })),
         error: null,
+        reason: "ok",
+        pendingCount: 0,
       };
     }
+
 
     try {
       const res = await agentFetch(conn, "/did-registrar/dids?offset=0&limit=100");

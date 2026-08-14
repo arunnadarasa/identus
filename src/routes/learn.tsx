@@ -348,7 +348,7 @@ function Learn() {
         </section>
 
         {/* A day with SSI */}
-        <section>
+        <section id="day">
           <Badge
             variant="outline"
             className="mb-4 border-primary/40 text-primary"

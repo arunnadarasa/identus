@@ -10,6 +10,7 @@ import {
   verifyCredential,
   createSchema,
   listAgentConnections,
+  listIssuerDids,
 } from "@/lib/identus.functions";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +34,7 @@ function Credentials() {
   const verify = useServerFn(verifyCredential);
   const addSchema = useServerFn(createSchema);
   const fetchAgentConnections = useServerFn(listAgentConnections);
+  const fetchIssuerDids = useServerFn(listIssuerDids);
 
   const { data } = useQuery({ queryKey: ["workspace"], queryFn: () => fetchWorkspace() });
   const { data: agentConns, isLoading: connsLoading } = useQuery({

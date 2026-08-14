@@ -71,11 +71,13 @@ function Landing() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border/60">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
+        <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 sm:flex sm:justify-between sm:px-6 sm:py-5">
           <span className="font-display truncate text-lg font-semibold tracking-tight">
             Identus<span className="text-primary">.</span>Companion
           </span>
-          <nav className="flex flex-wrap items-center gap-2">
+
+          {/* Desktop nav */}
+          <nav className="hidden items-center gap-2 sm:flex sm:flex-wrap">
             <Button asChild variant="ghost" size="sm">
               <Link to="/learn">Learn</Link>
             </Button>
@@ -100,8 +102,57 @@ function Landing() {
               </Button>
             )}
           </nav>
+
+          {/* Mobile burger */}
+          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+            <SheetTrigger asChild className="sm:hidden">
+              <Button variant="outline" size="icon" aria-label="Open menu">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[85vw] max-w-sm p-0">
+              <SheetHeader className="border-b border-border/60 px-5 py-4 text-left">
+                <SheetTitle className="font-display text-base">
+                  Identus<span className="text-primary">.</span>Companion
+                </SheetTitle>
+              </SheetHeader>
+              <nav className="flex flex-col gap-1 p-4">
+                {[
+                  { to: "/learn", label: "Learn" },
+                  { to: "/nhs", label: "NHS" },
+                  { to: "/docs", label: "Docs" },
+                ].map((item) => (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMenuOpen(false)}
+                    className="rounded-md px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+                <div className="mt-3 flex flex-col gap-2 border-t border-border/60 pt-4">
+                  <Button asChild onClick={() => setMenuOpen(false)}>
+                    <Link to={signedIn ? "/app" : "/auth"}>Open console</Link>
+                  </Button>
+                  {signedIn ? (
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        void handleSignOut();
+                      }}
+                    >
+                      Sign out
+                    </Button>
+                  ) : null}
+                </div>
+              </nav>
+            </SheetContent>
+          </Sheet>
         </div>
       </header>
+
 
       <section
         className="relative overflow-hidden border-b border-border/60"

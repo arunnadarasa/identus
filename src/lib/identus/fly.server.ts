@@ -7,7 +7,12 @@ export const FLY_GRAPHQL = "https://api.fly.io/graphql";
 // silently break provisioning.
 export const AGENT_IMAGE = "docker.io/identus/identus-cloud-agent:1.40.0";
 export const PRISM_NODE_IMAGE = "docker.io/identus/prism-node:2.5.0";
-export const POSTGRES_IMAGE = "postgres:16-alpine";
+// Identus 1.40's Flyway migrations are written against the Postgres upstream's
+// compose stack ships. On Postgres 16 the SQL/JSON `FORMAT JSON` clause makes
+// V27's bare `format json` column a syntax error (SQLSTATE 42601), so the agent
+// dies mid-migration and never binds its port. Pin 13 until Identus supports newer.
+export const POSTGRES_VERSION = "13";
+export const POSTGRES_IMAGE = `postgres:${POSTGRES_VERSION}-alpine`;
 
 export interface Step {
   step: string;
@@ -785,6 +790,12 @@ const LOG_RULES: { test: RegExp; fatal: boolean; diagnosis: string }[] = [
     fatal: true,
     diagnosis:
       "Postgres is missing the Identus application roles (pollux-application-user, connect-application-user, agent-application-user). The agent's first-boot migration GRANTs to them and aborts. The init script only runs on an empty volume — deploy a fresh app.",
+  },
+  {
+    test: /syntax error at or near "format"|V27__presentation_definition_table\.sql failed/i,
+    fatal: true,
+    diagnosis:
+      "Postgres is too new for this Cloud Agent version — its V27 migration uses a bare `format json` column, which Postgres 16+ rejects as a syntax error. Redeploy a fresh app so it gets Postgres 13; the volume cannot be downgraded in place.",
   },
   {
 

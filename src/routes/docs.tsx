@@ -244,6 +244,13 @@ function Docs() {
             databases on a private network. That shapes which hosts can run the full stack versus
             which are only suitable for code snippets.
           </p>
+          <p className="mt-3 max-w-3xl text-sm text-muted-foreground">
+            Use <code className="font-mono text-xs text-foreground">postgres:13-alpine</code> with
+            Cloud Agent 1.40. On Postgres 16 or newer the agent's{" "}
+            <code className="font-mono text-xs text-foreground">V27</code> migration fails with{" "}
+            <em>syntax error at or near “format”</em> and the agent never starts — both the Fly
+            deploy and the Compose Lab template pin 13 for that reason.
+          </p>
 
           <div className="mt-6 overflow-hidden rounded-md border border-border/60">
             <div className="grid grid-cols-4 gap-px bg-border/60">

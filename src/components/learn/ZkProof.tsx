@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { EyeOff, ShieldCheck, CheckCircle2, Lock } from "lucide-react";
+import { ZkProofLive } from "./ZkProofLive";
 
 /**
  * Plain-English zero-knowledge proof explainer for the /learn page.
@@ -144,6 +145,9 @@ export function ZkProof() {
       {/* Interactive comparison */}
       <ProofCompare />
 
+      {/* Real Noir proof, generated and verified in the browser */}
+      <ZkProofLive />
+
       {/* Opportunity grid */}
       <div className="grid gap-5 sm:grid-cols-3">
         {zkOpportunities.map((o) => {
@@ -171,13 +175,16 @@ export function ZkProof() {
           <span className="font-medium text-foreground/80">
             Where this fits today:{" "}
           </span>
-          Identus supports zero-knowledge credential presentations through
-          AnonCreds and BBS+ signature schemes — the proof type depends on the
-          credential format. The live console demo in this app uses JWT-based
-          verifiable credentials, which do selective disclosure but not full
-          zero-knowledge proofs. The concept above is what the full Identus
-          stack unlocks when you move to ZK-capable credential formats.
+          The demo above is a genuine zero-knowledge proof — a Noir circuit
+          compiled in your browser and proven with Barretenberg's UltraHonk
+          prover, where the birth year is a private input that never leaves the
+          page. Identus credential presentations are a separate layer: the live
+          console in this app issues JWT-based verifiable credentials, which do
+          selective disclosure but not zero-knowledge proofs. AnonCreds and BBS+
+          are the ZK-capable credential formats that let you bind a proof like
+          the one above to an issued credential.
         </p>
+
       </div>
     </div>
   );

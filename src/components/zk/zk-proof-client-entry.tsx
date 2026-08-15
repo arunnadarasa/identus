@@ -282,17 +282,67 @@ export default function ZkProofLive() {
     if (!dobValid || blocked || busy) return;
     setBusy(true);
     setError(null);
+    setFailedStage(null);
     setResult(null);
     setVerified(null);
     setTampered(false);
     setSaved(false);
+    setAttempt((n) => n + 1);
     setSteps(STEPS.map((s) => ({ ...s, state: "pending" })));
 
     const started = performance.now();
+    const alreadyLoaded = sessionRef.current !== null;
     try {
+      setStep("load", "running", alreadyLoaded ? "already in memory" : "starting download…");
       setStep("compile", "running");
-      const session = await getSession();
+      let session: Session;
+      if (alreadyLoaded) {
+        session = sessionRef.current as Session;
+        setStep("load", "done", "reused from this page session");
+        setStep("compile", "done", "acir bytecode already compiled");
+      } else {
+        setProgress({ bytes: 0, assets: 0, phase: "fetching modules" });
+        stopObservingRef.current?.();
+        stopObservingRef.current = observeAssetDownloads((bytes, assets) =>
+          setProgress((prev) => ({ ...(prev ?? { phase: "downloading" }), bytes, assets })),
+        );
+        try {
+          session = await withTimeout(
+            "Loading the prover",
+            TIMEOUTS.load,
+            getSession((phase) => {
+              setProgress((prev) => ({ ...(prev ?? { bytes: 0, assets: 0 }), phase }));
+              setStep(
+                "load",
+                phase === "compiling circuit" ? "done" : "running",
+                phase === "compiling circuit" ? "wasm modules ready" : phase,
+              );
+            }),
+          );
+        } catch (e) {
+          // A half-initialised session is unusable — drop it so Retry starts clean.
+          sessionRef.current = null;
+          const isTimeout = e instanceof StageTimeoutError;
+          const detail = e instanceof Error ? e.message : String(e);
+          const failedOn = progressPhaseIsCompile() ? "compile" : "load";
+          setStep(failedOn, "failed", detail);
+          setFailedStage(isTimeout ? "load-timeout" : "load");
+          throw new Error(
+            isTimeout
+              ? `The prover did not finish loading within ${Math.round(
+                  TIMEOUTS.load / 1000,
+                )}s. This usually means a slow or blocked network — check your connection and retry.`
+              : detail,
+          );
+        } finally {
+          stopObservingRef.current?.();
+          stopObservingRef.current = null;
+        }
+        setLoaded(true);
+        setStep("load", "done", "wasm modules ready");
+      }
       setStep("compile", "done", "acir bytecode ready");
+
 
       setStep("bind", "running");
       const binding = await credentialBinding(selected ? selected.jwt : MANUAL_BINDING_SOURCE);

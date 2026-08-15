@@ -44,6 +44,7 @@ export const issueX402Mandate = createServerFn({ method: "POST" })
 
     const list = dids ?? [];
     const humanDid =
+      data.principalDid ??
       (list.find((d: any) => d.role === "holder")?.did as string) ??
       "did:prism:demo-human-alice-00000000000000000000000000";
     // The agent is its own identity, not "the other holder". Prefer a DID the

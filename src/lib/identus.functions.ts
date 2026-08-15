@@ -725,6 +725,19 @@ export const issueCredential = createServerFn({ method: "POST" })
         // DID listing unavailable: let the offer attempt speak for itself.
       }
 
+      // The agent rejects an offer signed by a DID with no assertionMethod key
+      // with a bare 400; say so up front instead.
+      const { resolveDidCapabilities } = await import("./identus/agent.server");
+      const caps = await resolveDidCapabilities(conn, data.issuerDid);
+      if (caps.resolved && caps.assertionMethod.length === 0) {
+        throw new Error(
+          caps.authentication.length > 0
+            ? "This DID only has an authentication key, so it cannot sign credentials. Pick or create an issuer DID with an assertionMethod key on the DIDs page."
+            : "This DID has no assertionMethod key, so the agent cannot sign a credential with it. Create an issuer DID on the DIDs page.",
+        );
+      }
+
+
       const body: Record<string, unknown> = {
         issuingDID: data.issuerDid,
         claims: data.claims,

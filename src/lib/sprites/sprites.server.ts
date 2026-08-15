@@ -15,6 +15,51 @@ const API = "https://api.sprites.dev/v1";
 export const SPRITE_DIR = "/root/www";
 export const SPRITE_SERVICE = "webapp";
 
+/** Per-call budgets. Nothing here may block a provision request forever. */
+export const TIMEOUTS = {
+  lookup: 20_000,
+  write: 30_000,
+  service: 25_000,
+  start: 30_000,
+  exec: 120_000,
+  install: 240_000,
+} as const;
+
+export class SpritesTimeoutError extends Error {
+  endpoint: string;
+  timeoutMs: number;
+
+  constructor(endpoint: string, timeoutMs: number) {
+    super(
+      `The sandbox API did not answer ${endpoint} within ${Math.round(timeoutMs / 1000)}s. The box may be waking up — retry, or use Repair box.`,
+    );
+    this.name = "SpritesTimeoutError";
+    this.endpoint = endpoint;
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+/** Runs a fetch with an abort budget and converts an abort into a readable error. */
+async function timedFetch(
+  endpoint: string,
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) {
+      throw new SpritesTimeoutError(endpoint, timeoutMs);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export class SpritesApiError extends Error {
   status: number;
   raw: string;

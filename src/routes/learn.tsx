@@ -17,6 +17,7 @@ import { Web2Web3Split } from "@/components/learn/Web2Web3Split";
 import { CredentialDemo } from "@/components/learn/CredentialDemo";
 import { AgenticStack } from "@/components/learn/AgenticStack";
 import { DelegationChain } from "@/components/learn/DelegationChain";
+import { AgenticUseCases } from "@/components/learn/AgenticUseCases";
 import { ZkProof } from "@/components/learn/ZkProof";
 
 const sectionNav = [
@@ -697,6 +698,19 @@ function Learn() {
           <div className="mt-4">
             <DelegationChain />
           </div>
+
+          <h3 className="mt-10 font-display text-lg font-semibold">
+            Use cases: where delegation fits
+          </h3>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            Four protocols, four concrete flows. Tap a card to see the steps and
+            the exact point where a verifiable delegation is checked.
+          </p>
+          <div className="mt-4">
+            <AgenticUseCases />
+          </div>
+
+
 
           <h3 className="mt-10 font-display text-lg font-semibold">
             What this unlocks

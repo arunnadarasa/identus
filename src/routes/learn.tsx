@@ -699,6 +699,19 @@ function Learn() {
           </div>
 
           <h3 className="mt-10 font-display text-lg font-semibold">
+            Use cases: where delegation fits
+          </h3>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            Four protocols, four concrete flows. Tap a card to see the steps and
+            the exact point where a verifiable delegation is checked.
+          </p>
+          <div className="mt-4">
+            <AgenticUseCases />
+          </div>
+
+
+
+          <h3 className="mt-10 font-display text-lg font-semibold">
             What this unlocks
           </h3>
           <div className="mt-4 grid gap-5 sm:grid-cols-3">

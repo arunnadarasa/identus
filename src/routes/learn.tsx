@@ -16,7 +16,7 @@ import { SsiTimeline } from "@/components/learn/SsiTimeline";
 import { Web2Web3Split } from "@/components/learn/Web2Web3Split";
 import { CredentialDemo } from "@/components/learn/CredentialDemo";
 import { AgenticStack } from "@/components/learn/AgenticStack";
-import { DelegationChain } from "@/components/learn/DelegationChain";
+import { DelegationWalkthrough } from "@/components/learn/DelegationWalkthrough";
 import { AgenticUseCases } from "@/components/learn/AgenticUseCases";
 import { ZkProof } from "@/components/learn/ZkProof";
 
@@ -689,15 +689,17 @@ function Learn() {
           </div>
 
           <h3 className="mt-10 font-display text-lg font-semibold">
-            The delegation chain
+            How delegation works, step by step
           </h3>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             Instead of handing an agent your credentials, you hand it a narrow,
-            time-boxed permission that anyone downstream can verify.
+            time-boxed permission that anyone downstream can verify. Walk the
+            chain one hop at a time.
           </p>
           <div className="mt-4">
-            <DelegationChain />
+            <DelegationWalkthrough />
           </div>
+
 
           <h3 className="mt-10 font-display text-lg font-semibold">
             Use cases: where delegation fits

@@ -316,16 +316,25 @@ export interface ExecResult {
 }
 
 /** Runs a bash script inside the sprite over HTTP. */
-export async function exec(name: string, script: string): Promise<ExecResult> {
+export async function exec(
+  name: string,
+  script: string,
+  timeoutMs: number = TIMEOUTS.exec,
+): Promise<ExecResult> {
   const qs = new URLSearchParams();
   qs.append("cmd", "bash");
   qs.append("cmd", "-lc");
   qs.append("cmd", script);
 
-  const res = await fetch(`${API}/sprites/${name}/exec?${qs.toString()}`, {
-    method: "POST",
-    headers: authHeaders(), // Authorization only — an Accept header returns 406.
-  });
+  const res = await timedFetch(
+    "/exec",
+    `${API}/sprites/${name}/exec?${qs.toString()}`,
+    {
+      method: "POST",
+      headers: authHeaders(), // Authorization only — an Accept header returns 406.
+    },
+    timeoutMs,
+  );
   if (!res.ok) {
     throw new SpritesApiError("/exec", res.status, await res.text());
   }

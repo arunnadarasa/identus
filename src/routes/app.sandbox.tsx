@@ -228,7 +228,7 @@ function Sandbox() {
 
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button
-                onClick={() => create(false)}
+                onClick={() => create(Boolean(data.box))}
                 disabled={busy !== null || !data.hasToken}
                 className="sm:w-auto"
               >

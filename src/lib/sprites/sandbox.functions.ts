@@ -123,6 +123,13 @@ export const ensureSandbox = createServerFn({ method: "POST" })
         entry.status = "error";
         entry.durationMs = Date.now() - started;
         entry.detail = error instanceof Error ? error.message : String(error);
+        if (
+          error instanceof Error &&
+          "raw" in error &&
+          typeof (error as Error & { raw?: unknown }).raw === "string"
+        ) {
+          entry.raw = (error as Error & { raw: string }).raw.slice(-12000);
+        }
         if (error instanceof sprites.SpritesApiError) {
           entry.endpoint = error.endpoint;
           entry.httpStatus = error.status;
@@ -172,14 +179,24 @@ export const ensureSandbox = createServerFn({ method: "POST" })
           const result = await sprites.exec(name, workspace.VERIFY_SDK);
           const version = result.stdout.match(/SDK_VERSION=(\S+)/)?.[1] ?? "";
           if (result.exitCode !== 0 || !version) {
-            throw new Error(
-              `The SDK failed to load in the sandbox: ${result.stdout.trim().slice(-600) || "no output"}`,
+            const output = result.stdout.trim() || "no output";
+            const cause = output.match(/(?:Error:\s*)?Cannot find module ['\"]([^'\"]+)/)?.[1];
+            throw Object.assign(
+              new Error(
+                cause
+                  ? `The SDK could not resolve ${cause}. Run Repair box to rebuild its dependencies.`
+                  : "The SDK failed its import probe. See the verification output below.",
+              ),
+              { raw: output },
             );
           }
           return { version, raw: result.stdout };
         });
         sdkVersion = verify.version;
-        steps[steps.length - 1]!.detail = `SDK ${sdkVersion} imports cleanly`;
+        const nodeVersion = verify.raw.match(/NODE_VERSION=(\S+)/)?.[1] ?? "Node 20";
+        const rxdbVersion = verify.raw.match(/RXDB_VERSION=(\S+)/)?.[1] ?? "14.17.1";
+        steps[steps.length - 1]!.detail =
+          `SDK ${sdkVersion} imports cleanly with rxdb ${rxdbVersion} on ${nodeVersion}`;
         steps[steps.length - 1]!.raw = verify.raw.slice(-4000);
       }
 

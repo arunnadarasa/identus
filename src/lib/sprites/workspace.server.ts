@@ -35,7 +35,7 @@ export function workspaceFiles() {
   ];
 }
 
-/** Ensures a Node runtime exists; prints the version on the last line. */
+/** Ensures npm is available. Snippets use the workspace-pinned Node 20 binary below. */
 export const NODE_BOOTSTRAP = `
 set -e
 if ! command -v node >/dev/null 2>&1; then
@@ -50,7 +50,14 @@ node -v
 export const SDK_PACKAGE = "@hyperledger/identus-edge-agent-sdk";
 export const SDK_VERSION = "6.6.0";
 /** Runtime peer dependencies the SDK expects the host project to provide. */
-const SDK_PEERS = ["rxjs@^7.8.1", "elliptic@^6.5.4", "buffer@^6.0.3", "core-js@^3.32.2"];
+const SDK_RUNTIME = [
+  "node@20",
+  "rxdb@14.17.1",
+  "rxjs@^7.8.1",
+  "elliptic@^6.5.4",
+  "buffer@^6.0.3",
+  "core-js@^3.32.2",
+];
 
 function installScript(clean: boolean) {
   return `
@@ -67,7 +74,8 @@ if [ "${clean ? "1" : "0"}" = "1" ] || { [ -n "$INSTALLED" ] && [ "$INSTALLED" !
   rm -rf node_modules package-lock.json
 fi
 FOUND=""
-if npm install --no-audit --no-fund ${SDK_PACKAGE}@${SDK_VERSION} ${SDK_PEERS.join(" ")} >>/tmp/npm-install.log 2>&1; then
+if npm install --ignore-scripts --no-audit --no-fund ${SDK_PACKAGE}@${SDK_VERSION} ${SDK_RUNTIME.join(" ")} >>/tmp/npm-install.log 2>&1 \
+  && npm rebuild node >>/tmp/npm-install.log 2>&1; then
   FOUND=${SDK_PACKAGE}@${SDK_VERSION}
 fi
 tail -200 /tmp/npm-install.log
@@ -91,16 +99,21 @@ set -e
 cd ${SPRITE_DIR}
 cat > sdk-probe.mjs <<'PROBE'
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
 const pkg = JSON.parse(readFileSync("node_modules/${SDK_PACKAGE}/package.json", "utf8"));
+const rxdbPkg = JSON.parse(readFileSync(require.resolve("rxdb/package.json"), "utf8"));
 const mod = await import("${SDK_PACKAGE}");
 const SDK = mod.default ?? mod;
 const missing = ["Apollo", "Castor", "Domain"].filter((k) => !SDK?.[k]);
 if (missing.length) throw new Error("SDK is missing exports: " + missing.join(", "));
+console.log("NODE_VERSION=" + process.version);
+console.log("RXDB_VERSION=" + rxdbPkg.version);
 console.log("SDK_VERSION=" + pkg.version);
 PROBE
-node sdk-probe.mjs 2>&1
+./node_modules/node/bin/node sdk-probe.mjs 2>&1
 `;
 
 /** Runs the snippet the caller just wrote, merging stderr into stdout. */
-export const RUN_SNIPPET = `cd ${SPRITE_DIR} && node snippets/run.mjs 2>&1`;
+export const RUN_SNIPPET = `cd ${SPRITE_DIR} && ./node_modules/node/bin/node snippets/run.mjs 2>&1`;
 

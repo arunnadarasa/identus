@@ -34,8 +34,19 @@ const did = await castor.createPeerDID(
 );
 
 console.log("peer DID:", did.toString());
+
+// The "deprecated parameters for initSync()" line above is a harmless WASM
+// warning from the SDK, not an error.
 const resolved = await castor.resolveDID(did.toString());
-console.log("verification methods:", resolved.verificationMethod.length);
+
+// A resolved document exposes its verification methods through coreProperties,
+// not a top-level verificationMethod array.
+const methods = (resolved.coreProperties ?? []).flatMap((prop) =>
+  Array.isArray(prop?.values) ? prop.values : [],
+);
+console.log("verification methods:", methods.length);
+console.log("first method id:", methods[0]?.id ?? "(none)");
+console.log(JSON.stringify(resolved, null, 2).slice(0, 1200));
 `,
   },
   {

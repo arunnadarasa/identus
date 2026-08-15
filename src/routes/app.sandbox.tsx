@@ -99,15 +99,18 @@ function StepList({ steps }: { steps: ProvisionStep[] }) {
               </pre>
             ) : null}
           </div>
-          <span className="ml-auto shrink-0 text-muted-foreground/70">
-            {step.durationMs === undefined
-              ? ""
-              : step.durationMs < 1000
-                ? `${step.durationMs}ms`
-                : `${(step.durationMs / 1000).toFixed(1)}s`}
+          <span
+            className={`ml-auto shrink-0 ${slow ? "text-warning" : "text-muted-foreground/70"}`}
+          >
+            {elapsed !== null
+              ? formatElapsed(elapsed)
+              : step.durationMs === undefined
+                ? ""
+                : formatElapsed(step.durationMs)}
           </span>
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }

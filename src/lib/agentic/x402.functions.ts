@@ -80,6 +80,7 @@ export const issueX402Mandate = createServerFn({ method: "POST" })
       claims,
       humanDid,
       agentDid,
+      agentDidIsPlaceholder,
       issuerDid,
       validUntil,
       mode: (conn?.mode ?? null) as "simulated" | "docker" | "fly" | null,

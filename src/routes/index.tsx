@@ -1,18 +1,10 @@
-import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Github, Menu } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { MarketingHeader } from "@/components/MarketingHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -69,7 +61,6 @@ function Landing() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const signedIn = Boolean(session);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   async function handleSignOut() {
     await queryClient.cancelQueries();
@@ -80,110 +71,7 @@ function Landing() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border/60">
-        <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 sm:flex sm:justify-between sm:px-6 sm:py-5">
-          <span className="font-display truncate text-lg font-semibold tracking-tight">
-            Identus<span className="text-primary">.</span>Companion
-          </span>
-
-          {/* Desktop nav */}
-          <nav className="hidden items-center gap-2 sm:flex sm:flex-wrap">
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/learn">Learn</Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/nhs">NHS</Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/docs">Docs</Link>
-            </Button>
-            <Button asChild variant="ghost" size="icon" aria-label="View on GitHub">
-              <a href="https://github.com/arunnadarasa/identus" target="_blank" rel="noreferrer">
-                <Github className="h-4 w-4" />
-              </a>
-            </Button>
-            {signedIn ? (
-              <>
-                <Button asChild size="sm">
-                  <Link to="/app">Open console</Link>
-                </Button>
-                <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                  Sign out
-                </Button>
-              </>
-            ) : (
-              <Button asChild size="sm">
-                <Link to="/auth">Open console</Link>
-              </Button>
-            )}
-          </nav>
-
-          {/* Mobile burger */}
-          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-            <SheetTrigger asChild className="sm:hidden">
-              <Button variant="outline" size="icon" aria-label="Open menu">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-[85vw] max-w-sm p-0">
-              <SheetHeader className="border-b border-border/60 px-5 py-4 text-left">
-                <SheetTitle className="font-display text-base">
-                  Identus<span className="text-primary">.</span>Companion
-                </SheetTitle>
-              </SheetHeader>
-              <nav className="flex flex-col gap-1 p-4">
-                {[
-                  { to: "/learn", label: "Learn" },
-                  { to: "/nhs", label: "NHS" },
-                  { to: "/docs", label: "Docs" },
-                  {
-                    href: "https://github.com/arunnadarasa/identus",
-                    label: "GitHub",
-                  },
-                ].map((item) =>
-                  "href" in item ? (
-                    <a
-                      key={item.label}
-                      href={item.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => setMenuOpen(false)}
-                      className="rounded-md px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-                    >
-                      {item.label}
-                    </a>
-                  ) : (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      onClick={() => setMenuOpen(false)}
-                      className="rounded-md px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-                    >
-                      {item.label}
-                    </Link>
-                  ),
-                )}
-                <div className="mt-3 flex flex-col gap-2 border-t border-border/60 pt-4">
-                  <Button asChild onClick={() => setMenuOpen(false)}>
-                    <Link to={signedIn ? "/app" : "/auth"}>Open console</Link>
-                  </Button>
-                  {signedIn ? (
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        void handleSignOut();
-                      }}
-                    >
-                      Sign out
-                    </Button>
-                  ) : null}
-                </div>
-              </nav>
-            </SheetContent>
-          </Sheet>
-        </div>
-      </header>
+      <MarketingHeader maxWidth="6xl" linkHome={false} />
 
 
       <section

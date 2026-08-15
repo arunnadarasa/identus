@@ -112,6 +112,21 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
     }
   };
 
+  const resetStarters = async () => {
+    setResetting(true);
+    try {
+      const res = await doReset({});
+      invalidate();
+      toast.success(
+        `Starter snippets refreshed — ${res.updated} updated, ${res.inserted} added`,
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not reset the starters");
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const remove = async (id: string) => {
     await doDelete({ data: { id } });
     if (id === selectedId) newSnippet();

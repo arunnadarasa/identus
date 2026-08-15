@@ -65,7 +65,7 @@ const STEPS: Step[] = [
 
 export function DelegationWalkthrough() {
   const [index, setIndex] = useState(0);
-  const step = STEPS[index];
+  const step = STEPS[index] ?? STEPS[0]!;
 
   const go = useCallback((next: number) => {
     setIndex(Math.max(0, Math.min(STEPS.length - 1, next)));

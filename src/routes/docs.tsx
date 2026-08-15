@@ -303,6 +303,15 @@ function Docs() {
             executes the containers.
           </div>
 
+          <div className="mt-4 rounded-md border border-border/60 p-4 text-sm text-muted-foreground">
+            <strong className="text-foreground">Delegation quickstart.</strong> The SDK snippets tab
+            opens with copy-paste TypeScript for the flow most people need first: issue an{" "}
+            <code className="font-mono text-xs">AgentDelegationCredential</code> for an AI agent, then
+            verify it — right agent, in scope, within the spend cap, not expired — before honouring
+            the action. Signing uses WebCrypto ES256, so the snippets run unchanged in the browser, in
+            Node and in the sandbox, and the claim names match what the x402 gate actually checks.
+          </div>
+
         </section>
 
         <section>

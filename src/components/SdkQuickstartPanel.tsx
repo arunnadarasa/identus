@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Props = {
   /** Present when a sandbox box exists — enables "Load into editor". */
-  onLoadIntoEditor?: (snippet: { name: string; code: string }) => void;
+  onLoadIntoEditor?: ((snippet: { name: string; code: string }) => void) | undefined;
 };
 
 /**

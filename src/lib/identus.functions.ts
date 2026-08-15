@@ -591,29 +591,51 @@ export const listIssuerDids = createServerFn({ method: "GET" })
     try {
       const res = await agentFetch(conn, "/did-registrar/dids?offset=0&limit=100");
       const items = (res?.contents ?? res?.items ?? []) as any[];
-      const hasAssertionKey = (d: any) => {
-        const keys = (d?.didDocumentMetadata?.publicKeys ??
-          d?.publicKeys ??
-          d?.documentTemplate?.publicKeys ??
-          []) as any[];
-        // Some agent builds omit key purposes in the list response; treat an
-        // unknown key set as usable rather than hiding a valid issuer DID.
-        if (keys.length === 0) return true;
-        return keys.some((k) =>
-          String(k?.purpose ?? k?.usage ?? "").toLowerCase().includes("assertion"),
-        );
-      };
-      const published = items.filter(
-        (d) => String(d?.status ?? "").toUpperCase() === "PUBLISHED",
+      const published = items
+        .filter((d) => String(d?.status ?? "").toUpperCase() === "PUBLISHED")
+        .map((d) => String(d?.did ?? d?.longFormDid ?? ""))
+        .filter(Boolean);
+
+      // The list response carries no key purposes, so resolve each document and
+      // keep only the DIDs that really have an assertionMethod key.
+      const { resolveDidCapabilitiesMap } = await import("./identus/agent.server");
+      const caps = await resolveDidCapabilitiesMap(conn, published);
+
+      const { data: saved } = await context.supabase
+        .from("saved_dids")
+        .select("did, alias")
+        .eq("user_id", context.userId);
+      const aliasFor = new Map<string, string>(
+        (saved ?? [])
+          .filter((row: any) => row.alias)
+          .map((row: any) => [row.did as string, row.alias as string]),
       );
-      const dids = published
-        .filter(hasAssertionKey)
-        .map((d) => ({
-          did: String(d?.did ?? d?.longFormDid ?? ""),
-          alias: String(d?.did ?? "").slice(0, 40),
-          status: String(d?.status ?? "PUBLISHED"),
-        }))
-        .filter((d) => d.did);
+      const label = (did: string) => aliasFor.get(did) ?? `${did.slice(0, 24)}…${did.slice(-6)}`;
+
+      const dids: {
+        did: string;
+        alias: string;
+        status: string;
+        keys: string[];
+      }[] = [];
+      const excluded: { did: string; alias: string; reason: string }[] = [];
+
+      for (const did of published) {
+        const c = caps.get(did);
+        if (c?.assertionMethod.length) {
+          dids.push({ did, alias: label(did), status: "PUBLISHED", keys: c.assertionMethod });
+        } else if (c?.resolved) {
+          excluded.push({
+            did,
+            alias: label(did),
+            reason: c.authentication.length
+              ? "authentication only — no assertionMethod key"
+              : "no assertionMethod key",
+          });
+        } else {
+          excluded.push({ did, alias: label(did), reason: "could not be resolved by the agent" });
+        }
+      }
 
       const pending = items.filter((d) =>
         ["PUBLICATION_PENDING", "CREATED"].includes(String(d?.status ?? "").toUpperCase()),
@@ -627,11 +649,12 @@ export const listIssuerDids = createServerFn({ method: "GET" })
               ? "publishing"
               : "no_assertion_key";
 
-      return { mode: conn.mode, dids, error: null, reason, pendingCount: pending.length };
+      return { mode: conn.mode, dids, excluded, error: null, reason, pendingCount: pending.length };
     } catch (error) {
       return {
         mode: conn.mode,
         dids: [],
+        excluded: [] as { did: string; alias: string; reason: string }[],
         error: error instanceof Error ? error.message : "Could not list agent DIDs",
         reason: "error",
         pendingCount: 0,

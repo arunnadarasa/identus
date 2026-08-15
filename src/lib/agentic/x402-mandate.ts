@@ -76,7 +76,7 @@ function fromBase64(b64: string): string {
   return Buffer.from(b64, "base64").toString("utf8");
 }
 
-export function decodeJwtPayload(jwt: string): Record<string, any> | null {
+export function decodeJwtPayload(jwt: string): any | null {
   const parts = jwt.split(".");
   if (parts.length !== 3 || !parts[1] || !parts[2]) return null;
   const seg = parts[1]!;
@@ -95,7 +95,7 @@ export type CredentialInspection = {
   subject: string | null;
   type: string | null;
   expiresAt: string | null;
-  claims: Record<string, any>;
+  claims: any;
 };
 
 /**
@@ -133,7 +133,7 @@ export function inspectCredential(
   const subject = payload.sub ?? vc?.credentialSubject?.id ?? null;
   const exp = typeof payload.exp === "number" ? payload.exp : null;
   const expiresAt = exp === null ? null : new Date(exp * 1000).toISOString();
-  const claims = (vc?.credentialSubject ?? {}) as Record<string, any>;
+  const claims: any = vc?.credentialSubject ?? {};
 
   if (exp !== null && exp * 1000 < Date.now())
     return { ok: false, reason: "credential expired", issuer, subject, type, expiresAt, claims };
@@ -164,7 +164,7 @@ export function inspectCredential(
 export function readMandate(jwt: string | null): DelegationMandate | null {
   const inspection = inspectCredential(jwt);
   if (!jwt || !inspection.type) return null;
-  const c = inspection.claims;
+  const c: any = inspection.claims;
   return {
     actsFor: typeof c.actsFor === "string" ? c.actsFor : null,
     agentDid: inspection.subject ?? null,

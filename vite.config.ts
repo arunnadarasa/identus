@@ -20,5 +20,6 @@ export default defineConfig({
     optimizeDeps: {
       exclude: ["@noir-lang/noir_wasm", "@noir-lang/noir_js", "@aztec/bb.js"],
     },
+    build: { minify: false },
   },
 });

@@ -1,6 +1,5 @@
 /** Files and shell scripts that make up the SDK scratch workspace. Server-only. */
 import { SPRITE_DIR } from "./sprites.server";
-import { SDK_PACKAGES } from "./snippets";
 
 const STATUS_PAGE = `<!doctype html>
 <html lang="en">
@@ -47,21 +46,31 @@ command -v node >/dev/null 2>&1 || { tail -40 /tmp/node-setup.log; echo "node un
 node -v
 `;
 
-function installScript(clean: boolean) {
-  const candidates = SDK_PACKAGES.map(
-    (pkg) => `if [ -z "$FOUND" ]; then
-  if npm install --no-audit --no-fund ${pkg} >>/tmp/npm-install.log 2>&1; then FOUND=${pkg}; fi
-fi`,
-  ).join("\n");
+/** Pinned SDK release. Floating "latest" resolved to a stale 5.x tree that requires rxdb. */
+export const SDK_PACKAGE = "@hyperledger/identus-edge-agent-sdk";
+export const SDK_VERSION = "6.6.0";
+/** Runtime peer dependencies the SDK expects the host project to provide. */
+const SDK_PEERS = ["rxjs@^7.8.1", "elliptic@^6.5.4", "buffer@^6.0.3", "core-js@^3.32.2"];
 
+function installScript(clean: boolean) {
   return `
 set -e
 cd ${SPRITE_DIR}
-${clean ? "rm -rf node_modules package-lock.json" : ""}
 : >/tmp/npm-install.log
+INSTALLED=""
+if [ -f node_modules/${SDK_PACKAGE}/package.json ]; then
+  INSTALLED=$(node -e "process.stdout.write(require('./node_modules/${SDK_PACKAGE}/package.json').version)" 2>/dev/null || echo "")
+fi
+echo "installed_before=\${INSTALLED:-none}" >>/tmp/npm-install.log
+if [ "${clean ? "1" : "0"}" = "1" ] || { [ -n "$INSTALLED" ] && [ "$INSTALLED" != "${SDK_VERSION}" ]; }; then
+  echo "clearing stale tree (\${INSTALLED:-none})" >>/tmp/npm-install.log
+  rm -rf node_modules package-lock.json
+fi
 FOUND=""
-${candidates}
-tail -40 /tmp/npm-install.log
+if npm install --no-audit --no-fund ${SDK_PACKAGE}@${SDK_VERSION} ${SDK_PEERS.join(" ")} >>/tmp/npm-install.log 2>&1; then
+  FOUND=${SDK_PACKAGE}@${SDK_VERSION}
+fi
+tail -200 /tmp/npm-install.log
 if [ -z "$FOUND" ]; then
   echo "Could not install the Identus SDK from npm. Snippets using plain fetch still work."
 else
@@ -73,5 +82,25 @@ fi
 export const INSTALL_SDK = installScript(false);
 export const INSTALL_SDK_CLEAN = installScript(true);
 
+/**
+ * Imports the SDK for real and prints SDK_VERSION=<version>. A broken tree fails here
+ * with the actual module error instead of surfacing later inside a user snippet.
+ */
+export const VERIFY_SDK = `
+set -e
+cd ${SPRITE_DIR}
+cat > sdk-probe.mjs <<'PROBE'
+import { readFileSync } from "node:fs";
+const pkg = JSON.parse(readFileSync("node_modules/${SDK_PACKAGE}/package.json", "utf8"));
+const mod = await import("${SDK_PACKAGE}");
+const SDK = mod.default ?? mod;
+const missing = ["Apollo", "Castor", "Domain"].filter((k) => !SDK?.[k]);
+if (missing.length) throw new Error("SDK is missing exports: " + missing.join(", "));
+console.log("SDK_VERSION=" + pkg.version);
+PROBE
+node sdk-probe.mjs 2>&1
+`;
+
 /** Runs the snippet the caller just wrote, merging stderr into stdout. */
 export const RUN_SNIPPET = `cd ${SPRITE_DIR} && node snippets/run.mjs 2>&1`;
+

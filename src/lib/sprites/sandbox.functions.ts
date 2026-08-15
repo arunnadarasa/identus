@@ -164,7 +164,24 @@ export const ensureSandbox = createServerFn({ method: "POST" })
       });
       const sdkLine = install.stdout.match(/SDK_PACKAGE=(\S+)/)?.[1] ?? "";
       steps[steps.length - 1]!.detail = sdkLine ? `using ${sdkLine}` : "SDK install finished";
-      steps[steps.length - 1]!.raw = install.stdout.slice(-4000);
+      steps[steps.length - 1]!.raw = install.stdout.slice(-12000);
+
+      let sdkVersion = "";
+      if (sdkLine) {
+        const verify = await run("Verify SDK loads", async () => {
+          const result = await sprites.exec(name, workspace.VERIFY_SDK);
+          const version = result.stdout.match(/SDK_VERSION=(\S+)/)?.[1] ?? "";
+          if (result.exitCode !== 0 || !version) {
+            throw new Error(
+              `The SDK failed to load in the sandbox: ${result.stdout.trim().slice(-600) || "no output"}`,
+            );
+          }
+          return { version, raw: result.stdout };
+        });
+        sdkVersion = verify.version;
+        steps[steps.length - 1]!.detail = `SDK ${sdkVersion} imports cleanly`;
+        steps[steps.length - 1]!.raw = verify.raw.slice(-4000);
+      }
 
       await run("Register keepalive service", () =>
         sprites.putService(name, sprites.SPRITE_SERVICE, {
@@ -202,7 +219,7 @@ export const ensureSandbox = createServerFn({ method: "POST" })
         );
       }
 
-      await persist("ready", Boolean(sdkLine));
+      await persist("ready", Boolean(sdkLine && sdkVersion));
       const { logActivity } = await import("@/lib/identus/agent.server");
       await logActivity(
         context.supabase,
@@ -211,11 +228,11 @@ export const ensureSandbox = createServerFn({ method: "POST" })
         "sandbox.ready",
         `SDK sandbox ${name} ready`,
       );
-      return { ok: true as const, name, url, steps, message: "" };
+      return { ok: true as const, name, url, steps, sdkVersion, message: "" };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await persist("failed");
-      return { ok: false as const, name, url, steps, message };
+      return { ok: false as const, name, url, steps, sdkVersion: "", message };
     }
   });
 

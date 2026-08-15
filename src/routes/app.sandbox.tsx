@@ -187,7 +187,17 @@ function Sandbox() {
                   {data.box.status}
                 </Badge>
               ) : null}
-              {data.box?.sdkReady ? <Badge variant="outline">SDK installed</Badge> : null}
+              {data.box?.sdkReady ? (
+                <Badge variant="outline">
+                  {(() => {
+                    const version = data.box.steps
+                      .map((s) => s.detail?.match(/SDK (\d[\w.\-+]*) imports cleanly/)?.[1])
+                      .find(Boolean);
+                    return version ? `SDK ${version}` : "SDK installed";
+                  })()}
+                </Badge>
+              ) : null}
+
             </div>
             <CardDescription className="break-all font-mono text-xs">
               {data.box?.spriteName ?? data.suggestedName}

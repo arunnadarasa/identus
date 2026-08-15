@@ -5,6 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TruncatedMono } from "@/components/MonoValue";
 import { AGE_CIRCUIT_NARGO_TOML, AGE_CIRCUIT_SOURCE } from "./zk-circuit";
+// Emitted as a plain asset URL, so the bundler copies noir_wasm's published
+// webpack bundle verbatim instead of re-bundling (and breaking) it.
+// @ts-expect-error -- ?url asset import has no bundled type declaration
+import noirWasmUrl from "@noir-lang/noir_wasm/dist/web/main.mjs?url";
+
 
 type StepState = "pending" | "running" | "done" | "failed";
 type Step = { key: string; label: string; state: StepState; detail?: string | undefined };

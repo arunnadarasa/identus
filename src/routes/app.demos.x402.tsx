@@ -88,7 +88,7 @@ const USDC_ABI = [
   },
 ] as const;
 
-type Tamper = "none" | "no-credential" | "low-cap";
+type Tamper = "none" | "no-credential" | "low-cap" | "wrong-principal";
 
 function X402Demo({ hasPrivy }: { hasPrivy: boolean }) {
   const wallet = useWalletSigner();

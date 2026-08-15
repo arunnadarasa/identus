@@ -41,25 +41,29 @@ function ZkPage() {
           Prove it without showing it
         </h1>
         <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
-          Enter a birth year, then generate a proof that it clears the age
-          threshold. The circuit is compiled here, the proof is produced by
-          Barretenberg's UltraHonk prover, and the verifier only ever sees the
-          public threshold — never the year itself.
+          Pick a credential this console issued. Its birth year becomes a private
+          input, the proof is cryptographically bound to that credential's JWT,
+          and the verifier only sees the public age threshold plus a commitment
+          identifying which credential was used — never the year, never the JWT.
         </p>
       </header>
 
       <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/20 p-4">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         <p className="text-sm text-muted-foreground">
-          Everything runs in your browser as WebAssembly — no agent, no server
-          round-trip, no key material leaving the page. That means this works in
-          every agent mode, including simulated. Identus credential
-          presentations are a separate layer: the console issues JWT-based
-          credentials, which do selective disclosure rather than zero-knowledge
-          proofs. AnonCreds and BBS+ are the ZK-capable formats that would bind
-          a proof like this one to an issued credential.
+          Two layers work together here. Identus supplies the trust: a real
+          issuer signs the credential, and its claims are what the proof is
+          about. Noir supplies the privacy: the circuit proves a statement over
+          those claims while the data stays in your browser as WebAssembly — no
+          agent round-trip, no key material leaving the page. The binding is a
+          Pedersen commitment to SHA-256 of the credential's JWT, so a verifier
+          can confirm two proofs came from the same credential without ever
+          seeing it. A native ZK credential format such as AnonCreds or BBS+
+          would let the issuer's signature itself be proven in-circuit; until
+          Identus ships one, this binding is the practical join.
         </p>
       </div>
+
 
       <ZkProofLive />
 

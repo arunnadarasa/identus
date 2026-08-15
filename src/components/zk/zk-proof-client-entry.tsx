@@ -306,17 +306,20 @@ export default function ZkProofLive() {
         stopObservingRef.current = observeAssetDownloads((bytes, assets) =>
           setProgress((prev) => ({ ...(prev ?? { phase: "downloading" }), bytes, assets })),
         );
+        let phaseNow = "fetching modules";
         try {
           session = await withTimeout(
             "Loading the prover",
             TIMEOUTS.load,
             getSession((phase) => {
+              phaseNow = phase;
               setProgress((prev) => ({ ...(prev ?? { bytes: 0, assets: 0 }), phase }));
               setStep(
                 "load",
-                phase === "compiling circuit" ? "done" : "running",
-                phase === "compiling circuit" ? "wasm modules ready" : phase,
+                phase === "fetching modules" ? "running" : "done",
+                phase === "fetching modules" ? phase : "wasm modules ready",
               );
+              if (phase !== "fetching modules") setStep("compile", "running", phase);
             }),
           );
         } catch (e) {
@@ -324,7 +327,7 @@ export default function ZkProofLive() {
           sessionRef.current = null;
           const isTimeout = e instanceof StageTimeoutError;
           const detail = e instanceof Error ? e.message : String(e);
-          const failedOn = progressPhaseIsCompile() ? "compile" : "load";
+          const failedOn = phaseNow === "fetching modules" ? "load" : "compile";
           setStep(failedOn, "failed", detail);
           setFailedStage(isTimeout ? "load-timeout" : "load");
           throw new Error(

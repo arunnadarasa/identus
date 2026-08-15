@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { EyeOff, ShieldCheck, CheckCircle2, Lock } from "lucide-react";
-import { ZkProofLive } from "./ZkProofLive";
+import { EyeOff, ShieldCheck, CheckCircle2, Lock, ArrowRight } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 /**
  * Plain-English zero-knowledge proof explainer for the /learn page.
@@ -145,8 +145,24 @@ export function ZkProof() {
       {/* Interactive comparison */}
       <ProofCompare />
 
-      {/* Real Noir proof, generated and verified in the browser */}
-      <ZkProofLive />
+      {/* The hands-on prover lives in the console */}
+      <div className="rounded-lg border border-primary/30 bg-primary/5 p-5">
+        <h3 className="font-mono text-sm font-medium text-primary">
+          Try a real zero-knowledge proof
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          The console has a live prover: a Noir circuit compiled in your browser
+          that proves you're over 18 without revealing your birth year. Generate
+          it, verify it, then tamper with it and watch verification fail.
+        </p>
+        <Link
+          to="/app/zk"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-primary/40 px-3 py-1.5 text-sm text-primary transition-colors hover:bg-primary/10"
+        >
+          Open the ZK demo
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
 
       {/* Opportunity grid */}
       <div className="grid gap-5 sm:grid-cols-3">
@@ -175,7 +191,7 @@ export function ZkProof() {
           <span className="font-medium text-foreground/80">
             Where this fits today:{" "}
           </span>
-          The demo above is a genuine zero-knowledge proof — a Noir circuit
+          The console demo is a genuine zero-knowledge proof — a Noir circuit
           compiled in your browser and proven with Barretenberg's UltraHonk
           prover, where the birth year is a private input that never leaves the
           page. Identus credential presentations are a separate layer: the live

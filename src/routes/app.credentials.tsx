@@ -125,8 +125,15 @@ function Credentials() {
                 <SelectContent>
                   {issuerOptions.map((did) => (
                     <SelectItem key={did.did} value={did.did}>
-                      <span className="font-mono text-xs">
-                        {did.alias.startsWith("did:") ? shortenId(did.alias, 6, 6) : did.alias}
+                      <span className="flex flex-col items-start gap-0.5">
+                        <span className="font-mono text-xs">
+                          {did.alias.startsWith("did:") ? shortenId(did.alias, 6, 6) : did.alias}
+                        </span>
+                        {"keys" in did && (did as { keys?: string[] }).keys?.length ? (
+                          <span className="text-[10px] text-muted-foreground">
+                            can sign · {(did as { keys: string[] }).keys.join(", ")}
+                          </span>
+                        ) : null}
                       </span>
                     </SelectItem>
                   ))}

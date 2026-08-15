@@ -6,6 +6,17 @@ import { Label } from "@/components/ui/label";
 import { TruncatedMono } from "@/components/MonoValue";
 import { AGE_CIRCUIT_NARGO_TOML, AGE_CIRCUIT_SOURCE } from "./zk-circuit";
 
+/**
+ * noir_wasm's published browser bundle is served verbatim from this URL by the
+ * `noir-wasm-vendor-asset` plugin in vite.config.ts — see the comment there for
+ * why it must not go through the bundler.
+ */
+const NOIR_WASM_URL = "/vendor/noir_wasm/main.mjs";
+
+
+
+
+
 type StepState = "pending" | "running" | "done" | "failed";
 type Step = { key: string; label: string; state: StepState; detail?: string | undefined };
 
@@ -64,11 +75,25 @@ export default function ZkProofLive() {
 
     // Imported inside the handler so the multi-megabyte wasm bundles are only
     // fetched when a visitor actually asks for a proof.
-    const [{ compile, createFileManager }, { Noir }, bb] = await Promise.all([
-      import("@noir-lang/noir_wasm"),
+    // noir_wasm is fetched from a stable vendor URL with a runtime `import()`
+    // so the production bundler never rewrites it. Rolldown mis-renames the
+    // shadowed globals in the `@ltd/j-toml` module inside noir_wasm's own
+    // webpack bundle, emitting `const Infinity = Infinity`, which throws
+    // "Cannot access 'Infinity' before initialization" (minified: "Cannot
+    // access 'j' ...") the moment the compiler is imported.
+    const [noirWasm, { Noir }, bb] = await Promise.all([
+      import(/* @vite-ignore */ NOIR_WASM_URL) as Promise<{
+        compile: (fm: unknown) => Promise<unknown>;
+        createFileManager: (root: string) => {
+          writeFile: (path: string, stream: ReadableStream) => Promise<void>;
+        };
+      }>,
       import("@noir-lang/noir_js"),
       import("@aztec/bb.js"),
     ]);
+    const { compile, createFileManager } = noirWasm;
+
+
 
     const fm = createFileManager("/");
     await fm.writeFile("./src/main.nr", new Blob([AGE_CIRCUIT_SOURCE]).stream());

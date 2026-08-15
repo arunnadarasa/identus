@@ -563,7 +563,8 @@ export const listIssuerDids = createServerFn({ method: "GET" })
     if (!conn)
       return {
         mode: null as string | null,
-        dids: [],
+        dids: [] as { did: string; alias: string; status: string; keys: string[] }[],
+        excluded: [] as { did: string; alias: string; reason: string }[],
         error: null as string | null,
         reason: "no_dids",
         pendingCount: 0,
@@ -580,7 +581,9 @@ export const listIssuerDids = createServerFn({ method: "GET" })
           did: d.did as string,
           alias: (d.alias ?? d.did) as string,
           status: d.status as string,
+          keys: [] as string[],
         })),
+        excluded: [] as { did: string; alias: string; reason: string }[],
         error: null,
         reason: "ok",
         pendingCount: 0,

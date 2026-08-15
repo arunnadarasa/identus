@@ -259,7 +259,11 @@ function X402Demo({ hasPrivy }: { hasPrivy: boolean }) {
       });
 
       /* 5. Retry with credential + mandate — gate verifies coverage */
-      const paid = await fetchPaid(header, { credentialJwt, delegationJwt: mandate.jwt });
+      const paid = await fetchPaid(header, {
+        credentialJwt,
+        delegationJwt: mandate.jwt,
+        agentDid: mandate.agentDid,
+      });
       if (paid.status !== 200) {
         const blockedByGate = paid.status === 403 || paid.status === 402;
         push({

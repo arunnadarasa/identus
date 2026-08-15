@@ -100,10 +100,47 @@ console.log("issuer public JWK (publish this so verifiers can check it):", publi
 const VERIFY = `// Verify a mandate before honouring anything the agent asks for.
 ${HELPERS}
 
-// Inputs you would receive: the JWT the agent presented, the issuer's public
-// key, and the action the agent is trying to perform right now. So this snippet
-// runs on its own, mint one first with the "Issue a mandate" code:
-const { mandateJwt, publicJwk } = await issueMandate(); // <- paste that snippet's body here
+// In production the JWT arrives in a header and the public key comes from the
+// issuer's DID document. So this snippet runs on its own, we mint one inline —
+// the tamper flag below shows what a failed check looks like.
+const TAMPER = false;
+
+const keyPair = await crypto.subtle.generateKey(
+  { name: "ECDSA", namedCurve: "P-256" },
+  true,
+  ["sign", "verify"],
+);
+const publicJwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
+const issued = {
+  sub: "did:prism:shopping-agent",
+  vc: {
+    type: ["VerifiableCredential", "${DELEGATION_CREDENTIAL_TYPE}"],
+    credentialSubject: {
+      id: "did:prism:shopping-agent",
+      actsFor: "did:prism:alice",
+      scope: ["${PAYMENT_SCOPE}", "cart:negotiate"],
+      spendLimit: { amount: "0.50", currency: "USDC" },
+      allowedMerchants: ["0x2a835A505d4Ea32372Cc420d2663b885cE089453"],
+      validUntil: new Date(Date.now() + 3600_000).toISOString(),
+    },
+  },
+};
+const input = \`\${b64urlJson({ alg: "ES256", typ: "JWT" })}.\${b64urlJson(issued)}\`;
+const sigBytes = new Uint8Array(
+  await crypto.subtle.sign(
+    { name: "ECDSA", hash: "SHA-256" },
+    keyPair.privateKey,
+    enc.encode(input),
+  ),
+);
+let mandateJwt = \`\${input}.\${b64url(sigBytes)}\`;
+if (TAMPER) {
+  // Raise the cap without re-signing — exactly what the signature check catches.
+  const parts = mandateJwt.split(".");
+  const claims = decodeJwtPart(parts[1]);
+  claims.vc.credentialSubject.spendLimit.amount = "9999";
+  mandateJwt = \`\${parts[0]}.\${b64urlJson(claims)}.\${parts[2]}\`;
+}
 
 const action = {
   presenter: "did:prism:shopping-agent", // authenticated DID of the caller
@@ -203,7 +240,7 @@ export const DELEGATION_QUICKSTART: QuickstartSnippet[] = [
       "Signature, then the four limits that decide the answer: right agent, in scope, within cap, not expired.",
     language: "ts",
     code: VERIFY,
-    runnable: false,
+    runnable: true,
   },
   {
     id: "gate",

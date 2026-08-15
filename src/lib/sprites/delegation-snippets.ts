@@ -101,9 +101,9 @@ const VERIFY = `// Verify a mandate before honouring anything the agent asks for
 ${HELPERS}
 
 // Inputs you would receive: the JWT the agent presented, the issuer's public
-// key, and the action the agent is trying to perform right now.
-declare const mandateJwt: string;
-declare const publicJwk: JsonWebKey;
+// key, and the action the agent is trying to perform right now. So this snippet
+// runs on its own, mint one first with the "Issue a mandate" code:
+const { mandateJwt, publicJwk } = await issueMandate(); // <- paste that snippet's body here
 
 const action = {
   presenter: "did:prism:shopping-agent", // authenticated DID of the caller
@@ -203,7 +203,7 @@ export const DELEGATION_QUICKSTART: QuickstartSnippet[] = [
       "Signature, then the four limits that decide the answer: right agent, in scope, within cap, not expired.",
     language: "ts",
     code: VERIFY,
-    runnable: true,
+    runnable: false,
   },
   {
     id: "gate",
@@ -212,6 +212,6 @@ export const DELEGATION_QUICKSTART: QuickstartSnippet[] = [
     description: "The shape of a server handler that rejects before doing the work.",
     language: "ts",
     code: GATE,
-    runnable: true,
+    runnable: false,
   },
 ];

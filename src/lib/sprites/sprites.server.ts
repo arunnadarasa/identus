@@ -166,54 +166,148 @@ export async function writeFile(name: string, path: string, content: string) {
       method: "PUT",
       headers: { "Content-Type": "application/octet-stream" },
       body: content,
+      timeoutMs: TIMEOUTS.write,
     },
   );
 }
 
+export interface ServiceDefinition {
+  cmd: string;
+  args: string[];
+  dir: string;
+  http_port: number;
+}
+
+/** `null` when the service is not defined (or the API does not expose a read). */
+export async function getService(
+  name: string,
+  service: string,
+): Promise<ServiceDefinition | null> {
+  try {
+    const { json } = await request(`/sprites/${name}/services/${service}`, {
+      timeoutMs: TIMEOUTS.service,
+    });
+    if (!json) return null;
+    const body = json.service ?? json;
+    if (typeof body?.cmd !== "string") return null;
+    return {
+      cmd: body.cmd,
+      args: Array.isArray(body.args) ? body.args.map(String) : [],
+      dir: typeof body.dir === "string" ? body.dir : "",
+      http_port: Number(body.http_port ?? body.httpPort ?? 0),
+    };
+  } catch (error) {
+    if (error instanceof SpritesApiError && [404, 405].includes(error.status)) return null;
+    throw error;
+  }
+}
+
+function sameDefinition(a: ServiceDefinition | null, b: ServiceDefinition) {
+  if (!a) return false;
+  return (
+    a.cmd === b.cmd &&
+    a.dir === b.dir &&
+    a.http_port === b.http_port &&
+    a.args.length === b.args.length &&
+    a.args.every((value, i) => value === b.args[i])
+  );
+}
+
+/**
+ * Registers the service definition. Idempotent: when the box already runs the
+ * exact same command/dir/port we skip the delete-then-put entirely, because
+ * tearing down a live service is the slow (and previously hanging) path.
+ */
 export async function putService(
   name: string,
   service: string,
-  body: { cmd: string; args: string[]; dir: string; http_port: number },
-) {
-  // A stale definition keeps the old command/port bound; remove it first.
-  try {
-    await request(`/sprites/${name}/services/${service}`, { method: "DELETE" });
-  } catch (error) {
-    if (!(error instanceof SpritesApiError && [404, 405].includes(error.status))) throw error;
+  body: ServiceDefinition,
+): Promise<{ changed: boolean }> {
+  const current = await getService(name, service);
+  if (sameDefinition(current, body)) return { changed: false };
+
+  if (current) {
+    // A stale definition keeps the old command/port bound; remove it first.
+    try {
+      await request(`/sprites/${name}/services/${service}`, {
+        method: "DELETE",
+        timeoutMs: TIMEOUTS.service,
+      });
+    } catch (error) {
+      if (!(error instanceof SpritesApiError && [404, 405].includes(error.status))) throw error;
+    }
   }
+
   await request(`/sprites/${name}/services/${service}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ needs: [], ...body }),
+    timeoutMs: TIMEOUTS.service,
   });
+  return { changed: true };
 }
 
-/** Starts a service and surfaces the first NDJSON error/exit frame, if any. */
+/**
+ * Starts a service and surfaces the first NDJSON error/exit frame, if any.
+ * The stream stays open for the lifetime of a long-running service, so it is
+ * read incrementally and abandoned once we have a verdict or hit the caps.
+ */
 export async function startService(name: string, service: string) {
-  const res = await fetch(`${API}/sprites/${name}/services/${service}/start`, {
-    method: "POST",
-    headers: { ...authHeaders(), Accept: "application/x-ndjson" },
-  });
-  const text = await res.text();
-  if (!res.ok) throw new SpritesApiError(`/services/${service}/start`, res.status, text);
+  const endpoint = `/services/${service}/start`;
+  const res = await timedFetch(
+    endpoint,
+    `${API}/sprites/${name}/services/${service}/start`,
+    { method: "POST", headers: { ...authHeaders(), Accept: "application/x-ndjson" } },
+    TIMEOUTS.start,
+  );
+  if (!res.ok) throw new SpritesApiError(endpoint, res.status, await res.text());
+  if (!res.body) return "";
 
-  for (const line of text.split("\n")) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  const deadline = Date.now() + 8_000; // a healthy start reports within a couple of seconds
+  let buffer = "";
+  let seen = "";
+  let failure: string | null = null;
+
+  const inspect = (line: string) => {
     const trimmed = line.trim();
-    if (!trimmed) continue;
+    if (!trimmed) return false;
+    seen += `${trimmed}\n`;
     let frame: any;
     try {
       frame = JSON.parse(trimmed);
     } catch {
-      continue;
+      return false;
     }
     if (frame?.type === "error") {
-      throw new Error(`Service failed to start: ${frame.message ?? trimmed}`);
+      failure = `Service failed to start: ${frame.message ?? trimmed}`;
+      return true;
     }
     if (frame?.type === "exit" && frame.exit_code && frame.exit_code !== 0) {
-      throw new Error(`Service exited with code ${frame.exit_code}: ${trimmed}`);
+      failure = `Service exited with code ${frame.exit_code}: ${trimmed}`;
+      return true;
     }
+    return false;
+  };
+
+  try {
+    while (Date.now() < deadline && seen.length < 8_000) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      if (lines.some(inspect)) break;
+    }
+    if (buffer) inspect(buffer);
+  } finally {
+    // Never wait for a keepalive service's stream to end.
+    await reader.cancel().catch(() => {});
   }
-  return text;
+
+  if (failure) throw new Error(failure);
+  return seen;
 }
 
 export interface ExecResult {

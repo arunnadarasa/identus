@@ -28,6 +28,8 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
   const doRun = useServerFn(runSnippet);
   const doSave = useServerFn(saveSnippet);
   const doDelete = useServerFn(deleteSnippet);
+  const doReset = useServerFn(resetStarterSnippets);
+  const [resetting, setResetting] = useState(false);
 
   const [selectedId, setSelectedId] = useState<string | null>(data.snippets[0]?.id ?? null);
   const [name, setName] = useState(data.snippets[0]?.name ?? "Untitled snippet");

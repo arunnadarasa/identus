@@ -5,7 +5,9 @@ import { toast } from "sonner";
 import {
   BadgeCheck,
   CheckCircle2,
+  Download,
   Loader2,
+  RotateCcw,
   ShieldAlert,
   ShieldCheck,
   XCircle,
@@ -14,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { TruncatedMono, shortenId } from "@/components/MonoValue";
 import { listZkCredentials, recordZkPresentation } from "@/lib/zk.functions";
 import { extractBirthYear } from "@/lib/zk-claims";
@@ -187,6 +190,25 @@ export default function ZkProofLive() {
   const stopObservingRef = useRef<(() => void) | null>(null);
 
   useEffect(() => () => stopObservingRef.current?.(), []);
+
+  // Ticking elapsed time so a long download never looks frozen.
+  const [elapsed, setElapsed] = useState(0);
+  const startedAtRef = useRef(0);
+  useEffect(() => {
+    if (!busy) return;
+    startedAtRef.current = performance.now();
+    setElapsed(0);
+    const id = setInterval(() => setElapsed(performance.now() - startedAtRef.current), 200);
+    return () => clearInterval(id);
+  }, [busy]);
+
+  const doneCount = steps.filter((s) => s.state === "done").length;
+  const runningStep = steps.find((s) => s.state === "running") ?? null;
+  // Completed steps, plus a partial slice for the one in flight.
+  const overallPercent = Math.min(
+    100,
+    Math.round(((doneCount + (runningStep ? 0.4 : 0)) / steps.length) * 100),
+  );
 
   const selected = useMemo(
     () => credentials.find((c) => c.id === selectedId) ?? null,

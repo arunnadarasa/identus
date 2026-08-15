@@ -222,7 +222,7 @@ function Dids() {
                       </p>
                     ) : null}
                     {!isDemo && cannotSign.has(did.did) ? (
-                      <p className="mt-1 text-xs text-amber-500">
+                      <p className="mt-1 text-xs font-medium text-muted-foreground">
                         Cannot issue credentials — {cannotSign.get(did.did)}.
                       </p>
                     ) : null}

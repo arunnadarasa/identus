@@ -427,12 +427,24 @@ export default function ZkProofLive() {
       setResult(proofResult);
 
       setStep("verify", "running");
-      const ok = await session.backend.verifyProof(proof);
-      setVerified(ok);
-      setStep("verify", ok ? "done" : "failed", ok ? "proof accepted" : "proof rejected");
+      try {
+        const ok = await withTimeout(
+          "Verification",
+          TIMEOUTS.verify,
+          session.backend.verifyProof(proof),
+        );
+        setVerified(ok);
+        setStep("verify", ok ? "done" : "failed", ok ? "proof accepted" : "proof rejected");
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setStep("verify", "failed", msg);
+        setFailedStage("verify");
+        throw new Error(msg);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
+      setProgress(null);
       setBusy(false);
     }
   }

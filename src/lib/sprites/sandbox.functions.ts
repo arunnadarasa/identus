@@ -171,6 +171,7 @@ export const ensureSandbox = createServerFn({ method: "POST" })
         const result = await sprites.exec(
           name,
           data.reinstall ? workspace.INSTALL_SDK_CLEAN : workspace.INSTALL_SDK,
+          sprites.TIMEOUTS.install,
         );
         return result;
       });

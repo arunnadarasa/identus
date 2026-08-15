@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { MarketingHeader } from "@/components/MarketingHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Bot, AlertTriangle } from "lucide-react";
@@ -43,27 +44,7 @@ function NhsPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="border-b border-border/60">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
-          <Link
-            to="/"
-            className="font-display min-w-0 truncate text-base font-semibold tracking-tight sm:text-lg"
-          >
-            Identus<span className="text-primary">.</span>Companion
-          </Link>
-          <nav className="flex items-center gap-2">
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/learn">Learn</Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/docs">Docs</Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link to="/app">Open console</Link>
-            </Button>
-          </nav>
-        </div>
-      </header>
+      <MarketingHeader />
 
       {/* Hero */}
       <section

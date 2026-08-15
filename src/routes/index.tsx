@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Github } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { MarketingHeader } from "@/components/MarketingHeader";
 import { Button } from "@/components/ui/button";
@@ -57,17 +57,8 @@ const capabilities = [
 
 function Landing() {
   // Signed-in visitors should be pointed at the console, not back at sign-in.
-  const { session, signOut } = useAuth();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const { session } = useAuth();
   const signedIn = Boolean(session);
-
-  async function handleSignOut() {
-    await queryClient.cancelQueries();
-    queryClient.clear();
-    await signOut();
-    navigate({ to: "/auth", replace: true });
-  }
 
   return (
     <main className="min-h-screen bg-background text-foreground">

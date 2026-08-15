@@ -145,6 +145,20 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
             </Button>
           </div>
           <CardDescription>Saved per account.</CardDescription>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-1 w-full justify-start text-muted-foreground"
+            onClick={resetStarters}
+            disabled={resetting}
+          >
+            {resetting ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Reset starter snippets
+          </Button>
         </CardHeader>
         <CardContent className="space-y-1 px-2 pb-3">
           {data.snippets.length === 0 ? (

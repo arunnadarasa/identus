@@ -110,9 +110,9 @@ console.log("NODE_VERSION=" + process.version);
 console.log("RXDB_VERSION=" + rxdbPkg.version);
 console.log("SDK_VERSION=" + pkg.version);
 PROBE
-./node_modules/.bin/node sdk-probe.mjs 2>&1
+./node_modules/node/bin/node sdk-probe.mjs 2>&1
 `;
 
 /** Runs the snippet the caller just wrote, merging stderr into stdout. */
-export const RUN_SNIPPET = `cd ${SPRITE_DIR} && ./node_modules/.bin/node snippets/run.mjs 2>&1`;
+export const RUN_SNIPPET = `cd ${SPRITE_DIR} && ./node_modules/node/bin/node snippets/run.mjs 2>&1`;
 

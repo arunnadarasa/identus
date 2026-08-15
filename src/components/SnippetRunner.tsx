@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Play, Plus, Save, Trash2 } from "lucide-react";
+import { Loader2, Play, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import {
   getSandbox,
   runSnippet,
   saveSnippet,
   deleteSnippet,
+  resetStarterSnippets,
 } from "@/lib/sprites/sandbox.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

@@ -494,6 +494,13 @@ function X402Demo({ hasPrivy }: { hasPrivy: boolean }) {
             <Button variant="outline" onClick={() => run("low-cap")} disabled={busy || !wallet.address}>
               <ShieldAlert className="mr-2 h-4 w-4" /> Try with a cap below the price
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => run("wrong-principal")}
+              disabled={busy || !wallet.address}
+            >
+              <ShieldAlert className="mr-2 h-4 w-4" /> Try a mandate for someone else
+            </Button>
           </div>
           <StickyActionBar>
             <Button onClick={() => run("none")} disabled={busy || !wallet.address} className="w-full sm:w-auto">

@@ -16,7 +16,7 @@ import { SsiTimeline } from "@/components/learn/SsiTimeline";
 import { Web2Web3Split } from "@/components/learn/Web2Web3Split";
 import { CredentialDemo } from "@/components/learn/CredentialDemo";
 import { AgenticStack } from "@/components/learn/AgenticStack";
-import { DelegationChain } from "@/components/learn/DelegationChain";
+import { DelegationWalkthrough } from "@/components/learn/DelegationWalkthrough";
 import { AgenticUseCases } from "@/components/learn/AgenticUseCases";
 import { ZkProof } from "@/components/learn/ZkProof";
 

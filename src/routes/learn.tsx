@@ -29,6 +29,7 @@ const sectionNav = [
   { id: "web3", label: "Web3" },
   { id: "zk", label: "Zero-knowledge" },
   { id: "agents", label: "AI agents" },
+  { id: "agents-faq", label: "Agent FAQ" },
   { id: "faq", label: "FAQ" },
 ];
 

@@ -13,7 +13,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { getSandbox, ensureSandbox, destroySandbox } from "@/lib/sprites/sandbox.functions";
-import { SnippetRunner } from "@/components/SnippetRunner";
+import { SnippetRunner, type SnippetDraft } from "@/components/SnippetRunner";
+import { SdkQuickstartPanel } from "@/components/SdkQuickstartPanel";
 import { ComposeLabPanel } from "@/components/ComposeLabPanel";
 import { ModeRecommendation } from "@/components/ModeRecommendation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -161,6 +162,14 @@ function Sandbox() {
         <TabsContent value="sdk" className="space-y-8">
       <ModeRecommendation variant="sdk-sandbox" />
 
+      <SdkQuickstartPanel
+        onLoadIntoEditor={
+          data.box
+            ? (snippet) => setDraft({ ...snippet, token: Date.now() })
+            : undefined
+        }
+      />
+
 
 
       {!data.hasToken ? (
@@ -297,7 +306,7 @@ function Sandbox() {
         </Card>
       </div>
 
-      <SnippetRunner data={data} />
+      <SnippetRunner data={data} draft={draft} />
         </TabsContent>
       </Tabs>
     </div>

@@ -36,12 +36,12 @@ npm i rxjs elliptic buffer core-js   # runtime peers of the SDK
 `;
 
 const HELPERS = `const enc = new TextEncoder();
-const b64url = (bytes: Uint8Array) =>
+const b64url = (bytes) =>
   btoa(String.fromCharCode(...bytes)).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/, "");
-const b64urlJson = (value: unknown) => b64url(enc.encode(JSON.stringify(value)));
-const fromB64url = (s: string) =>
+const b64urlJson = (value) => b64url(enc.encode(JSON.stringify(value)));
+const fromB64url = (s) =>
   Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
-const decodeJwtPart = (part: string) => JSON.parse(new TextDecoder().decode(fromB64url(part)));`;
+const decodeJwtPart = (part) => JSON.parse(new TextDecoder().decode(fromB64url(part)));`;
 
 const ISSUE = `// Issue a delegation mandate: "this agent may act for me, this narrowly."
 ${HELPERS}
@@ -191,12 +191,8 @@ console.log(failed.length ? \`REJECT — failed: \${failed.join(", ")}\` : "ACCE
 const GATE = `// The whole point, in ten lines: refuse before you do the work.
 // This is what src/routes/api/public/x402-proxy.ts does in front of the payment
 // facilitator — the mandate is checked before any authorization is forwarded.
-declare function verifyMandate(jwt: string | null, action: unknown): Promise<{
-  ok: boolean;
-  reason: string;
-}>;
-
-export async function handleAgentRequest(request: Request) {
+// verifyMandate is the previous snippet's checks, returning { ok, reason }.
+export async function handleAgentRequest(request, verifyMandate) {
   const mandate = request.headers.get("X-Identus-Delegation");
   const action = { scope: "${PAYMENT_SCOPE}", amount: "0.01", currency: "USDC" };
 

@@ -51,7 +51,7 @@ export const SDK_PACKAGE = "@hyperledger/identus-edge-agent-sdk";
 export const SDK_VERSION = "6.6.0";
 /** Runtime peer dependencies the SDK expects the host project to provide. */
 const SDK_RUNTIME = [
-  "node@20",
+  "node-linux-x64@20.20.2",
   "rxdb@14.17.1",
   "rxjs@^7.8.1",
   "elliptic@^6.5.4",
@@ -74,8 +74,7 @@ if [ "${clean ? "1" : "0"}" = "1" ] || { [ -n "$INSTALLED" ] && [ "$INSTALLED" !
   rm -rf node_modules package-lock.json
 fi
 FOUND=""
-if npm install --ignore-scripts --no-audit --no-fund ${SDK_PACKAGE}@${SDK_VERSION} ${SDK_RUNTIME.join(" ")} >>/tmp/npm-install.log 2>&1 \
-  && npm rebuild node >>/tmp/npm-install.log 2>&1; then
+if npm install --ignore-scripts --no-audit --no-fund ${SDK_PACKAGE}@${SDK_VERSION} ${SDK_RUNTIME.join(" ")} >>/tmp/npm-install.log 2>&1; then
   FOUND=${SDK_PACKAGE}@${SDK_VERSION}
 fi
 tail -200 /tmp/npm-install.log
@@ -111,9 +110,9 @@ console.log("NODE_VERSION=" + process.version);
 console.log("RXDB_VERSION=" + rxdbPkg.version);
 console.log("SDK_VERSION=" + pkg.version);
 PROBE
-./node_modules/node/bin/node sdk-probe.mjs 2>&1
+./node_modules/node-linux-x64/bin/node sdk-probe.mjs 2>&1
 `;
 
 /** Runs the snippet the caller just wrote, merging stderr into stdout. */
-export const RUN_SNIPPET = `cd ${SPRITE_DIR} && ./node_modules/node/bin/node snippets/run.mjs 2>&1`;
+export const RUN_SNIPPET = `cd ${SPRITE_DIR} && ./node_modules/node-linux-x64/bin/node snippets/run.mjs 2>&1`;
 

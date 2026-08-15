@@ -125,8 +125,15 @@ function Credentials() {
                 <SelectContent>
                   {issuerOptions.map((did) => (
                     <SelectItem key={did.did} value={did.did}>
-                      <span className="font-mono text-xs">
-                        {did.alias.startsWith("did:") ? shortenId(did.alias, 6, 6) : did.alias}
+                      <span className="flex flex-col items-start gap-0.5">
+                        <span className="font-mono text-xs">
+                          {did.alias.startsWith("did:") ? shortenId(did.alias, 6, 6) : did.alias}
+                        </span>
+                        {"keys" in did && (did as { keys?: string[] }).keys?.length ? (
+                          <span className="text-[10px] text-muted-foreground">
+                            can sign · {(did as { keys: string[] }).keys.join(", ")}
+                          </span>
+                        ) : null}
                       </span>
                     </SelectItem>
                   ))}
@@ -154,8 +161,28 @@ function Credentials() {
 
               {isRealAgent && issuerOptions.length > 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  Published DIDs owned by the connected agent.
+                  Published DIDs owned by the connected agent that hold an assertionMethod key.
                 </p>
+              ) : null}
+
+              {isRealAgent && (issuerData?.excluded?.length ?? 0) > 0 ? (
+                <div className="rounded-md border border-border/60 bg-muted/30 p-2 text-xs text-muted-foreground">
+                  <p className="font-medium text-foreground">Not listed as issuers</p>
+                  <ul className="mt-1 space-y-0.5">
+                    {(issuerData?.excluded ?? []).map((item) => (
+                      <li key={item.did} className="break-all">
+                        <span className="font-mono">
+                          {item.alias.startsWith("did:") ? shortenId(item.alias, 6, 6) : item.alias}
+                        </span>{" "}
+                        — {item.reason}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1">
+                    Credentials must be signed with an assertionMethod key. Create an Issuer DID on
+                    the DIDs page if none of your DIDs can sign.
+                  </p>
+                </div>
               ) : null}
             </div>
             {!isRealAgent || target !== "connectionless" ? (

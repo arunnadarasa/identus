@@ -11,6 +11,7 @@ import {
   acceptPeerConnection,
   publishDid,
   refreshDidStatuses,
+  listIssuerDids,
 } from "@/lib/identus.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,8 +34,17 @@ function Dids() {
   const acceptPeer = useServerFn(acceptPeerConnection);
   const publish = useServerFn(publishDid);
   const refreshStatuses = useServerFn(refreshDidStatuses);
+  const fetchIssuerDids = useServerFn(listIssuerDids);
 
   const { data } = useQuery({ queryKey: ["workspace"], queryFn: () => fetchWorkspace() });
+  const { data: issuerData } = useQuery({
+    queryKey: ["issuer-dids"],
+    queryFn: () => fetchIssuerDids({}),
+  });
+  // Published agent DIDs the agent cannot sign credentials with.
+  const cannotSign = new Map<string, string>(
+    (issuerData?.excluded ?? []).map((item) => [item.did, item.reason]),
+  );
   const [alias, setAlias] = useState("");
   const [role, setRole] = useState<"issuer" | "holder" | "verifier">("issuer");
   const [label, setLabel] = useState("");
@@ -209,6 +219,11 @@ function Dids() {
                     {pending ? (
                       <p className="mt-1 text-xs text-muted-foreground">
                         Publishing on the agent — this can take a few minutes.
+                      </p>
+                    ) : null}
+                    {!isDemo && cannotSign.has(did.did) ? (
+                      <p className="mt-1 text-xs font-medium text-muted-foreground">
+                        Cannot issue credentials — {cannotSign.get(did.did)}.
                       </p>
                     ) : null}
                     {did.publish_error ? (

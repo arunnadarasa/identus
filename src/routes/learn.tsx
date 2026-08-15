@@ -17,6 +17,7 @@ import { Web2Web3Split } from "@/components/learn/Web2Web3Split";
 import { CredentialDemo } from "@/components/learn/CredentialDemo";
 import { AgenticStack } from "@/components/learn/AgenticStack";
 import { DelegationWalkthrough } from "@/components/learn/DelegationWalkthrough";
+import { DelegationDemo } from "@/components/learn/DelegationDemo";
 import { AgenticUseCases } from "@/components/learn/AgenticUseCases";
 import { ZkProof } from "@/components/learn/ZkProof";
 
@@ -29,6 +30,7 @@ const sectionNav = [
   { id: "web3", label: "Web3" },
   { id: "zk", label: "Zero-knowledge" },
   { id: "agents", label: "AI agents" },
+  { id: "agents-demo", label: "Delegation demo" },
   { id: "agents-faq", label: "Agent FAQ" },
   { id: "faq", label: "FAQ" },
 ];
@@ -778,6 +780,23 @@ function Learn() {
           <div className="mt-4">
             <DelegationWalkthrough />
           </div>
+
+          <h3
+            id="agents-demo"
+            className="mt-10 scroll-mt-24 font-display text-lg font-semibold"
+          >
+            Try it: issue a mandate and verify the action
+          </h3>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            Grant an agent a scope, a spend cap and an expiry, then watch a
+            verifier accept the honest action — or reject the ones that break the
+            rules.
+          </p>
+          <div className="mt-4">
+            <DelegationDemo />
+          </div>
+
+
 
 
           <h3 className="mt-10 font-display text-lg font-semibold">

@@ -23,6 +23,8 @@ export const PRICE_TIERS = {
 export const IDENTUS_HEADERS = {
   credential: "X-Identus-Credential",
   delegation: "X-Identus-Delegation",
+  /** DID of the agent presenting the payment, so the gate can assert the mandate's subject. */
+  agent: "X-Identus-Agent-Did",
 } as const;
 
 export type GateOutcome =
@@ -33,6 +35,7 @@ export type GateOutcome =
   | "mandate_invalid"
   | "mandate_expired"
   | "scope_not_granted"
+  | "wrong_principal"
   | "wrong_subject"
   | "merchant_not_allowed"
   | "over_spend_limit"
@@ -201,15 +204,23 @@ export type MandateVerdict = {
 };
 
 /**
- * Does the delegation mandate cover this exact payment? Subject, scope, spend
- * cap, expiry and merchant all have to line up before anything is forwarded.
+ * Does the delegation mandate cover this exact payment? Principal, agent,
+ * scope, spend cap, expiry and merchant all have to line up before anything is
+ * forwarded.
+ *
+ * Two distinct identities are in play and must not be conflated:
+ *   - `expectedPrincipal` — the human who presented the eligibility credential.
+ *     The mandate's `actsFor` has to match them.
+ *   - `expectedAgent` — the AI agent the mandate was issued to (its subject).
+ *     Optional; only checked when the caller knows which agent is paying.
  */
 export function checkMandateCoverage(opts: {
   jwt: string | null;
   amountAtomic: string;
   payTo: string;
   payerWallet?: string | null;
-  expectedSubject?: string | null;
+  expectedPrincipal?: string | null;
+  expectedAgent?: string | null;
 }): MandateVerdict {
   if (!opts.jwt)
     return {
@@ -247,11 +258,19 @@ export function checkMandateCoverage(opts: {
       mandate,
     };
 
-  if (opts.expectedSubject && mandate.agentDid && mandate.agentDid !== opts.expectedSubject)
+  if (opts.expectedPrincipal && mandate.actsFor && mandate.actsFor !== opts.expectedPrincipal)
+    return {
+      ok: false,
+      outcome: "wrong_principal",
+      reason: `Mandate acts for ${mandate.actsFor}, but the eligibility credential was presented by ${opts.expectedPrincipal}.`,
+      mandate,
+    };
+
+  if (opts.expectedAgent && mandate.agentDid && mandate.agentDid !== opts.expectedAgent)
     return {
       ok: false,
       outcome: "wrong_subject",
-      reason: `Mandate was issued to ${mandate.agentDid}, but the payer presented as ${opts.expectedSubject}.`,
+      reason: `Mandate was issued to agent ${mandate.agentDid}, but the payment came from agent ${opts.expectedAgent}.`,
       mandate,
     };
 

@@ -21,6 +21,11 @@ export const issueX402Mandate = createServerFn({ method: "POST" })
         payerWallet: z.string().trim().max(80).optional(),
         allowedMerchants: z.array(z.string().trim().max(80)).max(5).default([]),
         includePaymentScope: z.boolean().default(true),
+        /**
+         * The human the mandate acts for. The demo passes the subject of the
+         * eligibility credential so `actsFor` matches whoever presented it.
+         */
+        principalDid: z.string().trim().min(1).max(200).optional(),
       })
       .parse(input),
   )
@@ -39,11 +44,20 @@ export const issueX402Mandate = createServerFn({ method: "POST" })
 
     const list = dids ?? [];
     const humanDid =
+      data.principalDid ??
       (list.find((d: any) => d.role === "holder")?.did as string) ??
       "did:prism:demo-human-alice-00000000000000000000000000";
+    // The agent is its own identity, not "the other holder". Prefer a DID the
+    // user explicitly named for an agent, then any second holder DID, and only
+    // then fall back to the demo placeholder.
+    const DEMO_AGENT_DID = "did:prism:demo-shopping-agent-0000000000000000000000";
     const agentDid =
+      (list.find(
+        (d: any) => /agent|bot/i.test(String(d.alias ?? "")) && d.did !== humanDid,
+      )?.did as string) ??
       (list.find((d: any) => d.role === "holder" && d.did !== humanDid)?.did as string) ??
-      "did:prism:demo-shopping-agent-0000000000000000000000";
+      DEMO_AGENT_DID;
+    const agentDidIsPlaceholder = agentDid === DEMO_AGENT_DID;
     const issuerDid =
       (list.find((d: any) => d.role === "issuer" && d.status === "published")?.did as string) ??
       (list.find((d: any) => d.role === "issuer")?.did as string) ??
@@ -72,6 +86,7 @@ export const issueX402Mandate = createServerFn({ method: "POST" })
       claims,
       humanDid,
       agentDid,
+      agentDidIsPlaceholder,
       issuerDid,
       validUntil,
       mode: (conn?.mode ?? null) as "simulated" | "docker" | "fly" | null,

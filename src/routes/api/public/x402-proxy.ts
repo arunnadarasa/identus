@@ -76,6 +76,7 @@ async function gate(request: Request): Promise<Response> {
   const sig = request.headers.get("PAYMENT-SIGNATURE");
   const credentialJwt = request.headers.get(IDENTUS_HEADERS.credential);
   const delegationJwt = request.headers.get(IDENTUS_HEADERS.delegation);
+  const agentDid = request.headers.get(IDENTUS_HEADERS.agent);
 
   const credential = inspectCredential(credentialJwt, REQUIRED_CREDENTIAL_TYPE);
   const credentialTrace = {
@@ -140,7 +141,10 @@ async function gate(request: Request): Promise<Response> {
       amountAtomic,
       payTo,
       payerWallet,
-      expectedSubject: credential.subject,
+      // The mandate must act for the human who presented the eligibility
+      // credential; the agent DID is a separate, optional assertion.
+      expectedPrincipal: credential.subject,
+      expectedAgent: agentDid,
     });
 
     if (!verdict.ok) {

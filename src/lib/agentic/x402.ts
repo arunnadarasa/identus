@@ -17,12 +17,15 @@ import { IDENTUS_HEADERS, type GateInfo } from "./x402-mandate";
 export type IdentusPresentation = {
   credentialJwt?: string | null;
   delegationJwt?: string | null;
+  /** DID of the agent paying — checked against the mandate's subject. */
+  agentDid?: string | null;
 };
 
 function identusHeaders(p: IdentusPresentation | undefined): Record<string, string> {
   const headers: Record<string, string> = {};
   if (p?.credentialJwt) headers[IDENTUS_HEADERS.credential] = p.credentialJwt;
   if (p?.delegationJwt) headers[IDENTUS_HEADERS.delegation] = p.delegationJwt;
+  if (p?.agentDid) headers[IDENTUS_HEADERS.agent] = p.agentDid;
   return headers;
 }
 

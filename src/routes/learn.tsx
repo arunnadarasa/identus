@@ -795,6 +795,14 @@ function Learn() {
           <div className="mt-4">
             <DelegationDemo />
           </div>
+          <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
+            Want the code behind this? The{" "}
+            <Link to="/app/sandbox" className="text-primary hover:underline">
+              sandbox quickstart
+            </Link>{" "}
+            has copy-paste TypeScript for issuing a delegation credential and
+            verifying it before an agent acts.
+          </p>
 
 
 

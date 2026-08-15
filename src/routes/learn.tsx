@@ -837,7 +837,50 @@ function Learn() {
           </div>
         </section>
 
+        {/* AI agents FAQ */}
+        <section id="agents-faq" className="scroll-mt-24">
+          <Badge
+            variant="outline"
+            className="mb-4 border-primary/40 text-primary"
+          >
+            <Bot className="mr-1.5 h-3.5 w-3.5" />
+            Questions about agents
+          </Badge>
+          <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+            Delegation, disclosure & verification for agents
+          </h2>
+          <p className="mt-3 max-w-2xl text-muted-foreground">
+            Short, plain-English answers to the questions that come up most when
+            an AI agent starts acting on behalf of a person — how it proves it's
+            allowed, what it can reveal, and how the other side checks it.
+          </p>
 
+          <div className="mt-8 space-y-8">
+            {agentFaqGroups.map((group) => (
+              <div key={group.heading}>
+                <h3 className="mb-2 font-mono text-sm font-medium uppercase tracking-wide text-primary">
+                  {group.heading}
+                </h3>
+                <Accordion type="multiple" className="border-b-0">
+                  {group.items.map((item) => (
+                    <AccordionItem
+                      key={item.q}
+                      value={item.q}
+                      className="border-b border-border/60"
+                    >
+                      <AccordionTrigger className="text-sm font-medium">
+                        {item.q}
+                      </AccordionTrigger>
+                      <AccordionContent className="text-sm text-muted-foreground">
+                        {item.a}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {/* Where Identus fits */}
         <section className="rounded-lg border border-border/60 bg-card/30 p-6 sm:p-10">

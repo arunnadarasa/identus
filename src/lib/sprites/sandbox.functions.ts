@@ -135,6 +135,11 @@ export const ensureSandbox = createServerFn({ method: "POST" })
           entry.httpStatus = error.status;
           entry.raw = error.raw.slice(0, 2000);
         }
+        if (error instanceof sprites.SpritesTimeoutError) {
+          entry.endpoint = error.endpoint;
+          entry.httpStatus = 408;
+        }
+        await persist("error");
         throw error;
       }
     };

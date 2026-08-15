@@ -5,9 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TruncatedMono } from "@/components/MonoValue";
 import { AGE_CIRCUIT_NARGO_TOML, AGE_CIRCUIT_SOURCE } from "./zk-circuit";
-// Emitted as a plain asset URL, so the bundler copies noir_wasm's published
-// webpack bundle verbatim instead of re-bundling (and breaking) it.
-import noirWasmUrl from "@noir-lang/noir_wasm/dist/web/main.mjs?url";
+
+/**
+ * noir_wasm's published browser bundle is served verbatim from this URL by the
+ * `noir-wasm-vendor-asset` plugin in vite.config.ts — see the comment there for
+ * why it must not go through the bundler.
+ */
+const NOIR_WASM_URL = "/vendor/noir_wasm/main.mjs";
+
+
 
 
 

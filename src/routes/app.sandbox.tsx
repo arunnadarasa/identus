@@ -98,6 +98,11 @@ function StepList({ steps }: { steps: ProvisionStep[] }) {
                 {step.raw}
               </pre>
             ) : null}
+            {slow ? (
+              <div className="break-words text-warning">
+                Taking longer than expected. It stops itself on a timeout — then use Repair box.
+              </div>
+            ) : null}
           </div>
           <span
             className={`ml-auto shrink-0 ${slow ? "text-warning" : "text-muted-foreground/70"}`}

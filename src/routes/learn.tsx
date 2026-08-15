@@ -689,15 +689,17 @@ function Learn() {
           </div>
 
           <h3 className="mt-10 font-display text-lg font-semibold">
-            The delegation chain
+            How delegation works, step by step
           </h3>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             Instead of handing an agent your credentials, you hand it a narrow,
-            time-boxed permission that anyone downstream can verify.
+            time-boxed permission that anyone downstream can verify. Walk the
+            chain one hop at a time.
           </p>
           <div className="mt-4">
-            <DelegationChain />
+            <DelegationWalkthrough />
           </div>
+
 
           <h3 className="mt-10 font-display text-lg font-semibold">
             Use cases: where delegation fits

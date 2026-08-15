@@ -76,6 +76,7 @@ async function gate(request: Request): Promise<Response> {
   const sig = request.headers.get("PAYMENT-SIGNATURE");
   const credentialJwt = request.headers.get(IDENTUS_HEADERS.credential);
   const delegationJwt = request.headers.get(IDENTUS_HEADERS.delegation);
+  const agentDid = request.headers.get(IDENTUS_HEADERS.agent);
 
   const credential = inspectCredential(credentialJwt, REQUIRED_CREDENTIAL_TYPE);
   const credentialTrace = {

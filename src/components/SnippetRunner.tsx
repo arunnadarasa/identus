@@ -20,7 +20,9 @@ import { cn } from "@/lib/utils";
 type Sandbox = Awaited<ReturnType<typeof getSandbox>>;
 type Snippet = Sandbox["snippets"][number];
 
-export function SnippetRunner({ data }: { data: Sandbox }) {
+export type SnippetDraft = { name: string; code: string; token: number };
+
+export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetDraft | null }) {
   const qc = useQueryClient();
   const doRun = useServerFn(runSnippet);
   const doSave = useServerFn(saveSnippet);
@@ -49,6 +51,17 @@ export function SnippetRunner({ data }: { data: Sandbox }) {
     setOutput(selected.lastOutput ?? "");
     setExitCode(selected.lastExitCode ?? null);
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // An incoming draft (e.g. from the quickstart panel) becomes a new unsaved
+  // snippet in the editor. The token makes repeat loads of the same snippet fire.
+  useEffect(() => {
+    if (!draft) return;
+    setSelectedId(null);
+    setName(draft.name);
+    setCode(draft.code);
+    setOutput("");
+    setExitCode(null);
+  }, [draft?.token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["sandbox"] });
 

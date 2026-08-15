@@ -37,7 +37,7 @@ export const listZkCredentials = createServerFn({ method: "GET" })
       subject: (row.subject ?? null) as string | null,
       issuerDid: (row.issuer_did ?? null) as string | null,
       holderDid: (row.holder_did ?? null) as string | null,
-      claims: (row.claims ?? {}) as Record<string, unknown>,
+      claims: (row.claims ?? {}) as Record<string, string>,
       jwt: row.jwt as string,
       lastCommitment: commitments.get(row.id as string) ?? null,
     }));

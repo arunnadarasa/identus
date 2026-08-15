@@ -22,7 +22,7 @@ export type ZkCredential = {
   subject: string | null;
   issuerDid: string | null;
   holderDid: string | null;
-  claims: Record<string, unknown>;
+  claims: Record<string, string>;
   jwt: string;
   /** Commitment recorded by an earlier ZK presentation of this credential. */
   lastCommitment: string | null;

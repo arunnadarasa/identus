@@ -131,6 +131,7 @@ type ProofResult = {
 };
 
 const STEPS: { key: string; label: string }[] = [
+  { key: "load", label: "Download the compiler and UltraHonk prover (wasm)" },
   { key: "compile", label: "Compile the Noir circuit" },
   { key: "bind", label: "Derive the credential binding (SHA-256 of the JWT)" },
   { key: "witness", label: "Execute circuit, compute witness" },

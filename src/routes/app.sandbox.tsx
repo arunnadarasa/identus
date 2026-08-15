@@ -126,13 +126,16 @@ function Sandbox() {
   const provision = useServerFn(ensureSandbox);
   const destroy = useServerFn(destroySandbox);
 
+  const [busy, setBusy] = useState<"create" | "reinstall" | "destroy" | null>(null);
+  const [liveSteps, setLiveSteps] = useState<ProvisionStep[]>([]);
+
   const { data, isLoading } = useQuery({
     queryKey: ["sandbox"],
     queryFn: () => fetchSandbox(),
+    // While a provision request is in flight the server persists each step as it
+    // goes, so poll to show progress instead of waiting for the final response.
+    refetchInterval: busy === "create" || busy === "reinstall" ? 2000 : false,
   });
-
-  const [busy, setBusy] = useState<"create" | "reinstall" | "destroy" | null>(null);
-  const [liveSteps, setLiveSteps] = useState<ProvisionStep[]>([]);
   const [draft, setDraft] = useState<SnippetDraft | null>(null);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["sandbox"] });

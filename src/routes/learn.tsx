@@ -29,6 +29,7 @@ const sectionNav = [
   { id: "web3", label: "Web3" },
   { id: "zk", label: "Zero-knowledge" },
   { id: "agents", label: "AI agents" },
+  { id: "agents-faq", label: "Agent FAQ" },
   { id: "faq", label: "FAQ" },
 ];
 
@@ -105,6 +106,84 @@ const faqGroups: { heading: string; items: { q: string; a: string }[] }[] = [
       {
         q: "Does verification need the internet?",
         a: "The verifier needs to reach the ledger once to look up the issuer's published keys. After that the cryptography does the rest — it does not need to contact you, the issuer, or any central service.",
+      },
+    ],
+  },
+];
+
+const agentFaqGroups: { heading: string; items: { q: string; a: string }[] }[] = [
+  {
+    heading: "Delegation",
+    items: [
+      {
+        q: "What does it mean for an agent to act on my behalf?",
+        a: "You give the agent a delegation credential — a signed note from your DID that says 'this agent may act for me, for these purposes, until this time.' The agent presents that note when it deals with another service, which checks your signature rather than phoning you.",
+      },
+      {
+        q: "How does an agent prove it's allowed?",
+        a: "It shows the delegation credential, signed by your DID, alongside whatever it's doing. Because your DID is published, the other side can confirm your signature is genuine — no central registry, no phone call to you.",
+      },
+      {
+        q: "Can I limit what an agent can do?",
+        a: "Yes. The delegation can name exact scopes — 'book a flight up to £300', 'read but not move funds', 'valid for 24 hours'. Anything outside those scopes fails verification, so the other side refuses it.",
+      },
+      {
+        q: "Can I revoke a delegation?",
+        a: "Yes. You publish a revocation against your DID, and verifiers check for it. The agent's credential may still look valid, but the revocation check fails — so it stops working the moment you revoke, without collecting the credential back.",
+      },
+      {
+        q: "What stops an agent overstepping?",
+        a: "Two things. The scopes you set in the delegation cap it, and every verifier checks both the signature and those scopes before acting. An agent can ask for more, but a well-behaved verifier will refuse anything the delegation doesn't cover.",
+      },
+    ],
+  },
+  {
+    heading: "Selective disclosure",
+    items: [
+      {
+        q: "How does an agent share only what's needed?",
+        a: "When a verifier asks for a claim, the agent builds a presentation that includes only the relevant fields — 'over 18' rather than a full birthdate. The presentation is still signed, so the verifier can trust it without seeing the underlying document.",
+      },
+      {
+        q: "Can an agent reveal more than I allowed?",
+        a: "Not if the verifier is checking properly. The presentation only carries what the agent chooses to put in it, and the verifier should reject fields outside what the delegation permits. You set the policy in the delegation; the agent can only present within it.",
+      },
+      {
+        q: "What about zero-knowledge proofs?",
+        a: "A ZK proof goes further — it proves a fact ('I'm over 18') without revealing the value behind it, or even which credential it came from. The live demo on this page generates and verifies a real one in your browser. ZK is stronger privacy but needs a compatible verifier.",
+      },
+      {
+        q: "Does selective disclosure work across services?",
+        a: "Yes, as long as both sides speak the same credential format. A presentation built from one issuer's credential can be checked by any verifier that trusts that issuer — the wallet and the agent handle the plumbing.",
+      },
+      {
+        q: "Does the agent keep a copy of my credentials?",
+        a: "That depends on your setup. You can hold the credentials and have the agent request presentations on demand, or you can store them with the agent. Either way, the agent can only present what the delegation allows — it can't widen the disclosure on its own.",
+      },
+    ],
+  },
+  {
+    heading: "Verification",
+    items: [
+      {
+        q: "How does a verifier know an agent is legitimate?",
+        a: "It checks the delegation credential's signature against your published DID, confirms the scopes cover what the agent is asking to do, and checks the delegation hasn't been revoked or expired. If all three pass, the agent is acting within its mandate.",
+      },
+      {
+        q: "Does the verifier need to trust me or the agent?",
+        a: "The verifier trusts your DID — that is, the published keys that prove a delegation really came from you. It doesn't need to trust the agent's word, and it doesn't need a separate relationship with you. The cryptography stands in for that trust.",
+      },
+      {
+        q: "What if the agent is offline?",
+        a: "A delegation is checked at the moment it's presented, so the agent only needs to be reachable while it's acting. If it's down, it simply can't initiate anything — there's no background trust that decays. Revoke the delegation if it should stop permanently.",
+      },
+      {
+        q: "Can verification be automated by another agent?",
+        a: "Yes — that's the point of agent-to-agent flows. The verifier can be another agent that runs the same checks: signature, scopes, revocation, expiry. Each side proves its mandate; neither needs a human in the loop for routine decisions.",
+      },
+      {
+        q: "What fails if delegation isn't used?",
+        a: "Without delegation, the verifier has no way to confirm the agent is acting for you rather than itself. It either has to trust the agent blindly (unsafe) or fall back to you handling the interaction directly (slow). Delegation is what makes autonomous agents trustworthy.",
       },
     ],
   },
@@ -759,7 +838,50 @@ function Learn() {
           </div>
         </section>
 
+        {/* AI agents FAQ */}
+        <section id="agents-faq" className="scroll-mt-24">
+          <Badge
+            variant="outline"
+            className="mb-4 border-primary/40 text-primary"
+          >
+            <Bot className="mr-1.5 h-3.5 w-3.5" />
+            Questions about agents
+          </Badge>
+          <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+            Delegation, disclosure & verification for agents
+          </h2>
+          <p className="mt-3 max-w-2xl text-muted-foreground">
+            Short, plain-English answers to the questions that come up most when
+            an AI agent starts acting on behalf of a person — how it proves it's
+            allowed, what it can reveal, and how the other side checks it.
+          </p>
 
+          <div className="mt-8 space-y-8">
+            {agentFaqGroups.map((group) => (
+              <div key={group.heading}>
+                <h3 className="mb-2 font-mono text-sm font-medium uppercase tracking-wide text-primary">
+                  {group.heading}
+                </h3>
+                <Accordion type="multiple" className="border-b-0">
+                  {group.items.map((item) => (
+                    <AccordionItem
+                      key={item.q}
+                      value={item.q}
+                      className="border-b border-border/60"
+                    >
+                      <AccordionTrigger className="text-sm font-medium">
+                        {item.q}
+                      </AccordionTrigger>
+                      <AccordionContent className="text-sm text-muted-foreground">
+                        {item.a}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {/* Where Identus fits */}
         <section className="rounded-lg border border-border/60 bg-card/30 p-6 sm:p-10">

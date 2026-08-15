@@ -6,6 +6,7 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import type { Plugin } from "vite";
 
@@ -29,12 +30,11 @@ const require_ = createRequire(import.meta.url);
 const NOIR_WASM_URL = "/vendor/noir_wasm/main.mjs";
 
 function noirWasmVendorAsset(): Plugin {
-  const source = () =>
-    readFileSync(
-      require_.resolve("@noir-lang/noir_wasm/dist/web/main.mjs", {
-        paths: [require_.resolve("@noir-lang/noir_wasm")],
-      }),
-    );
+  // `exports` in the package hides the subpath, so resolve the package entry
+  // (dist/node/main.js) and walk to the sibling browser bundle.
+  const vendorFile = () =>
+    join(dirname(dirname(require_.resolve("@noir-lang/noir_wasm"))), "web", "main.mjs");
+  const source = () => readFileSync(vendorFile());
 
   return {
     name: "noir-wasm-vendor-asset",

@@ -99,6 +99,7 @@ function Sandbox() {
 
   const [busy, setBusy] = useState<"create" | "reinstall" | "destroy" | null>(null);
   const [liveSteps, setLiveSteps] = useState<ProvisionStep[]>([]);
+  const [draft, setDraft] = useState<SnippetDraft | null>(null);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["sandbox"] });
 

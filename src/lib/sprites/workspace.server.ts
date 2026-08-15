@@ -74,7 +74,8 @@ if [ "${clean ? "1" : "0"}" = "1" ] || { [ -n "$INSTALLED" ] && [ "$INSTALLED" !
   rm -rf node_modules package-lock.json
 fi
 FOUND=""
-if npm install --ignore-scripts --no-audit --no-fund ${SDK_PACKAGE}@${SDK_VERSION} ${SDK_RUNTIME.join(" ")} >>/tmp/npm-install.log 2>&1; then
+if npm install --ignore-scripts --no-audit --no-fund ${SDK_PACKAGE}@${SDK_VERSION} ${SDK_RUNTIME.join(" ")} >>/tmp/npm-install.log 2>&1 \
+  && npm rebuild node >>/tmp/npm-install.log 2>&1; then
   FOUND=${SDK_PACKAGE}@${SDK_VERSION}
 fi
 tail -200 /tmp/npm-install.log

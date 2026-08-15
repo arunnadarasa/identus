@@ -256,11 +256,19 @@ export function checkMandateCoverage(opts: {
       mandate,
     };
 
-  if (opts.expectedSubject && mandate.agentDid && mandate.agentDid !== opts.expectedSubject)
+  if (opts.expectedPrincipal && mandate.actsFor && mandate.actsFor !== opts.expectedPrincipal)
+    return {
+      ok: false,
+      outcome: "wrong_principal",
+      reason: `Mandate acts for ${mandate.actsFor}, but the eligibility credential was presented by ${opts.expectedPrincipal}.`,
+      mandate,
+    };
+
+  if (opts.expectedAgent && mandate.agentDid && mandate.agentDid !== opts.expectedAgent)
     return {
       ok: false,
       outcome: "wrong_subject",
-      reason: `Mandate was issued to ${mandate.agentDid}, but the payer presented as ${opts.expectedSubject}.`,
+      reason: `Mandate was issued to agent ${mandate.agentDid}, but the payment came from agent ${opts.expectedAgent}.`,
       mandate,
     };
 

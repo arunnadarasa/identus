@@ -788,9 +788,46 @@ export default function ZkProofLive() {
       </ol>
 
       {error ? (
-        <p className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-foreground">
-          {error}
-        </p>
+        <div className="mt-4 space-y-3 rounded-md border border-destructive/40 bg-destructive/10 p-3">
+          <p className="text-sm text-foreground">{error}</p>
+          {failedStage === "load-timeout" || failedStage === "load" ? (
+            <p className="text-xs text-muted-foreground">
+              The compiler is served from{" "}
+              <span className="font-mono">{NOIR_WASM_URL}</span> and the prover from the app
+              bundle. Ad-blockers, offline mode, and strict corporate proxies can block wasm —
+              try again, or open this page in another browser.
+            </p>
+          ) : null}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              size="sm"
+              onClick={handleProve}
+              disabled={busy || !dobValid || blocked}
+              className="w-full sm:w-auto"
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Retry{attempt > 1 ? ` (attempt ${attempt + 1})` : ""}
+            </Button>
+            {failedStage?.startsWith("load") || failedStage?.startsWith("prove") ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  // Drop any cached prover so the next run re-downloads it.
+                  sessionRef.current = null;
+                  setLoaded(false);
+                  setProgress(null);
+                  void handleProve();
+                }}
+                disabled={busy || !dobValid || blocked}
+                className="w-full sm:w-auto"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Reload the prover and retry
+              </Button>
+            ) : null}
+          </div>
+        </div>
       ) : null}
 
       {result ? (

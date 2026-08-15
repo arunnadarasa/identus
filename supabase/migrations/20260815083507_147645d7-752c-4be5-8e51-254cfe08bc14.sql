@@ -1,0 +1,1 @@
+ALTER TABLE public.sim_presentations ADD COLUMN IF NOT EXISTS zk_proof jsonb;

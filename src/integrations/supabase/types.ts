@@ -433,6 +433,7 @@ export type Database = {
           state: string
           user_id: string
           verifier_did: string | null
+          zk_proof: Json | null
         }
         Insert: {
           connection_id?: string | null
@@ -443,6 +444,7 @@ export type Database = {
           state?: string
           user_id: string
           verifier_did?: string | null
+          zk_proof?: Json | null
         }
         Update: {
           connection_id?: string | null
@@ -453,6 +455,7 @@ export type Database = {
           state?: string
           user_id?: string
           verifier_did?: string | null
+          zk_proof?: Json | null
         }
         Relationships: [
           {

@@ -417,6 +417,45 @@ export const deleteSnippet = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+/**
+ * Rewrite the starter set from the current templates. Matches by name so a fixed
+ * starter replaces the stale copy seeded at box creation; snippets the user named
+ * themselves are left alone.
+ */
+export const resetStarterSnippets = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: existing } = await context.supabase
+      .from("sprite_snippets")
+      .select("id, name")
+      .eq("user_id", context.userId);
+
+    const byName = new Map<string, string>(
+      (existing ?? []).map((row: any) => [row.name as string, row.id as string]),
+    );
+
+    let updated = 0;
+    let inserted = 0;
+    for (const snippet of STARTER_SNIPPETS) {
+      const id = byName.get(snippet.name);
+      if (id) {
+        await context.supabase
+          .from("sprite_snippets")
+          .update({ code: snippet.code })
+          .eq("id", id)
+          .eq("user_id", context.userId);
+        updated += 1;
+      } else {
+        await context.supabase
+          .from("sprite_snippets")
+          .insert({ user_id: context.userId, name: snippet.name, code: snippet.code });
+        inserted += 1;
+      }
+    }
+
+    return { ok: true as const, updated, inserted };
+  });
+
 export const destroySandbox = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

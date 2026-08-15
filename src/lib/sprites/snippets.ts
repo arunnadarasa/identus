@@ -34,8 +34,19 @@ const did = await castor.createPeerDID(
 );
 
 console.log("peer DID:", did.toString());
+
+// The "deprecated parameters for initSync()" line above is a harmless WASM
+// warning from the SDK, not an error.
 const resolved = await castor.resolveDID(did.toString());
-console.log("verification methods:", resolved.verificationMethod.length);
+
+// A resolved document exposes its verification methods through coreProperties,
+// not a top-level verificationMethod array.
+const methods = (resolved.coreProperties ?? []).flatMap((prop) =>
+  Array.isArray(prop?.values) ? prop.values : [],
+);
+console.log("verification methods:", methods.length);
+console.log("first method id:", methods[0]?.id ?? "(none)");
+console.log(JSON.stringify(resolved, null, 2).slice(0, 1200));
 `,
   },
   {
@@ -103,16 +114,41 @@ console.log("invitation:", conn.invitation?.invitationUrl);
   },
   {
     name: "Issue a credential offer",
-    description: "Offers a JWT credential from an issuing DID over an existing connection.",
+    description: "Finds an established connection and a published issuer DID, then offers a JWT credential.",
     code: `const base = process.env.AGENT_BASE_URL;
 const headers = {
   "Content-Type": "application/json",
   ...(process.env.AGENT_API_KEY ? { apikey: process.env.AGENT_API_KEY } : {}),
 };
 
-// Replace with ids from your agent.
-const connectionId = "<connection-id>";
-const issuingDID = "<did:prism:...>";
+// 1. Find an established connection (no placeholders — read it from the agent).
+const conns = await fetch(base + "/connections", { headers }).then((r) => r.json());
+const connection = (conns.contents ?? []).find((c) =>
+  ["ConnectionResponseSent", "ConnectionResponseReceived"].includes(c.state),
+);
+if (!connection) {
+  console.log(
+    "No established connection yet. Run the 'Create a connection invitation' snippet and accept it from the other side (or use the console's Connections page), then run this again.",
+  );
+  process.exit(0);
+}
+const connectionId = connection.connectionId;
+
+// 2. Find a published issuer DID that can sign credentials.
+const dids = await fetch(base + "/did-registrar/dids", { headers }).then((r) => r.json());
+const issuer = (dids.contents ?? []).find(
+  (d) => d.status === "PUBLISHED" && d.did?.startsWith("did:prism:"),
+);
+if (!issuer) {
+  console.log(
+    "No published issuer DID yet. Publish one with the 'Publish a PRISM DID' snippet or from the console's DIDs page, then run this again.",
+  );
+  process.exit(0);
+}
+const issuingDID = issuer.did;
+
+console.log("connectionId:", connectionId);
+console.log("issuingDID:", issuingDID);
 
 const offer = await fetch(base + "/issue-credentials/credential-offers", {
   method: "POST",

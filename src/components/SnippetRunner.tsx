@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Play, Plus, Save, Trash2 } from "lucide-react";
+import { Loader2, Play, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import {
   getSandbox,
   runSnippet,
   saveSnippet,
   deleteSnippet,
+  resetStarterSnippets,
 } from "@/lib/sprites/sandbox.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +28,8 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
   const doRun = useServerFn(runSnippet);
   const doSave = useServerFn(saveSnippet);
   const doDelete = useServerFn(deleteSnippet);
+  const doReset = useServerFn(resetStarterSnippets);
+  const [resetting, setResetting] = useState(false);
 
   const [selectedId, setSelectedId] = useState<string | null>(data.snippets[0]?.id ?? null);
   const [name, setName] = useState(data.snippets[0]?.name ?? "Untitled snippet");
@@ -109,6 +112,21 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
     }
   };
 
+  const resetStarters = async () => {
+    setResetting(true);
+    try {
+      const res = await doReset({});
+      invalidate();
+      toast.success(
+        `Starter snippets refreshed — ${res.updated} updated, ${res.inserted} added`,
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not reset the starters");
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const remove = async (id: string) => {
     await doDelete({ data: { id } });
     if (id === selectedId) newSnippet();
@@ -127,6 +145,20 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
             </Button>
           </div>
           <CardDescription>Saved per account.</CardDescription>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-1 w-full justify-start text-muted-foreground"
+            onClick={resetStarters}
+            disabled={resetting}
+          >
+            {resetting ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Reset starter snippets
+          </Button>
         </CardHeader>
         <CardContent className="space-y-1 px-2 pb-3">
           {data.snippets.length === 0 ? (

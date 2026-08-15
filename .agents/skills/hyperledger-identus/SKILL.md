@@ -12,6 +12,8 @@ description: Use when deploying, debugging, or extending the Hyperledger Identus
 - Running Identus TypeScript SDK snippets in the Sprites.dev sandbox.
 - Extending the console with new Identus features or pages.
 - Authoring or validating a Docker Compose stack for the Identus components.
+- Binding a browser zero-knowledge proof to an issued credential (`/app/zk`).
+- Extending the agentic commerce demos (A2A, AP2, UCP, x402) that gate on Identus credentials.
 
 ## Stack overview
 
@@ -30,7 +32,10 @@ Fly Machines hosts the full agent stack. Sprites.dev is only for per-user SDK sn
 | Raw clients (Node-only) | `src/lib/identus/*.server.ts`, `src/lib/sprites/*.server.ts` |
 | Client-callable wrappers | `src/lib/identus.functions.ts`, `src/lib/identus/fly.functions.ts`, `src/lib/sprites/*.functions.ts` |
 | Shared types | `src/lib/identus/types.ts` |
-| Console routes | `src/routes/app.*.tsx` (agents, dids, credentials, sandbox, activity, index) |
+| Console routes | `src/routes/app.*.tsx` (agents, dids, credentials, sandbox, activity, zk, demos.*, index) |
+| ZK layer | `src/lib/zk.functions.ts`, `src/lib/zk-claims.ts`, `src/components/zk/*` |
+| Agentic demos | `src/lib/agentic/*`, `src/routes/api/public/*` (A2A seller, x402 proxy, UCP merchant) |
+| Marketing pages | `src/routes/index.tsx`, `learn.tsx`, `nhs.tsx`, `docs.tsx` + `src/components/MarketingHeader.tsx` |
 | Docs route | `src/routes/docs.tsx` |
 | UI components | `src/components/` (FlyDeployPanel, FlyMachineDiagnostics, AgentHealthPanel, AgentReadinessWatcher, ActiveAgentCard, FlyAgentPicker, RotateKeyDialog, ComposeLabPanel, SnippetRunner, ModeRecommendation) |
 | DB migrations | `supabase/migrations/` |
@@ -67,8 +72,13 @@ All RLS-scoped by `user_id` (service_role has full access): `profiles`, `user_ro
 - GHCR images require auth; use the public Docker Hub tags with explicit versions, never `:latest`.
 - Postgres init creates four databases (`pollux`, `connect`, `agent`, `node`) to avoid schema-migration collisions.
 - Agent memory default is 4 GB; lower values get OOM-killed during first-boot migration.
+- A Fly app is unreachable until a public IP is allocated (shared v4 + v6); allocate during provisioning and expose a repair action for older apps.
+- Cap any single Fly readiness poll at 60s. Longer `timeout` values are rejected by the Machines API with a 400.
+- Fly resources can vanish outside the console. Treat 404 from `destroyFlyApp`/machine reads as "already gone" and mark the stored connection orphaned instead of erroring.
+- Only a **published** `did:prism` carrying an `assertionMethod` key can sign a credential offer — see [credential-issuance](references/credential-issuance.md).
+- The ZK age proof needs a date-of-birth claim on the credential (`dob`, `dateOfBirth`, `birthDate`, `birthYear`, snake_case variants). Issuance templates include `dob` so the happy path stays provable.
 
-For deeper detail see the reference cards: [fly-machine-config](references/fly-machine-config.md), [agent-api-surface](references/agent-api-surface.md), [sprites-quirks](references/sprites-quirks.md), [failure-modes](references/failure-modes.md).
+For deeper detail see the reference cards: [fly-machine-config](references/fly-machine-config.md), [agent-api-surface](references/agent-api-surface.md), [sprites-quirks](references/sprites-quirks.md), [failure-modes](references/failure-modes.md), [credential-issuance](references/credential-issuance.md), [zk-integration](references/zk-integration.md).
 
 ## Workflows
 
@@ -114,3 +124,20 @@ For deeper detail see the reference cards: [fly-machine-config](references/fly-m
 1. Use `DEFAULT_COMPOSE` in `src/lib/sprites/compose.server.ts` as the canonical Identus stack template (agent + prism-node + postgres with healthchecks, named network, `restart: unless-stopped`).
 2. Validate with the Python validator: flags insecure passwords, missing healthchecks, weak dependency conditions.
 3. Save to `compose_files` table. Do not attempt to run containers inside Sprites — it is for authoring/linting only.
+
+### 7. Issue a credential without a DIDComm connection
+
+1. Call `listIssuerDids` — it resolves each DID and returns only those whose document exposes an `assertionMethod` key, with excluded DIDs and reasons for the UI.
+2. Choose `target = "connectionless"` when no established connection exists. `issueCredential` omits `connectionId`, sets `goalCode`/`JWT` format, and stores the returned `invitation_url` on `credential_records`.
+3. Include a `dob` claim if the credential should be usable by the ZK age proof.
+   **Success:** the offer record has an invitation URL and no "Missing connectionId" 400.
+   See [credential-issuance](references/credential-issuance.md).
+
+### 8. Bind a zero-knowledge proof to an issued credential
+
+1. `listZkCredentials` returns credentials that have a signed JWT, plus any commitment from an earlier ZK presentation.
+2. `extractBirthYear` (in `src/lib/zk-claims.ts`) resolves the birth year; credentials without one cannot prove age and must be shown as such, never silently offered.
+3. The browser derives the binding with `credentialBinding(jwt)` (SHA-256 → two 128-bit field limbs) and proves with Noir + UltraHonk. The JWT never leaves the page.
+4. `recordZkPresentation` stores the commitment, public inputs, and timing into `sim_presentations` and writes an activity entry.
+   **Success:** `verified === true` and a `presentation.zk_verified` activity row.
+   For the prover mechanics see the `noir-zk-browser` skill and [zk-integration](references/zk-integration.md).

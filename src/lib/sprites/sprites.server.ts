@@ -95,12 +95,15 @@ function authHeaders() {
 
 async function request(
   path: string,
-  init: RequestInit & { rawBody?: boolean } = {},
+  init: RequestInit & { rawBody?: boolean; timeoutMs?: number } = {},
 ): Promise<{ status: number; text: string; json: any }> {
-  const res = await fetch(`${API}${path}`, {
-    ...init,
-    headers: { ...authHeaders(), ...(init.headers ?? {}) },
-  });
+  const { timeoutMs, ...rest } = init;
+  const res = await timedFetch(
+    path,
+    `${API}${path}`,
+    { ...rest, headers: { ...authHeaders(), ...(init.headers ?? {}) } },
+    timeoutMs ?? TIMEOUTS.lookup,
+  );
   const text = await res.text();
   if (!res.ok) throw new SpritesApiError(path, res.status, text);
   let json: any = null;

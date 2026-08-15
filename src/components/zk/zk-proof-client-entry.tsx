@@ -36,6 +36,89 @@ const MANUAL_BINDING_SOURCE = "manual-entry:no-credential";
 type StepState = "pending" | "running" | "done" | "failed";
 type Step = { key: string; label: string; state: StepState; detail?: string | undefined };
 
+/**
+ * Wall-clock budgets. The prover and its wasm assets are several megabytes, so
+ * a slow or blocked network otherwise leaves the panel spinning forever.
+ */
+const TIMEOUTS = {
+  /** Download + instantiate noir_wasm, noir_js and Barretenberg, then compile. */
+  load: 90_000,
+  /** Witness generation is pure compute and quick, but bound it anyway. */
+  witness: 30_000,
+  /** UltraHonk proving on a slow phone. */
+  prove: 180_000,
+  verify: 60_000,
+} as const;
+
+class StageTimeoutError extends Error {
+  constructor(readonly stage: string, readonly ms: number) {
+    super(`${stage} timed out after ${Math.round(ms / 1000)}s`);
+    this.name = "StageTimeoutError";
+  }
+}
+
+/** Rejects with a StageTimeoutError when `work` outlives `ms`. */
+async function withTimeout<T>(stage: string, ms: number, work: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new StageTimeoutError(stage, ms)), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** Bytes actually pulled over the network for the prover assets. */
+type LoadProgress = { bytes: number; assets: number; phase: string };
+
+const ASSET_PATTERN = /\.wasm|noir|bb\.js|barretenberg|acvm/i;
+
+function formatBytes(bytes: number) {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} kB`;
+  return `${bytes} B`;
+}
+
+/**
+ * The Noir/Barretenberg loaders fetch their own wasm internally, so the only
+ * honest way to report download progress is to watch the resource timeline and
+ * sum the bytes the browser reports for those requests.
+ */
+function observeAssetDownloads(onBytes: (bytes: number, assets: number) => void) {
+  if (typeof PerformanceObserver === "undefined") return () => {};
+  const seen = new Map<string, number>();
+  const publish = () => {
+    let total = 0;
+    for (const size of seen.values()) total += size;
+    onBytes(total, seen.size);
+  };
+  const ingest = (entries: PerformanceEntryList) => {
+    let changed = false;
+    for (const entry of entries) {
+      const e = entry as PerformanceResourceTiming;
+      if (!ASSET_PATTERN.test(e.name)) continue;
+      const size = e.encodedBodySize || e.transferSize || e.decodedBodySize || 0;
+      if (!size) continue;
+      const prev = seen.get(e.name);
+      if (prev === size) continue;
+      seen.set(e.name, size);
+      changed = true;
+    }
+    if (changed) publish();
+  };
+  const observer = new PerformanceObserver((list) => ingest(list.getEntries()));
+  try {
+    observer.observe({ type: "resource", buffered: true });
+  } catch {
+    return () => {};
+  }
+  return () => observer.disconnect();
+}
+
 type ProofResult = {
   proofHex: string;
   proofBytes: Uint8Array;

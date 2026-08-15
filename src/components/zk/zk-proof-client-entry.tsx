@@ -215,49 +215,68 @@ export default function ZkProofLive() {
     setSteps((prev) => prev.map((s) => (s.key === key ? { ...s, state, detail } : s)));
   }, []);
 
-  const getSession = useCallback(async () => {
-    if (sessionRef.current) return sessionRef.current;
+  const getSession = useCallback(
+    async (onPhase: (phase: string) => void) => {
+      if (sessionRef.current) return sessionRef.current;
 
-    // Imported inside the handler so the multi-megabyte wasm bundles are only
-    // fetched when a visitor actually asks for a proof.
-    // noir_wasm is fetched from a stable vendor URL with a runtime `import()`
-    // so the production bundler never rewrites it. Rolldown mis-renames the
-    // shadowed globals in the `@ltd/j-toml` module inside noir_wasm's own
-    // webpack bundle, emitting `const Infinity = Infinity`, which throws
-    // "Cannot access 'Infinity' before initialization" (minified: "Cannot
-    // access 'j' ...") the moment the compiler is imported.
-    const [noirWasm, { Noir }, bb] = await Promise.all([
-      import(/* @vite-ignore */ NOIR_WASM_URL) as Promise<{
-        compile: (fm: unknown) => Promise<unknown>;
-        createFileManager: (root: string) => {
-          writeFile: (path: string, stream: ReadableStream) => Promise<void>;
-        };
-      }>,
-      import("@noir-lang/noir_js"),
-      import("@aztec/bb.js"),
-    ]);
-    const { compile, createFileManager } = noirWasm;
+      // Imported inside the handler so the multi-megabyte wasm bundles are only
+      // fetched when a visitor actually asks for a proof.
+      // noir_wasm is fetched from a stable vendor URL with a runtime `import()`
+      // so the production bundler never rewrites it. Rolldown mis-renames the
+      // shadowed globals in the `@ltd/j-toml` module inside noir_wasm's own
+      // webpack bundle, emitting `const Infinity = Infinity`, which throws
+      // "Cannot access 'Infinity' before initialization" (minified: "Cannot
+      // access 'j' ...") the moment the compiler is imported.
+      onPhase("fetching modules");
+      const [noirWasm, { Noir }, bb] = await Promise.all([
+        (import(/* @vite-ignore */ NOIR_WASM_URL) as Promise<{
+          compile: (fm: unknown) => Promise<unknown>;
+          createFileManager: (root: string) => {
+            writeFile: (path: string, stream: ReadableStream) => Promise<void>;
+          };
+        }>).catch((e: unknown) => {
+          throw new Error(
+            `The Noir compiler could not be loaded from ${NOIR_WASM_URL}: ${
+              e instanceof Error ? e.message : String(e)
+            }`,
+          );
+        }),
+        import("@noir-lang/noir_js"),
+        import("@aztec/bb.js").catch((e: unknown) => {
+          throw new Error(
+            `The UltraHonk prover (bb.js) could not be loaded: ${
+              e instanceof Error ? e.message : String(e)
+            }`,
+          );
+        }),
+      ]);
+      const { compile, createFileManager } = noirWasm;
 
-    const fm = createFileManager("/");
-    await fm.writeFile("./src/main.nr", new Blob([AGE_CIRCUIT_SOURCE]).stream());
-    await fm.writeFile("./Nargo.toml", new Blob([AGE_CIRCUIT_NARGO_TOML]).stream());
-    const compiled = (await compile(fm)) as
-      | { program: { bytecode: string } }
-      | { bytecode: string };
-    const program = "program" in compiled ? compiled.program : compiled;
+      onPhase("compiling circuit");
+      const fm = createFileManager("/");
+      await fm.writeFile("./src/main.nr", new Blob([AGE_CIRCUIT_SOURCE]).stream());
+      await fm.writeFile("./Nargo.toml", new Blob([AGE_CIRCUIT_NARGO_TOML]).stream());
+      const compiled = (await compile(fm)) as
+        | { program: { bytecode: string } }
+        | { bytecode: string };
+      const program = "program" in compiled ? compiled.program : compiled;
 
-    // threads: 1 keeps this working without cross-origin isolation headers.
-    const api = await bb.Barretenberg.new({ threads: 1 });
-    const backend = new bb.UltraHonkBackend(program.bytecode, api);
+      // threads: 1 keeps this working without cross-origin isolation headers.
+      onPhase("starting the prover backend");
+      const api = await bb.Barretenberg.new({ threads: 1 });
+      const backend = new bb.UltraHonkBackend(program.bytecode, api);
 
-    const session = {
-      program,
-      noir: new Noir(program as never) as unknown as Session["noir"],
-      backend: backend as unknown as Session["backend"],
-    };
-    sessionRef.current = session;
-    return session;
-  }, []);
+      const session = {
+        program,
+        noir: new Noir(program as never) as unknown as Session["noir"],
+        backend: backend as unknown as Session["backend"],
+      };
+      sessionRef.current = session;
+      return session;
+    },
+    [],
+  );
+
 
   async function handleProve() {
     if (!dobValid || blocked || busy) return;

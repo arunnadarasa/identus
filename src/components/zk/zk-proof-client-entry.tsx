@@ -150,8 +150,10 @@ export default function ZkProofLive() {
     const fm = createFileManager("/");
     await fm.writeFile("./src/main.nr", new Blob([AGE_CIRCUIT_SOURCE]).stream());
     await fm.writeFile("./Nargo.toml", new Blob([AGE_CIRCUIT_NARGO_TOML]).stream());
-    const compiled = (await compile(fm)) as { program: { bytecode: string } };
-    const program = compiled.program;
+    const compiled = (await compile(fm)) as
+      | { program: { bytecode: string } }
+      | { bytecode: string };
+    const program = "program" in compiled ? compiled.program : compiled;
 
     // threads: 1 keeps this working without cross-origin isolation headers.
     const api = await bb.Barretenberg.new({ threads: 1 });

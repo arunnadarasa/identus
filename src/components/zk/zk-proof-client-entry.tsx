@@ -5,7 +5,9 @@ import { toast } from "sonner";
 import {
   BadgeCheck,
   CheckCircle2,
+  Download,
   Loader2,
+  RotateCcw,
   ShieldAlert,
   ShieldCheck,
   XCircle,
@@ -14,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { TruncatedMono, shortenId } from "@/components/MonoValue";
 import { listZkCredentials, recordZkPresentation } from "@/lib/zk.functions";
 import { extractBirthYear } from "@/lib/zk-claims";
@@ -36,6 +39,89 @@ const MANUAL_BINDING_SOURCE = "manual-entry:no-credential";
 type StepState = "pending" | "running" | "done" | "failed";
 type Step = { key: string; label: string; state: StepState; detail?: string | undefined };
 
+/**
+ * Wall-clock budgets. The prover and its wasm assets are several megabytes, so
+ * a slow or blocked network otherwise leaves the panel spinning forever.
+ */
+const TIMEOUTS = {
+  /** Download + instantiate noir_wasm, noir_js and Barretenberg, then compile. */
+  load: 90_000,
+  /** Witness generation is pure compute and quick, but bound it anyway. */
+  witness: 30_000,
+  /** UltraHonk proving on a slow phone. */
+  prove: 180_000,
+  verify: 60_000,
+} as const;
+
+class StageTimeoutError extends Error {
+  constructor(readonly stage: string, readonly ms: number) {
+    super(`${stage} timed out after ${Math.round(ms / 1000)}s`);
+    this.name = "StageTimeoutError";
+  }
+}
+
+/** Rejects with a StageTimeoutError when `work` outlives `ms`. */
+async function withTimeout<T>(stage: string, ms: number, work: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new StageTimeoutError(stage, ms)), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** Bytes actually pulled over the network for the prover assets. */
+type LoadProgress = { bytes: number; assets: number; phase: string };
+
+const ASSET_PATTERN = /\.wasm|noir|bb\.js|barretenberg|acvm/i;
+
+function formatBytes(bytes: number) {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} kB`;
+  return `${bytes} B`;
+}
+
+/**
+ * The Noir/Barretenberg loaders fetch their own wasm internally, so the only
+ * honest way to report download progress is to watch the resource timeline and
+ * sum the bytes the browser reports for those requests.
+ */
+function observeAssetDownloads(onBytes: (bytes: number, assets: number) => void) {
+  if (typeof PerformanceObserver === "undefined") return () => {};
+  const seen = new Map<string, number>();
+  const publish = () => {
+    let total = 0;
+    for (const size of seen.values()) total += size;
+    onBytes(total, seen.size);
+  };
+  const ingest = (entries: PerformanceEntryList) => {
+    let changed = false;
+    for (const entry of entries) {
+      const e = entry as PerformanceResourceTiming;
+      if (!ASSET_PATTERN.test(e.name)) continue;
+      const size = e.encodedBodySize || e.transferSize || e.decodedBodySize || 0;
+      if (!size) continue;
+      const prev = seen.get(e.name);
+      if (prev === size) continue;
+      seen.set(e.name, size);
+      changed = true;
+    }
+    if (changed) publish();
+  };
+  const observer = new PerformanceObserver((list) => ingest(list.getEntries()));
+  try {
+    observer.observe({ type: "resource", buffered: true });
+  } catch {
+    return () => {};
+  }
+  return () => observer.disconnect();
+}
+
 type ProofResult = {
   proofHex: string;
   proofBytes: Uint8Array;
@@ -48,6 +134,7 @@ type ProofResult = {
 };
 
 const STEPS: { key: string; label: string }[] = [
+  { key: "load", label: "Download the compiler and UltraHonk prover (wasm)" },
   { key: "compile", label: "Compile the Noir circuit" },
   { key: "bind", label: "Derive the credential binding (SHA-256 of the JWT)" },
   { key: "witness", label: "Execute circuit, compute witness" },
@@ -95,7 +182,33 @@ export default function ZkProofLive() {
   const [verified, setVerified] = useState<boolean | null>(null);
   const [tampered, setTampered] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [failedStage, setFailedStage] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [progress, setProgress] = useState<LoadProgress | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const sessionRef = useRef<Session | null>(null);
+  const stopObservingRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => stopObservingRef.current?.(), []);
+
+  // Ticking elapsed time so a long download never looks frozen.
+  const [elapsed, setElapsed] = useState(0);
+  const startedAtRef = useRef(0);
+  useEffect(() => {
+    if (!busy) return;
+    startedAtRef.current = performance.now();
+    setElapsed(0);
+    const id = setInterval(() => setElapsed(performance.now() - startedAtRef.current), 200);
+    return () => clearInterval(id);
+  }, [busy]);
+
+  const doneCount = steps.filter((s) => s.state === "done").length;
+  const runningStep = steps.find((s) => s.state === "running") ?? null;
+  // Completed steps, plus a partial slice for the one in flight.
+  const overallPercent = Math.min(
+    100,
+    Math.round(((doneCount + (runningStep ? 0.4 : 0)) / steps.length) * 100),
+  );
 
   const selected = useMemo(
     () => credentials.find((c) => c.id === selectedId) ?? null,
@@ -124,65 +237,137 @@ export default function ZkProofLive() {
     setSteps((prev) => prev.map((s) => (s.key === key ? { ...s, state, detail } : s)));
   }, []);
 
-  const getSession = useCallback(async () => {
-    if (sessionRef.current) return sessionRef.current;
+  const getSession = useCallback(
+    async (onPhase: (phase: string) => void) => {
+      if (sessionRef.current) return sessionRef.current;
 
-    // Imported inside the handler so the multi-megabyte wasm bundles are only
-    // fetched when a visitor actually asks for a proof.
-    // noir_wasm is fetched from a stable vendor URL with a runtime `import()`
-    // so the production bundler never rewrites it. Rolldown mis-renames the
-    // shadowed globals in the `@ltd/j-toml` module inside noir_wasm's own
-    // webpack bundle, emitting `const Infinity = Infinity`, which throws
-    // "Cannot access 'Infinity' before initialization" (minified: "Cannot
-    // access 'j' ...") the moment the compiler is imported.
-    const [noirWasm, { Noir }, bb] = await Promise.all([
-      import(/* @vite-ignore */ NOIR_WASM_URL) as Promise<{
-        compile: (fm: unknown) => Promise<unknown>;
-        createFileManager: (root: string) => {
-          writeFile: (path: string, stream: ReadableStream) => Promise<void>;
-        };
-      }>,
-      import("@noir-lang/noir_js"),
-      import("@aztec/bb.js"),
-    ]);
-    const { compile, createFileManager } = noirWasm;
+      // Imported inside the handler so the multi-megabyte wasm bundles are only
+      // fetched when a visitor actually asks for a proof.
+      // noir_wasm is fetched from a stable vendor URL with a runtime `import()`
+      // so the production bundler never rewrites it. Rolldown mis-renames the
+      // shadowed globals in the `@ltd/j-toml` module inside noir_wasm's own
+      // webpack bundle, emitting `const Infinity = Infinity`, which throws
+      // "Cannot access 'Infinity' before initialization" (minified: "Cannot
+      // access 'j' ...") the moment the compiler is imported.
+      onPhase("fetching modules");
+      const [noirWasm, { Noir }, bb] = await Promise.all([
+        (import(/* @vite-ignore */ NOIR_WASM_URL) as Promise<{
+          compile: (fm: unknown) => Promise<unknown>;
+          createFileManager: (root: string) => {
+            writeFile: (path: string, stream: ReadableStream) => Promise<void>;
+          };
+        }>).catch((e: unknown) => {
+          throw new Error(
+            `The Noir compiler could not be loaded from ${NOIR_WASM_URL}: ${
+              e instanceof Error ? e.message : String(e)
+            }`,
+          );
+        }),
+        import("@noir-lang/noir_js"),
+        import("@aztec/bb.js").catch((e: unknown) => {
+          throw new Error(
+            `The UltraHonk prover (bb.js) could not be loaded: ${
+              e instanceof Error ? e.message : String(e)
+            }`,
+          );
+        }),
+      ]);
+      const { compile, createFileManager } = noirWasm;
 
-    const fm = createFileManager("/");
-    await fm.writeFile("./src/main.nr", new Blob([AGE_CIRCUIT_SOURCE]).stream());
-    await fm.writeFile("./Nargo.toml", new Blob([AGE_CIRCUIT_NARGO_TOML]).stream());
-    const compiled = (await compile(fm)) as
-      | { program: { bytecode: string } }
-      | { bytecode: string };
-    const program = "program" in compiled ? compiled.program : compiled;
+      onPhase("compiling circuit");
+      const fm = createFileManager("/");
+      await fm.writeFile("./src/main.nr", new Blob([AGE_CIRCUIT_SOURCE]).stream());
+      await fm.writeFile("./Nargo.toml", new Blob([AGE_CIRCUIT_NARGO_TOML]).stream());
+      const compiled = (await compile(fm)) as
+        | { program: { bytecode: string } }
+        | { bytecode: string };
+      const program = "program" in compiled ? compiled.program : compiled;
 
-    // threads: 1 keeps this working without cross-origin isolation headers.
-    const api = await bb.Barretenberg.new({ threads: 1 });
-    const backend = new bb.UltraHonkBackend(program.bytecode, api);
+      // threads: 1 keeps this working without cross-origin isolation headers.
+      onPhase("starting the prover backend");
+      const api = await bb.Barretenberg.new({ threads: 1 });
+      const backend = new bb.UltraHonkBackend(program.bytecode, api);
 
-    const session = {
-      program,
-      noir: new Noir(program as never) as unknown as Session["noir"],
-      backend: backend as unknown as Session["backend"],
-    };
-    sessionRef.current = session;
-    return session;
-  }, []);
+      const session = {
+        program,
+        noir: new Noir(program as never) as unknown as Session["noir"],
+        backend: backend as unknown as Session["backend"],
+      };
+      sessionRef.current = session;
+      return session;
+    },
+    [],
+  );
+
 
   async function handleProve() {
     if (!dobValid || blocked || busy) return;
     setBusy(true);
     setError(null);
+    setFailedStage(null);
     setResult(null);
     setVerified(null);
     setTampered(false);
     setSaved(false);
+    setAttempt((n) => n + 1);
     setSteps(STEPS.map((s) => ({ ...s, state: "pending" })));
 
     const started = performance.now();
+    const alreadyLoaded = sessionRef.current !== null;
     try {
+      setStep("load", "running", alreadyLoaded ? "already in memory" : "starting download…");
       setStep("compile", "running");
-      const session = await getSession();
+      let session: Session;
+      if (alreadyLoaded) {
+        session = sessionRef.current as Session;
+        setStep("load", "done", "reused from this page session");
+        setStep("compile", "done", "acir bytecode already compiled");
+      } else {
+        setProgress({ bytes: 0, assets: 0, phase: "fetching modules" });
+        stopObservingRef.current?.();
+        stopObservingRef.current = observeAssetDownloads((bytes, assets) =>
+          setProgress((prev) => ({ ...(prev ?? { phase: "downloading" }), bytes, assets })),
+        );
+        let phaseNow = "fetching modules";
+        try {
+          session = await withTimeout(
+            "Loading the prover",
+            TIMEOUTS.load,
+            getSession((phase) => {
+              phaseNow = phase;
+              setProgress((prev) => ({ ...(prev ?? { bytes: 0, assets: 0 }), phase }));
+              setStep(
+                "load",
+                phase === "fetching modules" ? "running" : "done",
+                phase === "fetching modules" ? phase : "wasm modules ready",
+              );
+              if (phase !== "fetching modules") setStep("compile", "running", phase);
+            }),
+          );
+        } catch (e) {
+          // A half-initialised session is unusable — drop it so Retry starts clean.
+          sessionRef.current = null;
+          const isTimeout = e instanceof StageTimeoutError;
+          const detail = e instanceof Error ? e.message : String(e);
+          const failedOn = phaseNow === "fetching modules" ? "load" : "compile";
+          setStep(failedOn, "failed", detail);
+          setFailedStage(isTimeout ? "load-timeout" : "load");
+          throw new Error(
+            isTimeout
+              ? `The prover did not finish loading within ${Math.round(
+                  TIMEOUTS.load / 1000,
+                )}s. This usually means a slow or blocked network — check your connection and retry.`
+              : detail,
+          );
+        } finally {
+          stopObservingRef.current?.();
+          stopObservingRef.current = null;
+        }
+        setLoaded(true);
+        setStep("load", "done", "wasm modules ready");
+      }
       setStep("compile", "done", "acir bytecode ready");
+
 
       setStep("bind", "running");
       const binding = await credentialBinding(selected ? selected.jwt : MANUAL_BINDING_SOURCE);
@@ -198,27 +383,54 @@ export default function ZkProofLive() {
       let witness: Uint8Array;
       let returnValue: unknown;
       try {
-        const executed = await session.noir.execute({
-          dob_year: dobNumber,
-          credential_hash_lo: binding.lo,
-          credential_hash_hi: binding.hi,
-          threshold_year: thresholdYear,
-        });
+        const executed = await withTimeout(
+          "Witness generation",
+          TIMEOUTS.witness,
+          session.noir.execute({
+            dob_year: dobNumber,
+            credential_hash_lo: binding.lo,
+            credential_hash_hi: binding.hi,
+            threshold_year: thresholdYear,
+          }),
+        );
         witness = executed.witness;
         returnValue = executed.returnValue;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         setStep("witness", "failed", msg);
+        setFailedStage("witness");
         throw new Error(
-          `The circuit's assertion cannot be satisfied, so no proof exists: ${msg}`,
+          e instanceof StageTimeoutError
+            ? msg
+            : `The circuit's assertion cannot be satisfied, so no proof exists: ${msg}`,
         );
       }
       setStep("witness", "done", "constraints satisfied");
 
-      setStep("prove", "running");
-      const proof = await session.backend.generateProof(witness);
+      setStep("prove", "running", "this is the slow part — hold on");
+      let proof: { proof: Uint8Array; publicInputs: string[] };
+      try {
+        proof = await withTimeout(
+          "Proof generation",
+          TIMEOUTS.prove,
+          session.backend.generateProof(witness),
+        );
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setStep("prove", "failed", msg);
+        setFailedStage(e instanceof StageTimeoutError ? "prove-timeout" : "prove");
+        // The backend may be in a bad state after a failed prove — rebuild it.
+        sessionRef.current = null;
+        setLoaded(false);
+        throw new Error(
+          e instanceof StageTimeoutError
+            ? `${msg}. Proving on this device may be too slow — retry, ideally on a desktop browser.`
+            : msg,
+        );
+      }
       const ms = Math.round(performance.now() - started);
       setStep("prove", "done", `${proof.proof.length} bytes`);
+
 
       const commitment = String(returnValue ?? proof.publicInputs.at(-1) ?? "");
       const bindingMatches = selected?.lastCommitment
@@ -237,12 +449,24 @@ export default function ZkProofLive() {
       setResult(proofResult);
 
       setStep("verify", "running");
-      const ok = await session.backend.verifyProof(proof);
-      setVerified(ok);
-      setStep("verify", ok ? "done" : "failed", ok ? "proof accepted" : "proof rejected");
+      try {
+        const ok = await withTimeout(
+          "Verification",
+          TIMEOUTS.verify,
+          session.backend.verifyProof(proof),
+        );
+        setVerified(ok);
+        setStep("verify", ok ? "done" : "failed", ok ? "proof accepted" : "proof rejected");
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setStep("verify", "failed", msg);
+        setFailedStage("verify");
+        throw new Error(msg);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
+      setProgress(null);
       setBusy(false);
     }
   }
@@ -482,10 +706,54 @@ export default function ZkProofLive() {
           </Button>
         ) : null}
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">
-        The first proof downloads the prover and its reference string, so it can take 10–30 seconds.
-        Later proofs are much faster.
-      </p>
+      {busy || error ? (
+        <div className="mt-3 rounded-md border border-border/60 bg-background/60 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="inline-flex items-center gap-1.5 text-foreground/90">
+              {busy ? (
+                <Download className="h-3.5 w-3.5 text-primary" />
+              ) : (
+                <XCircle className="h-3.5 w-3.5 text-destructive" />
+              )}
+              {busy
+                ? (steps.find((s) => s.state === "running")?.label ?? "Working…")
+                : "Stopped"}
+            </span>
+            <span className="font-mono text-muted-foreground">
+              {doneCount}/{steps.length} steps · {(elapsed / 1000).toFixed(1)}s
+              {progress && progress.bytes > 0
+                ? ` · ${formatBytes(progress.bytes)} over ${progress.assets} file${
+                    progress.assets === 1 ? "" : "s"
+                  }`
+                : ""}
+            </span>
+          </div>
+          <Progress value={overallPercent} className="mt-2 h-1.5" />
+          {busy && progress ? (
+            <p className="mt-2 font-mono text-[11px] text-muted-foreground">
+              {progress.phase}
+              {progress.bytes > 0
+                ? ` — ${formatBytes(progress.bytes)} downloaded`
+                : " — waiting for the first bytes"}
+              {" · times out in "}
+              {Math.max(0, Math.round((TIMEOUTS.load - elapsed) / 1000))}s
+            </p>
+          ) : null}
+          {busy && elapsed > 20_000 && !loaded ? (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Still fetching the prover — the wasm bundles are a few megabytes and only
+              download once per page load.
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {loaded
+            ? "The prover is loaded in this tab, so further proofs skip the download."
+            : "The first proof downloads the compiler and prover (a few megabytes), so it can take 10–30 seconds. Later proofs are much faster."}
+        </p>
+      )}
+
 
       <ol className="mt-5 space-y-2">
         {steps.map((s) => (
@@ -520,9 +788,46 @@ export default function ZkProofLive() {
       </ol>
 
       {error ? (
-        <p className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-foreground">
-          {error}
-        </p>
+        <div className="mt-4 space-y-3 rounded-md border border-destructive/40 bg-destructive/10 p-3">
+          <p className="text-sm text-foreground">{error}</p>
+          {failedStage === "load-timeout" || failedStage === "load" ? (
+            <p className="text-xs text-muted-foreground">
+              The compiler is served from{" "}
+              <span className="font-mono">{NOIR_WASM_URL}</span> and the prover from the app
+              bundle. Ad-blockers, offline mode, and strict corporate proxies can block wasm —
+              try again, or open this page in another browser.
+            </p>
+          ) : null}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              size="sm"
+              onClick={handleProve}
+              disabled={busy || !dobValid || blocked}
+              className="w-full sm:w-auto"
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Retry{attempt > 1 ? ` (attempt ${attempt + 1})` : ""}
+            </Button>
+            {failedStage?.startsWith("load") || failedStage?.startsWith("prove") ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  // Drop any cached prover so the next run re-downloads it.
+                  sessionRef.current = null;
+                  setLoaded(false);
+                  setProgress(null);
+                  void handleProve();
+                }}
+                disabled={busy || !dobValid || blocked}
+                className="w-full sm:w-auto"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Reload the prover and retry
+              </Button>
+            ) : null}
+          </div>
+        </div>
       ) : null}
 
       {result ? (

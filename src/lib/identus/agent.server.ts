@@ -81,6 +81,74 @@ export async function agentFetch(
   return text ? JSON.parse(text) : null;
 }
 
+export interface DidCapabilities {
+  did: string;
+  resolved: boolean;
+  /** Key ids per verification relationship, e.g. { assertionMethod: ["assert-1"] }. */
+  assertionMethod: string[];
+  authentication: string[];
+  keyAgreement: string[];
+}
+
+/**
+ * Resolves a DID document and reports which verification relationships it
+ * actually carries. The agent's /did-registrar/dids list response only returns
+ * `{ did, status }` — no key purposes — so this is the only way to tell an
+ * issuing DID from an authentication-only one.
+ */
+export async function resolveDidCapabilities(
+  conn: { base_url: string | null; mode: string; fly_app_name: string | null; api_key?: string | null },
+  did: string,
+): Promise<DidCapabilities> {
+  const empty: DidCapabilities = {
+    did,
+    resolved: false,
+    assertionMethod: [],
+    authentication: [],
+    keyAgreement: [],
+  };
+  const base = agentBaseUrl(conn as AgentConnection);
+  if (!base) return empty;
+
+  try {
+    // This agent build answers 406 to `Accept: application/json`; `*/*` works.
+    const res = await fetch(`${base}/dids/${encodeURIComponent(did)}`, {
+      headers: { Accept: "*/*" },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return empty;
+    const payload = JSON.parse(await res.text());
+    const doc = payload?.didDocument ?? payload;
+    if (!doc || typeof doc !== "object") return empty;
+
+    const ids = (value: unknown) =>
+      (Array.isArray(value) ? value : [])
+        .map((entry: any) => String(typeof entry === "string" ? entry : (entry?.id ?? "")))
+        .filter(Boolean)
+        .map((id) => id.split("#").pop() as string);
+
+    return {
+      did,
+      resolved: true,
+      assertionMethod: ids(doc.assertionMethod),
+      authentication: ids(doc.authentication),
+      keyAgreement: ids(doc.keyAgreement),
+    };
+  } catch {
+    return empty;
+  }
+}
+
+/** Resolves many DIDs at once, de-duplicated, so one list pass is one round of calls. */
+export async function resolveDidCapabilitiesMap(
+  conn: { base_url: string | null; mode: string; fly_app_name: string | null; api_key?: string | null },
+  dids: string[],
+): Promise<Map<string, DidCapabilities>> {
+  const unique = [...new Set(dids.filter(Boolean))];
+  const results = await Promise.all(unique.map((did) => resolveDidCapabilities(conn, did)));
+  return new Map(results.map((caps) => [caps.did, caps]));
+}
+
 /**
  * Turns a failed fetch into text that says what actually went wrong. "down" on
  * its own is useless: a DNS failure, a TCP timeout and a TLS error each mean a

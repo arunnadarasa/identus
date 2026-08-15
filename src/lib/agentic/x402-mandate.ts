@@ -23,6 +23,8 @@ export const PRICE_TIERS = {
 export const IDENTUS_HEADERS = {
   credential: "X-Identus-Credential",
   delegation: "X-Identus-Delegation",
+  /** DID of the agent presenting the payment, so the gate can assert the mandate's subject. */
+  agent: "X-Identus-Agent-Did",
 } as const;
 
 export type GateOutcome =

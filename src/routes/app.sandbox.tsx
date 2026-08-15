@@ -69,7 +69,14 @@ function StepList({ steps }: { steps: ProvisionStep[] }) {
   if (steps.length === 0) return null;
   return (
     <ul className="max-h-64 overflow-auto rounded-md border border-border/60 bg-muted/30">
-      {steps.map((step, index) => (
+      {steps.map((step, index) => {
+        const startedAt = Date.parse(step.at);
+        const elapsed =
+          step.status === "running" && Number.isFinite(startedAt)
+            ? Math.max(0, now - startedAt)
+            : null;
+        const slow = elapsed !== null && elapsed > SLOW_STEP_MS;
+        return (
         <li
           key={`${step.step}-${index}`}
           className="flex items-start gap-2 border-b border-border/40 px-3 py-2 font-mono text-[11px] last:border-0"

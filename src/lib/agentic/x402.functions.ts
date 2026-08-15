@@ -21,6 +21,11 @@ export const issueX402Mandate = createServerFn({ method: "POST" })
         payerWallet: z.string().trim().max(80).optional(),
         allowedMerchants: z.array(z.string().trim().max(80)).max(5).default([]),
         includePaymentScope: z.boolean().default(true),
+        /**
+         * The human the mandate acts for. The demo passes the subject of the
+         * eligibility credential so `actsFor` matches whoever presented it.
+         */
+        principalDid: z.string().trim().min(1).max(200).optional(),
       })
       .parse(input),
   )

@@ -202,15 +202,23 @@ export type MandateVerdict = {
 };
 
 /**
- * Does the delegation mandate cover this exact payment? Subject, scope, spend
- * cap, expiry and merchant all have to line up before anything is forwarded.
+ * Does the delegation mandate cover this exact payment? Principal, agent,
+ * scope, spend cap, expiry and merchant all have to line up before anything is
+ * forwarded.
+ *
+ * Two distinct identities are in play and must not be conflated:
+ *   - `expectedPrincipal` — the human who presented the eligibility credential.
+ *     The mandate's `actsFor` has to match them.
+ *   - `expectedAgent` — the AI agent the mandate was issued to (its subject).
+ *     Optional; only checked when the caller knows which agent is paying.
  */
 export function checkMandateCoverage(opts: {
   jwt: string | null;
   amountAtomic: string;
   payTo: string;
   payerWallet?: string | null;
-  expectedSubject?: string | null;
+  expectedPrincipal?: string | null;
+  expectedAgent?: string | null;
 }): MandateVerdict {
   if (!opts.jwt)
     return {

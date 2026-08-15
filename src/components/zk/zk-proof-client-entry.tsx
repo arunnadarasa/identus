@@ -179,7 +179,14 @@ export default function ZkProofLive() {
   const [verified, setVerified] = useState<boolean | null>(null);
   const [tampered, setTampered] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [failedStage, setFailedStage] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [progress, setProgress] = useState<LoadProgress | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const sessionRef = useRef<Session | null>(null);
+  const stopObservingRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => stopObservingRef.current?.(), []);
 
   const selected = useMemo(
     () => credentials.find((c) => c.id === selectedId) ?? null,

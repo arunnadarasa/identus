@@ -46,7 +46,26 @@ export const Route = createFileRoute("/app/sandbox")({
   component: Sandbox,
 });
 
+/** Past this, a still-running step gets a "taking longer than expected" hint. */
+const SLOW_STEP_MS = 45_000;
+
+function useNow(active: boolean) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [active]);
+  return now;
+}
+
+function formatElapsed(ms: number) {
+  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
+}
+
 function StepList({ steps }: { steps: ProvisionStep[] }) {
+  const running = steps.some((s) => s.status === "running");
+  const now = useNow(running);
   if (steps.length === 0) return null;
   return (
     <ul className="max-h-64 overflow-auto rounded-md border border-border/60 bg-muted/30">

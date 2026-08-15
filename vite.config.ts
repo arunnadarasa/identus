@@ -12,4 +12,13 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    // The Noir + Barretenberg proving stack ships browser-only WASM whose
+    // bindgen glue esbuild's dep optimizer mangles (the dynamic import resolves
+    // but WASM instantiation hangs silently). Exclude them so Vite serves the
+    // packages untouched as native ESM with their .wasm assets intact.
+    optimizeDeps: {
+      exclude: ["@noir-lang/noir_wasm", "@noir-lang/noir_js", "@aztec/bb.js"],
+    },
+  },
 });

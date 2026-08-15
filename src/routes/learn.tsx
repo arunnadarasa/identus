@@ -780,6 +780,23 @@ function Learn() {
             <DelegationWalkthrough />
           </div>
 
+          <h3
+            id="agents-demo"
+            className="mt-10 scroll-mt-24 font-display text-lg font-semibold"
+          >
+            Try it: issue a mandate and verify the action
+          </h3>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            Grant an agent a scope, a spend cap and an expiry, then watch a
+            verifier accept the honest action — or reject the ones that break the
+            rules.
+          </p>
+          <div className="mt-4">
+            <DelegationDemo />
+          </div>
+
+
+
 
           <h3 className="mt-10 font-display text-lg font-semibold">
             Use cases: where delegation fits

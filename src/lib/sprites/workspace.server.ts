@@ -1,6 +1,5 @@
 /** Files and shell scripts that make up the SDK scratch workspace. Server-only. */
 import { SPRITE_DIR } from "./sprites.server";
-import { SDK_PACKAGES } from "./snippets";
 
 const STATUS_PAGE = `<!doctype html>
 <html lang="en">
@@ -91,9 +90,8 @@ export const VERIFY_SDK = `
 set -e
 cd ${SPRITE_DIR}
 cat > /tmp/sdk-probe.mjs <<'PROBE'
-import { createRequire } from "node:module";
-const require = createRequire(import.meta.url);
-const pkg = require("${SDK_PACKAGE}/package.json");
+import { readFileSync } from "node:fs";
+const pkg = JSON.parse(readFileSync("node_modules/${SDK_PACKAGE}/package.json", "utf8"));
 const mod = await import("${SDK_PACKAGE}");
 const SDK = mod.default ?? mod;
 const missing = ["Apollo", "Castor", "Domain"].filter((k) => !SDK?.[k]);

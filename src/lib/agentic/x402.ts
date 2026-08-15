@@ -11,6 +11,22 @@
 
 import x402Cfg from "@/data/x402.json";
 import { randomHex } from "./hash";
+import { IDENTUS_HEADERS, type GateInfo } from "./x402-mandate";
+
+/** Identus credential + delegation mandate presented to the gate. */
+export type IdentusPresentation = {
+  credentialJwt?: string | null;
+  delegationJwt?: string | null;
+};
+
+function identusHeaders(p: IdentusPresentation | undefined): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (p?.credentialJwt) headers[IDENTUS_HEADERS.credential] = p.credentialJwt;
+  if (p?.delegationJwt) headers[IDENTUS_HEADERS.delegation] = p.delegationJwt;
+  return headers;
+}
+
+export type { GateInfo };
 
 export type PaymentRequirement = {
   scheme: string;
@@ -28,6 +44,8 @@ export type Challenge = {
   x402Version: number;
   accepts: PaymentRequirement[];
   error?: string;
+  /** Verdict from our own Identus gate, added in front of the facilitator. */
+  identus?: GateInfo;
 };
 
 export type SettlementReceipt = {
@@ -38,12 +56,13 @@ export type SettlementReceipt = {
   errorReason?: string;
 };
 
-export async function fetchChallenge(): Promise<{
+export async function fetchChallenge(presentation?: IdentusPresentation): Promise<{
   status: number;
   challenge: Challenge | null;
   raw: string;
+  gate: GateInfo | null;
 }> {
-  const res = await fetch(x402Cfg.proxy, { method: "GET" });
+  const res = await fetch(x402Cfg.proxy, { method: "GET", headers: identusHeaders(presentation) });
   const raw = await res.text();
   let challenge: Challenge | null = null;
   try {
@@ -51,7 +70,7 @@ export async function fetchChallenge(): Promise<{
   } catch {
     challenge = null;
   }
-  return { status: res.status, challenge, raw };
+  return { status: res.status, challenge, raw, gate: challenge?.identus ?? null };
 }
 
 export function pickRequirement(challenge: Challenge | null): PaymentRequirement | null {
@@ -125,15 +144,19 @@ export function buildPaymentHeader(opts: {
   return { header: b64(JSON.stringify(envelope)), envelope };
 }
 
-export async function fetchPaid(paymentHeader: string): Promise<{
+export async function fetchPaid(
+  paymentHeader: string,
+  presentation?: IdentusPresentation,
+): Promise<{
   status: number;
   body: string;
   receipt: SettlementReceipt | null;
   receiptRaw: string | null;
+  gate: GateInfo | null;
 }> {
   const res = await fetch(x402Cfg.proxy, {
     method: "GET",
-    headers: { "PAYMENT-SIGNATURE": paymentHeader },
+    headers: { "PAYMENT-SIGNATURE": paymentHeader, ...identusHeaders(presentation) },
   });
   const body = await res.text();
   const receiptRaw = res.headers.get("PAYMENT-RESPONSE");
@@ -145,7 +168,13 @@ export async function fetchPaid(paymentHeader: string): Promise<{
       receipt = null;
     }
   }
-  return { status: res.status, body, receipt, receiptRaw };
+  let gate: GateInfo | null = null;
+  try {
+    gate = (JSON.parse(body) as { identus?: GateInfo }).identus ?? null;
+  } catch {
+    gate = null;
+  }
+  return { status: res.status, body, receipt, receiptRaw, gate };
 }
 
 export function formatUsdc(atomic: string): string {

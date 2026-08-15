@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -46,11 +46,37 @@ export const Route = createFileRoute("/app/sandbox")({
   component: Sandbox,
 });
 
+/** Past this, a still-running step gets a "taking longer than expected" hint. */
+const SLOW_STEP_MS = 45_000;
+
+function useNow(active: boolean) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [active]);
+  return now;
+}
+
+function formatElapsed(ms: number) {
+  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
+}
+
 function StepList({ steps }: { steps: ProvisionStep[] }) {
+  const running = steps.some((s) => s.status === "running");
+  const now = useNow(running);
   if (steps.length === 0) return null;
   return (
     <ul className="max-h-64 overflow-auto rounded-md border border-border/60 bg-muted/30">
-      {steps.map((step, index) => (
+      {steps.map((step, index) => {
+        const startedAt = Date.parse(step.at);
+        const elapsed =
+          step.status === "running" && Number.isFinite(startedAt)
+            ? Math.max(0, now - startedAt)
+            : null;
+        const slow = elapsed !== null && elapsed > SLOW_STEP_MS;
+        return (
         <li
           key={`${step.step}-${index}`}
           className="flex items-start gap-2 border-b border-border/40 px-3 py-2 font-mono text-[11px] last:border-0"
@@ -72,16 +98,24 @@ function StepList({ steps }: { steps: ProvisionStep[] }) {
                 {step.raw}
               </pre>
             ) : null}
+            {slow ? (
+              <div className="break-words text-warning">
+                Taking longer than expected. It stops itself on a timeout — then use Repair box.
+              </div>
+            ) : null}
           </div>
-          <span className="ml-auto shrink-0 text-muted-foreground/70">
-            {step.durationMs === undefined
-              ? ""
-              : step.durationMs < 1000
-                ? `${step.durationMs}ms`
-                : `${(step.durationMs / 1000).toFixed(1)}s`}
+          <span
+            className={`ml-auto shrink-0 ${slow ? "text-warning" : "text-muted-foreground/70"}`}
+          >
+            {elapsed !== null
+              ? formatElapsed(elapsed)
+              : step.durationMs === undefined
+                ? ""
+                : formatElapsed(step.durationMs)}
           </span>
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }
@@ -92,13 +126,16 @@ function Sandbox() {
   const provision = useServerFn(ensureSandbox);
   const destroy = useServerFn(destroySandbox);
 
+  const [busy, setBusy] = useState<"create" | "reinstall" | "destroy" | null>(null);
+  const [liveSteps, setLiveSteps] = useState<ProvisionStep[]>([]);
+
   const { data, isLoading } = useQuery({
     queryKey: ["sandbox"],
     queryFn: () => fetchSandbox(),
+    // While a provision request is in flight the server persists each step as it
+    // goes, so poll to show progress instead of waiting for the final response.
+    refetchInterval: busy === "create" || busy === "reinstall" ? 2000 : false,
   });
-
-  const [busy, setBusy] = useState<"create" | "reinstall" | "destroy" | null>(null);
-  const [liveSteps, setLiveSteps] = useState<ProvisionStep[]>([]);
   const [draft, setDraft] = useState<SnippetDraft | null>(null);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["sandbox"] });

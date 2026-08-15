@@ -684,10 +684,54 @@ export default function ZkProofLive() {
           </Button>
         ) : null}
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">
-        The first proof downloads the prover and its reference string, so it can take 10–30 seconds.
-        Later proofs are much faster.
-      </p>
+      {busy || error ? (
+        <div className="mt-3 rounded-md border border-border/60 bg-background/60 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="inline-flex items-center gap-1.5 text-foreground/90">
+              {busy ? (
+                <Download className="h-3.5 w-3.5 text-primary" />
+              ) : (
+                <XCircle className="h-3.5 w-3.5 text-destructive" />
+              )}
+              {busy
+                ? (steps.find((s) => s.state === "running")?.label ?? "Working…")
+                : "Stopped"}
+            </span>
+            <span className="font-mono text-muted-foreground">
+              {doneCount}/{steps.length} steps · {(elapsed / 1000).toFixed(1)}s
+              {progress && progress.bytes > 0
+                ? ` · ${formatBytes(progress.bytes)} over ${progress.assets} file${
+                    progress.assets === 1 ? "" : "s"
+                  }`
+                : ""}
+            </span>
+          </div>
+          <Progress value={overallPercent} className="mt-2 h-1.5" />
+          {busy && progress ? (
+            <p className="mt-2 font-mono text-[11px] text-muted-foreground">
+              {progress.phase}
+              {progress.bytes > 0
+                ? ` — ${formatBytes(progress.bytes)} downloaded`
+                : " — waiting for the first bytes"}
+              {" · times out in "}
+              {Math.max(0, Math.round((TIMEOUTS.load - elapsed) / 1000))}s
+            </p>
+          ) : null}
+          {busy && elapsed > 20_000 && !loaded ? (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Still fetching the prover — the wasm bundles are a few megabytes and only
+              download once per page load.
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {loaded
+            ? "The prover is loaded in this tab, so further proofs skip the download."
+            : "The first proof downloads the compiler and prover (a few megabytes), so it can take 10–30 seconds. Later proofs are much faster."}
+        </p>
+      )}
+
 
       <ol className="mt-5 space-y-2">
         {steps.map((s) => (

@@ -19,6 +19,8 @@ const nav = [
   { to: "/app/dids", label: "DIDs" },
   { to: "/app/credentials", label: "Credentials" },
   { to: "/app/demos", label: "Agentic demos" },
+  { to: "/app/zk", label: "Zero-knowledge" },
+
   { to: "/app/sandbox", label: "Sandbox" },
   { to: "/app/activity", label: "Activity" },
   { to: "/docs", label: "Docs" },

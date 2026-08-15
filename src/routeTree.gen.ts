@@ -21,6 +21,7 @@ import { Route as AppAgentsRouteImport } from './routes/app.agents'
 import { Route as AppCredentialsRouteImport } from './routes/app.credentials'
 import { Route as AppDidsRouteImport } from './routes/app.dids'
 import { Route as AppSandboxRouteImport } from './routes/app.sandbox'
+import { Route as AppZkRouteImport } from './routes/app.zk'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiPublicA2aSellerRouteImport } from './routes/api/public/a2a-seller'
 import { Route as ApiPublicUcpMerchantRouteImport } from './routes/api/public/ucp-merchant'
@@ -91,6 +92,11 @@ const AppSandboxRoute = AppSandboxRouteImport.update({
   path: '/sandbox',
   getParentRoute: () => AppRoute,
 } as any)
+const AppZkRoute = AppZkRouteImport.update({
+  id: '/zk',
+  path: '/zk',
+  getParentRoute: () => AppRoute,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/app/credentials': typeof AppCredentialsRoute
   '/app/dids': typeof AppDidsRoute
   '/app/sandbox': typeof AppSandboxRoute
+  '/app/zk': typeof AppZkRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/app/': typeof AppIndexRoute
   '/api/public/a2a-seller': typeof ApiPublicA2aSellerRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/app/credentials': typeof AppCredentialsRoute
   '/app/dids': typeof AppDidsRoute
   '/app/sandbox': typeof AppSandboxRoute
+  '/app/zk': typeof AppZkRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/app': typeof AppIndexRoute
   '/api/public/a2a-seller': typeof ApiPublicA2aSellerRoute
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   '/app/credentials': typeof AppCredentialsRoute
   '/app/dids': typeof AppDidsRoute
   '/app/sandbox': typeof AppSandboxRoute
+  '/app/zk': typeof AppZkRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/app/': typeof AppIndexRoute
   '/api/public/a2a-seller': typeof ApiPublicA2aSellerRoute
@@ -220,6 +229,7 @@ export interface FileRouteTypes {
     | '/app/credentials'
     | '/app/dids'
     | '/app/sandbox'
+    | '/app/zk'
     | '/auth/callback'
     | '/app/'
     | '/api/public/a2a-seller'
@@ -242,6 +252,7 @@ export interface FileRouteTypes {
     | '/app/credentials'
     | '/app/dids'
     | '/app/sandbox'
+    | '/app/zk'
     | '/auth/callback'
     | '/app'
     | '/api/public/a2a-seller'
@@ -265,6 +276,7 @@ export interface FileRouteTypes {
     | '/app/credentials'
     | '/app/dids'
     | '/app/sandbox'
+    | '/app/zk'
     | '/auth/callback'
     | '/app/'
     | '/api/public/a2a-seller'
@@ -375,6 +387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSandboxRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/zk': {
+      id: '/app/zk'
+      path: '/zk'
+      fullPath: '/app/zk'
+      preLoaderRoute: typeof AppZkRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/callback'
@@ -447,6 +466,7 @@ interface AppRouteChildren {
   AppCredentialsRoute: typeof AppCredentialsRoute
   AppDidsRoute: typeof AppDidsRoute
   AppSandboxRoute: typeof AppSandboxRoute
+  AppZkRoute: typeof AppZkRoute
   AppIndexRoute: typeof AppIndexRoute
   AppDemosA2aRoute: typeof AppDemosA2aRoute
   AppDemosAp2Route: typeof AppDemosAp2Route
@@ -461,6 +481,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCredentialsRoute: AppCredentialsRoute,
   AppDidsRoute: AppDidsRoute,
   AppSandboxRoute: AppSandboxRoute,
+  AppZkRoute: AppZkRoute,
   AppIndexRoute: AppIndexRoute,
   AppDemosA2aRoute: AppDemosA2aRoute,
   AppDemosAp2Route: AppDemosAp2Route,

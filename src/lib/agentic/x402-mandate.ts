@@ -33,6 +33,7 @@ export type GateOutcome =
   | "mandate_invalid"
   | "mandate_expired"
   | "scope_not_granted"
+  | "wrong_principal"
   | "wrong_subject"
   | "merchant_not_allowed"
   | "over_spend_limit"

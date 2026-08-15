@@ -89,7 +89,7 @@ export const INSTALL_SDK_CLEAN = installScript(true);
 export const VERIFY_SDK = `
 set -e
 cd ${SPRITE_DIR}
-cat > /tmp/sdk-probe.mjs <<'PROBE'
+cat > sdk-probe.mjs <<'PROBE'
 import { readFileSync } from "node:fs";
 const pkg = JSON.parse(readFileSync("node_modules/${SDK_PACKAGE}/package.json", "utf8"));
 const mod = await import("${SDK_PACKAGE}");
@@ -98,7 +98,7 @@ const missing = ["Apollo", "Castor", "Domain"].filter((k) => !SDK?.[k]);
 if (missing.length) throw new Error("SDK is missing exports: " + missing.join(", "));
 console.log("SDK_VERSION=" + pkg.version);
 PROBE
-node /tmp/sdk-probe.mjs 2>&1
+node sdk-probe.mjs 2>&1
 `;
 
 /** Runs the snippet the caller just wrote, merging stderr into stdout. */

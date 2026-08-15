@@ -206,7 +206,7 @@ export const ensureSandbox = createServerFn({ method: "POST" })
         steps[steps.length - 1]!.raw = verify.raw.slice(-4000);
       }
 
-      await run("Register keepalive service", () =>
+      const service = await run("Register keepalive service", () =>
         sprites.putService(name, sprites.SPRITE_SERVICE, {
           cmd: "python3",
           args: ["-m", "http.server", "8080"],
@@ -214,8 +214,13 @@ export const ensureSandbox = createServerFn({ method: "POST" })
           http_port: 8080,
         }),
       );
+      steps[steps.length - 1]!.detail = service.changed
+        ? "definition written"
+        : "already registered — reused the running definition";
 
-      await run("Start service", () => sprites.startService(name, sprites.SPRITE_SERVICE));
+      if (service.changed) {
+        await run("Start service", () => sprites.startService(name, sprites.SPRITE_SERVICE));
+      }
 
       if (!url) {
         const info = await run("Read public URL", () => sprites.getSprite(name));

@@ -361,27 +361,54 @@ export default function ZkProofLive() {
       let witness: Uint8Array;
       let returnValue: unknown;
       try {
-        const executed = await session.noir.execute({
-          dob_year: dobNumber,
-          credential_hash_lo: binding.lo,
-          credential_hash_hi: binding.hi,
-          threshold_year: thresholdYear,
-        });
+        const executed = await withTimeout(
+          "Witness generation",
+          TIMEOUTS.witness,
+          session.noir.execute({
+            dob_year: dobNumber,
+            credential_hash_lo: binding.lo,
+            credential_hash_hi: binding.hi,
+            threshold_year: thresholdYear,
+          }),
+        );
         witness = executed.witness;
         returnValue = executed.returnValue;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         setStep("witness", "failed", msg);
+        setFailedStage("witness");
         throw new Error(
-          `The circuit's assertion cannot be satisfied, so no proof exists: ${msg}`,
+          e instanceof StageTimeoutError
+            ? msg
+            : `The circuit's assertion cannot be satisfied, so no proof exists: ${msg}`,
         );
       }
       setStep("witness", "done", "constraints satisfied");
 
-      setStep("prove", "running");
-      const proof = await session.backend.generateProof(witness);
+      setStep("prove", "running", "this is the slow part — hold on");
+      let proof: { proof: Uint8Array; publicInputs: string[] };
+      try {
+        proof = await withTimeout(
+          "Proof generation",
+          TIMEOUTS.prove,
+          session.backend.generateProof(witness),
+        );
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setStep("prove", "failed", msg);
+        setFailedStage(e instanceof StageTimeoutError ? "prove-timeout" : "prove");
+        // The backend may be in a bad state after a failed prove — rebuild it.
+        sessionRef.current = null;
+        setLoaded(false);
+        throw new Error(
+          e instanceof StageTimeoutError
+            ? `${msg}. Proving on this device may be too slow — retry, ideally on a desktop browser.`
+            : msg,
+        );
+      }
       const ms = Math.round(performance.now() - started);
       setStep("prove", "done", `${proof.proof.length} bytes`);
+
 
       const commitment = String(returnValue ?? proof.publicInputs.at(-1) ?? "");
       const bindingMatches = selected?.lastCommitment

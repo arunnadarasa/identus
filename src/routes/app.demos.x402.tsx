@@ -191,7 +191,7 @@ function X402Demo({ hasPrivy }: { hasPrivy: boolean }) {
         detail:
           verified.gate?.reason ??
           "Credential accepted — the gate re-quoted at the member tier.",
-        simulated: identity?.simulated,
+        simulated: identity?.simulated ?? true,
         envelope: {
           identus: verified.gate,
           tierQuote: `${verified.gate?.quote ?? PRICE_TIERS.member} ${PRICE_TIERS.currency}`,

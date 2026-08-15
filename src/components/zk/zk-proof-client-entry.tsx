@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { TruncatedMono, shortenId } from "@/components/MonoValue";
 import { listZkCredentials, recordZkPresentation } from "@/lib/zk.functions";
+import { Link } from "@tanstack/react-router";
 import { extractBirthYear } from "@/lib/zk-claims";
 import {
   AGE_CIRCUIT_NARGO_TOML,
@@ -209,6 +210,29 @@ export default function ZkProofLive() {
     100,
     Math.round(((doneCount + (runningStep ? 0.4 : 0)) / steps.length) * 100),
   );
+
+  // Split the list so a visitor never has to guess which credentials the age
+  // circuit can actually consume.
+  const grouped = useMemo(() => {
+    const provable: Array<{ cred: (typeof credentials)[number]; year: number }> = [];
+    const unprovable: typeof credentials = [];
+    for (const cred of credentials) {
+      const { year } = extractBirthYear(cred.claims);
+      if (year) provable.push({ cred, year });
+      else unprovable.push(cred);
+    }
+    return { provable, unprovable };
+  }, [credentials]);
+
+  // Land on something that works instead of a blocked credential.
+  const autoPickedRef = useRef(false);
+  useEffect(() => {
+    if (autoPickedRef.current) return;
+    const first = grouped.provable[0];
+    if (!first) return;
+    autoPickedRef.current = true;
+    setSelectedId(first.cred.id);
+  }, [grouped.provable]);
 
   const selected = useMemo(
     () => credentials.find((c) => c.id === selectedId) ?? null,
@@ -567,12 +591,34 @@ export default function ZkProofLive() {
           className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
         >
           <option value="manual">Manual entry — no credential</option>
-          {credentials.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.schemaName ?? "Credential"} · {c.subject ?? shortenId(c.id)}
-            </option>
-          ))}
+          {grouped.provable.length > 0 ? (
+            <optgroup label="Can prove age">
+              {grouped.provable.map(({ cred, year }) => (
+                <option key={cred.id} value={cred.id}>
+                  {cred.schemaName ?? "Credential"} · {cred.subject ?? shortenId(cred.id)} ·{" "}
+                  {year}
+                </option>
+              ))}
+            </optgroup>
+          ) : null}
+          {grouped.unprovable.length > 0 ? (
+            <optgroup label="No birth date — cannot prove age">
+              {grouped.unprovable.map((cred) => (
+                <option key={cred.id} value={cred.id}>
+                  {cred.schemaName ?? "Credential"} · {cred.subject ?? shortenId(cred.id)}
+                </option>
+              ))}
+            </optgroup>
+          ) : null}
         </select>
+        <p className="text-xs text-muted-foreground">
+          The circuit reads the birth year from a{" "}
+          <span className="font-mono text-foreground/80">dob</span>,{" "}
+          <span className="font-mono text-foreground/80">dateOfBirth</span>,{" "}
+          <span className="font-mono text-foreground/80">birthDate</span> or{" "}
+          <span className="font-mono text-foreground/80">birthYear</span> claim (snake_case
+          spellings work too).
+        </p>
         {credentialsQuery.isLoading ? (
           <p className="text-xs text-muted-foreground">Loading your credentials…</p>
         ) : credentials.length === 0 ? (
@@ -596,11 +642,36 @@ export default function ZkProofLive() {
               ) : null}
             </p>
             {blocked ? (
-              <p className="text-destructive">
-                This credential carries no date-of-birth claim, so there is nothing to prove
-                about an age threshold. Issue one with a <span className="font-mono">dob</span>{" "}
-                claim on the Credentials page.
-              </p>
+              <div className="mt-1 space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5">
+                <p className="text-foreground/90">
+                  This credential attests{" "}
+                  {Object.keys(selected.claims ?? {}).length > 0
+                    ? Object.keys(selected.claims).slice(0, 4).join(", ")
+                    : "no claims"}{" "}
+                  — none of them a date of birth, so there is no age to prove. Pick a
+                  credential from the "Can prove age" group, run an unbound demo proof, or
+                  issue one with a <span className="font-mono">dob</span> claim.
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => {
+                      setSelectedId("manual");
+                      setResult(null);
+                      setVerified(null);
+                      setSaved(false);
+                      setSteps(STEPS.map((s) => ({ ...s, state: "pending" })));
+                    }}
+                  >
+                    Use manual entry instead
+                  </Button>
+                  <Button size="sm" variant="outline" asChild className="w-full sm:w-auto">
+                    <Link to="/app/credentials">Issue one with a birth date</Link>
+                  </Button>
+                </div>
+              </div>
             ) : null}
           </div>
         ) : null}

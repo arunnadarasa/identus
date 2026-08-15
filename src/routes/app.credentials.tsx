@@ -62,7 +62,9 @@ function Credentials() {
   const [target, setTarget] = useState("");
   const [subject, setSubject] = useState("");
   const [schemaName, setSchemaName] = useState("");
-  const [claimsText, setClaimsText] = useState('{\n  "degree": "BSc Computer Science",\n  "year": "2026"\n}');
+  const [claimsText, setClaimsText] = useState(
+    '{\n  "degree": "BSc Computer Science",\n  "year": "2026",\n  "dob": "1998-04-12"\n}',
+  );
   const [schemaTitle, setSchemaTitle] = useState("");
   const [schemaVersion, setSchemaVersion] = useState("1.0.0");
   const [schemaAttrs, setSchemaAttrs] = useState("degree, year");
@@ -230,6 +232,48 @@ function Credentials() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="claims">Claims (JSON)</Label>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8"
+                  onClick={() =>
+                    setClaimsText(
+                      '{\n  "name": "Alice Holder",\n  "dob": "1998-04-12",\n  "idNumber": "AB-1029"\n}',
+                    )
+                  }
+                >
+                  Age-provable ID template
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8"
+                  onClick={() => {
+                    // Merge a dob into whatever valid JSON is already typed.
+                    try {
+                      const parsed = JSON.parse(claimsText);
+                      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                        setClaimsText(
+                          JSON.stringify({ ...parsed, dob: "1998-04-12" }, null, 2),
+                        );
+                        return;
+                      }
+                    } catch {
+                      // fall through to a clean template
+                    }
+                    setClaimsText('{\n  "dob": "1998-04-12"\n}');
+                  }}
+                >
+                  Add dob claim
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                A <span className="font-mono">dob</span> claim makes the credential usable by
+                the zero-knowledge age proof.
+              </p>
               <Textarea
                 id="claims"
                 rows={5}

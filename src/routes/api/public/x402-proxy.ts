@@ -141,7 +141,10 @@ async function gate(request: Request): Promise<Response> {
       amountAtomic,
       payTo,
       payerWallet,
-      expectedSubject: credential.subject,
+      // The mandate must act for the human who presented the eligibility
+      // credential; the agent DID is a separate, optional assertion.
+      expectedPrincipal: credential.subject,
+      expectedAgent: agentDid,
     });
 
     if (!verdict.ok) {

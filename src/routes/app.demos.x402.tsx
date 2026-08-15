@@ -31,6 +31,7 @@ import {
   PAYMENT_SCOPE,
   PRICE_TIERS,
   REQUIRED_CREDENTIAL_TYPE,
+  inspectCredential,
 } from "@/lib/agentic/x402-mandate";
 import { PrivyRoot } from "@/components/PrivyRoot";
 import { useWalletSigner } from "@/lib/use-wallet-signer";

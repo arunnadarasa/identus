@@ -223,7 +223,7 @@ function UcpDemo() {
                   ) : (
                     <X className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                   )}
-                  <span className="min-w-0">
+                  <span className="min-w-0 break-words [overflow-wrap:anywhere]">
                     <span className="font-medium">{s.label}</span>{" "}
                     <span className="text-muted-foreground">— {s.detail}</span>
                   </span>
@@ -258,7 +258,7 @@ function UcpDemo() {
             </Badge>
             <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
               {tamperResult.steps.map((s) => (
-                <li key={s.label}>
+                <li key={s.label} className="break-words [overflow-wrap:anywhere]">
                   {s.ok ? "✓" : "✕"} {s.label} — {s.detail}
                 </li>
               ))}

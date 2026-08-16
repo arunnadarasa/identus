@@ -14,7 +14,9 @@ import {
   flyAllocateIps,
   flyMachineDiagnostics,
   flyRepairAgentMachine,
+  flyRepairDidcomm,
 } from "@/lib/identus/fly.functions";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -39,7 +41,9 @@ export function FlyMachineDiagnostics({
   const load = useServerFn(flyMachineDiagnostics);
   const allocate = useServerFn(flyAllocateIps);
   const repairAgent = useServerFn(flyRepairAgentMachine);
+  const repairEndpoints = useServerFn(flyRepairDidcomm);
   const query = useQuery({
+
     queryKey: ["fly-diagnostics", connectionId],
     queryFn: () => load({ data: { id: connectionId } }),
     refetchInterval: autoRefresh ? 20_000 : false,
@@ -70,8 +74,24 @@ export function FlyMachineDiagnostics({
       toast.error(error instanceof Error ? error.message : "Could not repair the machine."),
   });
 
+  const repairDidcomm = useMutation({
+    mutationFn: () => repairEndpoints({ data: { id: connectionId } }),
+    onSuccess: (result) => {
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.message);
+      query.refetch();
+      qc.invalidateQueries({ queryKey: ["connections"] });
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error ? error.message : "Could not repair the DIDComm endpoint.",
+      ),
+  });
+
   const machines = query.data?.machines ?? [];
   const ips: { address: string; type: string }[] = query.data?.ips ?? [];
+  const didcomm = query.data?.didcomm;
+
   const agent = machines.find((m) => m.name.includes("cloud-agent"));
   const agentNeedsRepair = Boolean(
     agent && (agent.state !== "started" || agent.events.some((e) => e.oomKilled)),
@@ -138,6 +158,29 @@ export function FlyMachineDiagnostics({
               Public IPs: {ips.map((ip) => `${ip.type} ${ip.address}`).join(", ")}
             </p>
           ) : null}
+
+          {didcomm?.message ? (
+            <div className="space-y-2 rounded-md border border-destructive/40 bg-destructive/10 p-2">
+              <p className="text-destructive">{didcomm.message}</p>
+              <p className="text-muted-foreground">
+                Advertised: <span className="font-mono break-all">{didcomm.configuredUrl || "—"}</span>
+                <br />
+                Reachable: <span className="font-mono break-all">{didcomm.expectedUrl}</span>
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                disabled={repairDidcomm.isPending}
+                onClick={() => repairDidcomm.mutate()}
+              >
+                <Wrench className="mr-2 h-3 w-3" />
+                {repairDidcomm.isPending ? "Repairing…" : "Repair DIDComm endpoint"}
+              </Button>
+            </div>
+          ) : null}
+
+
 
           {agentNeedsRepair && agent ? (
             <div className="space-y-2 rounded-md border border-destructive/40 bg-destructive/10 p-2">

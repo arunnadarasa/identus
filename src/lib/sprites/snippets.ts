@@ -137,8 +137,9 @@ console.log("publication:", JSON.stringify(published, null, 2));
   },
   {
     name: "Create a connection invitation",
-    description: "Starts a DIDComm connection and prints the out-of-band invitation URL.",
-    version: "2",
+    description:
+      "Starts a DIDComm connection, prints the invitation URL and the endpoint peers will dial.",
+    version: "3",
     code: `${REST_PRELUDE}
 
 const conn = await fetch(base + "/connections", {
@@ -150,58 +151,101 @@ const conn = await fetch(base + "/connections", {
 console.log("connectionId:", conn.connectionId);
 console.log("state:", conn.state);
 console.log("invitation:", conn.invitation?.invitationUrl);
+
+// The "https://my.domain.com/path?_oob=..." host is a hardcoded placeholder in
+// the agent — only the endpoint inside the invitation's peer DID matters for
+// delivery, so decode it and check it is publicly reachable.
+const oob = String(conn.invitation?.invitationUrl ?? "").split("_oob=")[1];
+if (oob) {
+  const decoded = JSON.parse(Buffer.from(decodeURIComponent(oob), "base64url").toString("utf8"));
+  const from = String(decoded.from ?? "");
+  const service = from.split(".S")[1];
+  let endpoint = "";
+  if (service) {
+    try {
+      endpoint = JSON.parse(Buffer.from(service, "base64url").toString("utf8"))?.s?.uri ?? "";
+    } catch {}
+  }
+  console.log("didcommEndpoint:", endpoint || "(could not decode)");
+  if (/localhost|127\\.0\\.0\\.1|host\\.docker\\.internal/.test(endpoint)) {
+    console.log(
+      "That endpoint is only reachable from the agent's own host, so a remote wallet cannot answer this invitation. On a Fly agent use 'Repair DIDComm endpoint' in Machine diagnostics; on Docker local expose port 8090 through a tunnel.",
+    );
+  }
+}
 `,
   },
   {
     name: "Issue a credential offer",
-    description: "Finds an established connection and a published issuer DID, then offers a JWT credential.",
-    version: "3",
+    description:
+      "Offers a JWT credential over an established connection, or connectionlessly when there is none.",
+    version: "4",
     code: `${REST_PRELUDE}
 
-// 1. Find an established connection (no placeholders — read it from the agent).
+// 1. Prefer an established connection, but do not stop when there is none —
+//    the agent can also issue a connectionless offer carrying its own invitation.
 const conns = await fetch(base + "/connections", { headers }).then((r) => r.json());
 const connection = (conns.contents ?? []).find((c) =>
   ["ConnectionResponseSent", "ConnectionResponseReceived"].includes(c.state),
 );
-if (!connection) {
-  console.log(
-    "No established connection yet. Run the 'Create a connection invitation' snippet and accept it from the other side (or use the console's Connections page), then run this again.",
-  );
-  process.exit(0);
-}
-const connectionId = connection.connectionId;
+const connectionId = connection?.connectionId ?? null;
 
-// 2. Find a published issuer DID that can sign credentials.
+// 2. Find a published issuer DID that can actually sign credentials: the DID
+//    document must expose an assertionMethod key.
 const dids = await fetch(base + "/did-registrar/dids", { headers }).then((r) => r.json());
-const issuer = (dids.contents ?? []).find(
+const published = (dids.contents ?? []).filter(
   (d) => d.status === "PUBLISHED" && d.did?.startsWith("did:prism:"),
 );
-if (!issuer) {
+let issuingDID = null;
+for (const candidate of published) {
+  const resolved = await fetch(base + "/dids/" + candidate.did, { headers })
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
+  const methods = resolved?.didDocument?.assertionMethod ?? resolved?.assertionMethod ?? [];
+  if (Array.isArray(methods) && methods.length > 0) {
+    issuingDID = candidate.did;
+    break;
+  }
+}
+if (!issuingDID) {
   console.log(
-    "No published issuer DID yet. Publish one with the 'Publish a PRISM DID' snippet or from the console's DIDs page, then run this again.",
+    "No published issuer DID with an assertionMethod key. Publish one with the 'Publish a PRISM DID' snippet or from the console's DIDs page, then run this again.",
   );
   process.exit(0);
 }
-const issuingDID = issuer.did;
 
-console.log("connectionId:", connectionId);
+const connectionless = !connectionId;
+console.log("mode:", connectionless ? "connectionless" : "connection");
+if (connectionId) console.log("connectionId:", connectionId);
 console.log("issuingDID:", issuingDID);
+
+const body = {
+  issuingDID,
+  credentialFormat: "JWT",
+  automaticIssuance: true,
+  claims: { name: "Alice", degree: "MSc Cryptography", dob: "2003-05-12" },
+  ...(connectionId
+    ? { connectionId }
+    : { goalCode: "issue-vc", goal: "Offer a sandbox credential without a connection" }),
+};
 
 const offer = await fetch(base + "/issue-credentials/credential-offers", {
   method: "POST",
   headers,
-  body: JSON.stringify({
-    connectionId,
-    issuingDID,
-    credentialFormat: "JWT",
-    automaticIssuance: true,
-    claims: { name: "Alice", degree: "MSc Cryptography", dob: "2003-05-12" },
-  }),
+  body: JSON.stringify(body),
 }).then((r) => r.json());
 
 console.log(JSON.stringify(offer, null, 2));
+if (connectionless) {
+  console.log(
+    "invitation:",
+    offer.invitation?.invitationUrl ?? "(none returned — check the offer above)",
+  );
+  console.log("Open that invitation in a wallet to accept the offer.");
+}
 `,
   },
+
   {
     name: "List presentation records",
     description: "Reads present-proof records from the agent to inspect verification state.",

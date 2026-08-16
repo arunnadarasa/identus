@@ -576,7 +576,14 @@ export const flyMachineDiagnostics = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { getAppDiagnostics, listIpAddresses } = await import("./fly.server");
+    const {
+      getAppDiagnostics,
+      listIpAddresses,
+      findAgentMachine,
+      getMachine,
+      hasDidcommService,
+      didcommServiceUrl,
+    } = await import("./fly.server");
     const { data: conn, error } = await context.supabase
       .from("agent_connections")
       .select("id, fly_app_name")
@@ -585,6 +592,12 @@ export const flyMachineDiagnostics = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
     if (!conn.fly_app_name) throw new Error("This connection is not a Fly.io deployment.");
+    const emptyDidcomm = {
+      published: true,
+      configuredUrl: "",
+      expectedUrl: "",
+      message: "",
+    };
     try {
       const machines = await getAppDiagnostics(conn.fly_app_name);
       // No public IP means <app>.fly.dev has no DNS record at all, so every probe
@@ -596,12 +609,43 @@ export const flyMachineDiagnostics = createServerFn({ method: "POST" })
       } catch (ipError) {
         ipsMessage = ipError instanceof Error ? ipError.message : String(ipError);
       }
+
+      // A DIDComm endpoint that Fly does not publish is invisible in machine
+      // state and health checks: the agent looks healthy while every connection
+      // it creates stalls at InvitationGenerated.
+      const didcomm = { ...emptyDidcomm };
+      try {
+        const agentMachine = await findAgentMachine(conn.fly_app_name);
+        if (agentMachine) {
+          const detail = await getMachine(conn.fly_app_name, agentMachine.id);
+          const expectedUrl = didcommServiceUrl(conn.fly_app_name);
+          const configuredUrl = String(
+            ((detail.config["env"] ?? {}) as Record<string, string>)["DIDCOMM_SERVICE_URL"] ?? "",
+          );
+          const published = hasDidcommService(detail.config);
+          didcomm.published = published;
+          didcomm.configuredUrl = configuredUrl;
+          didcomm.expectedUrl = expectedUrl;
+          if (!published) {
+            didcomm.message =
+              "The DIDComm port (8090) is not published by this machine, so remote wallets cannot answer any invitation this agent creates. Repair the endpoint to publish it.";
+          } else if (configuredUrl !== expectedUrl) {
+            didcomm.message = `The agent advertises ${
+              configuredUrl || "no DIDComm endpoint"
+            } but messages arrive on ${expectedUrl}. Repair the endpoint to line them up.`;
+          }
+        }
+      } catch {
+        // Diagnostics must still render if this extra read fails.
+      }
+
       return {
         ok: true as const,
         appName: conn.fly_app_name,
         machines,
         ips,
         ipsMessage,
+        didcomm,
         message: "",
         fatal: machines.some((m) => m.fatal),
       };
@@ -612,11 +656,59 @@ export const flyMachineDiagnostics = createServerFn({ method: "POST" })
         machines: [] as Awaited<ReturnType<typeof getAppDiagnostics>>,
         ips: [] as { address: string; type: string }[],
         ipsMessage: "",
+        didcomm: emptyDidcomm,
         message: flyError instanceof Error ? flyError.message : String(flyError),
         fatal: false,
       };
     }
   });
+
+/**
+ * Publishes the DIDComm port on an already-deployed agent and rewrites
+ * `DIDCOMM_SERVICE_URL` to match, then restarts the machine.
+ */
+export const flyRepairDidcomm = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { repairAgentEndpoints, describeFlyError, FlyApiError } = await import("./fly.server");
+    const { logActivity } = await import("./agent.server");
+    const { data: conn, error } = await context.supabase
+      .from("agent_connections")
+      .select("id, fly_app_name")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+    if (error) throw new Error(error.message);
+    if (!conn.fly_app_name) throw new Error("This connection is not a Fly.io deployment.");
+    try {
+      const result = await repairAgentEndpoints(conn.fly_app_name);
+      if (result.ok && result.changed) {
+        await logActivity(
+          context.supabase,
+          context.userId,
+          conn.id,
+          "fly.didcomm_repaired",
+          result.message,
+        );
+      }
+      return result;
+    } catch (flyError) {
+      return {
+        ok: false as const,
+        changed: false,
+        didcommServiceUrl: "",
+        message:
+          flyError instanceof FlyApiError
+            ? describeFlyError(flyError)
+            : flyError instanceof Error
+              ? flyError.message
+              : String(flyError),
+      };
+    }
+  });
+
+
 
 /**
  * Repairs an app that has no public IP. Without one Fly never publishes

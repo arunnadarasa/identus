@@ -319,7 +319,52 @@ export function prismNodeMachineConfig(region: string, pgHost: string, password:
 }
 
 
+/**
+ * Public DIDComm endpoint for a Fly-hosted agent.
+ *
+ * The agent copies this value into the `serviceEndpoint` of every peer DID it
+ * mints, so remote wallets and agents dial exactly this URL to deliver DIDComm
+ * messages. Fly's edge maps 443 to the REST port, so DIDComm gets its own
+ * published port instead of a path on 443.
+ *
+ * (The `https://my.domain.com/path?_oob=` prefix you see on `invitationUrl` is
+ * a hardcoded placeholder in the agent itself — only the endpoint inside the
+ * invitation's peer DID matters for delivery.)
+ */
+export function didcommServiceUrl(appName: string) {
+  return `https://${appName}.fly.dev:8090`;
+}
+
+/** REST on 80/443 plus a dedicated TLS port for DIDComm. */
+export function agentServices() {
+  return [
+    {
+      ports: [
+        { port: 80, handlers: ["http"] },
+        { port: 443, handlers: ["http", "tls"] },
+      ],
+      protocol: "tcp",
+      internal_port: 8085,
+    },
+    {
+      ports: [{ port: 8090, handlers: ["http", "tls"] }],
+      protocol: "tcp",
+      internal_port: 8090,
+    },
+  ];
+}
+
+/**
+ * True when a machine config publishes the DIDComm port. Agents deployed before
+ * that service existed accept invitations that nobody can answer.
+ */
+export function hasDidcommService(config: Record<string, any> | undefined | null) {
+  const services = (config?.["services"] ?? []) as any[];
+  return services.some((s) => Number(s?.internal_port) === 8090);
+}
+
 export function agentMachineConfig(
+
   region: string,
   pgHost: string,
   prismHost: string,
@@ -374,7 +419,10 @@ export function agentMachineConfig(
         AGENT_HTTP_PORT: "8085",
         AGENT_DIDCOMM_PORT: "8090",
         REST_SERVICE_URL: `https://${appName}.fly.dev`,
-        DIDCOMM_SERVICE_URL: `https://${appName}.fly.dev/didcomm`,
+        // The DIDComm endpoint is stamped into every peer DID the agent creates,
+        // so it MUST point at a port Fly actually publishes — see the services
+        // block below, which exposes 8090 in its own right.
+        DIDCOMM_SERVICE_URL: didcommServiceUrl(appName),
         SECRET_STORAGE_BACKEND: "postgres",
         // Fly's private network is IPv6-only, so the JVM must be told not to
         // prefer IPv4 or JDBC/gRPC never reach Postgres and the PRISM node.
@@ -384,16 +432,8 @@ export function agentMachineConfig(
           "-Djava.net.preferIPv6Addresses=true -Djava.net.preferIPv4Stack=false -XX:MaxRAMPercentage=70",
       },
       guest: { cpu_kind: "shared", cpus: guest.cpus, memory_mb: guest.memoryMb },
-      services: [
-        {
-          ports: [
-            { port: 80, handlers: ["http"] },
-            { port: 443, handlers: ["http", "tls"] },
-          ],
-          protocol: "tcp",
-          internal_port: 8085,
-        },
-      ],
+      services: agentServices(),
+
       checks: {
         http: {
           type: "http",
@@ -668,6 +708,53 @@ export async function updateMachineEnv(
   })) as any;
   return { previousEnv: (machine.config["env"] ?? {}) as Record<string, string>, machine: updated };
 }
+
+/**
+ * Brings an already-deployed agent machine in line with the current endpoint
+ * config: publishes the DIDComm port and rewrites `DIDCOMM_SERVICE_URL` to the
+ * URL that port is reachable on. Without this an agent deployed earlier keeps
+ * minting peer DIDs with an endpoint nothing can dial, so connections never
+ * leave `InvitationGenerated`.
+ */
+export async function repairAgentEndpoints(appName: string) {
+  const machine = await findAgentMachine(appName);
+  if (!machine) return { ok: false as const, message: "No Cloud Agent machine in this app." };
+
+  const detail = await getMachine(appName, machine.id);
+  const env = (detail.config["env"] ?? {}) as Record<string, string>;
+  const wantUrl = didcommServiceUrl(appName);
+  const serviceMissing = !hasDidcommService(detail.config);
+  const urlWrong = env["DIDCOMM_SERVICE_URL"] !== wantUrl;
+
+  if (!serviceMissing && !urlWrong) {
+    return {
+      ok: true as const,
+      changed: false,
+      didcommServiceUrl: wantUrl,
+      message: "The DIDComm endpoint is already published and configured correctly.",
+    };
+  }
+
+  const config = {
+    ...detail.config,
+    env: { ...env, DIDCOMM_SERVICE_URL: wantUrl, AGENT_DIDCOMM_PORT: "8090" },
+    services: agentServices(),
+  };
+  await fly(`/apps/${appName}/machines/${machine.id}`, {
+    method: "POST",
+    body: JSON.stringify({ config }),
+  });
+  await waitForMachineState(appName, machine.id, "started", 120);
+
+  return {
+    ok: true as const,
+    changed: true,
+    didcommServiceUrl: wantUrl,
+    message: `DIDComm is now published on ${wantUrl} and the agent was restarted. Peer DIDs minted from now on carry that endpoint; invitations created earlier are stale, so create a new one.`,
+  };
+}
+
+
 
 /**
  * Blocks until the machine reaches `state`.

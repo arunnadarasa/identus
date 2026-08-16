@@ -254,7 +254,9 @@ export const ensureSandbox = createServerFn({ method: "POST" })
             user_id: context.userId,
             name: s.name,
             code: s.code,
+            template_version: s.version,
           })),
+
         );
       }
 

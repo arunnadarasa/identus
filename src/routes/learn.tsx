@@ -369,10 +369,7 @@ function Learn() {
       <MarketingHeader />
 
       {/* Hero */}
-      <section
-        className="relative overflow-hidden border-b border-border/60"
-        style={{ backgroundImage: "var(--gradient-hero)" }}
-      >
+      <section className="relative overflow-hidden border-b border-border/60 bg-gradient-hero">
         <div className="mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-24">
           <Badge
             variant="outline"
@@ -380,8 +377,8 @@ function Learn() {
           >
             Self-sovereign identity, explained
           </Badge>
-          <h1 className="font-display max-w-3xl text-3xl font-semibold leading-tight tracking-tight sm:text-6xl">
-            Identity you own and control.
+          <h1 className="animate-rise max-w-3xl text-4xl font-semibold leading-[1.05] sm:text-6xl">
+            Identity you <span className="text-gradient">own and control</span>.
           </h1>
           <p className="mt-5 max-w-2xl text-base text-muted-foreground sm:mt-6 sm:text-lg">
             Today, your identity lives in dozens of company databases. Self-sovereign

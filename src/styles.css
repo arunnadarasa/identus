@@ -34,6 +34,8 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-glow: var(--primary-glow);
+
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -63,56 +65,67 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
-  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
 
 :root {
-  --radius: 0.5rem;
-  --background: oklch(0.17 0.028 244);
-  --foreground: oklch(0.95 0.008 220);
-  --card: oklch(0.21 0.03 244);
-  --card-foreground: oklch(0.95 0.008 220);
-  --popover: oklch(0.21 0.03 244);
-  --popover-foreground: oklch(0.95 0.008 220);
-  --primary: oklch(0.79 0.13 192);
-  --primary-foreground: oklch(0.18 0.03 244);
-  --secondary: oklch(0.27 0.032 244);
-  --secondary-foreground: oklch(0.95 0.008 220);
-  --muted: oklch(0.25 0.028 244);
-  --muted-foreground: oklch(0.7 0.02 225);
-  --accent: oklch(0.3 0.05 200);
-  --accent-foreground: oklch(0.95 0.008 220);
+  --radius: 0.75rem;
+
+  /* Midnight Indigo: near-black navy canvas, raised navy surfaces, electric
+     indigo primary. Status hues stay distinct so badges keep their meaning. */
+  --background: oklch(0.13 0.03 285);
+  --foreground: oklch(0.96 0.01 280);
+  --card: oklch(0.18 0.045 283);
+  --card-foreground: oklch(0.96 0.01 280);
+  --popover: oklch(0.17 0.042 283);
+  --popover-foreground: oklch(0.96 0.01 280);
+  --primary: oklch(0.55 0.22 285);
+  --primary-foreground: oklch(0.98 0.005 280);
+  --primary-glow: oklch(0.7 0.17 285);
+  --secondary: oklch(0.24 0.055 283);
+  --secondary-foreground: oklch(0.96 0.01 280);
+  --muted: oklch(0.22 0.05 283);
+  --muted-foreground: oklch(0.73 0.03 283);
+  --accent: oklch(0.3 0.09 285);
+  --accent-foreground: oklch(0.97 0.01 280);
   --destructive: oklch(0.62 0.2 22);
-  --destructive-foreground: oklch(0.97 0.01 220);
+  --destructive-foreground: oklch(0.97 0.01 280);
   --success: oklch(0.75 0.15 158);
-  --success-foreground: oklch(0.18 0.03 244);
+  --success-foreground: oklch(0.16 0.03 285);
   --warning: oklch(0.8 0.14 78);
-  --warning-foreground: oklch(0.18 0.03 244);
-  --border: oklch(0.31 0.03 244);
-  --input: oklch(0.31 0.03 244);
-  --ring: oklch(0.79 0.13 192);
-  --chart-1: oklch(0.79 0.13 192);
+  --warning-foreground: oklch(0.16 0.03 285);
+  --border: oklch(0.3 0.07 284);
+  --input: oklch(0.3 0.07 284);
+  --ring: oklch(0.62 0.2 285);
+  --chart-1: oklch(0.62 0.2 285);
   --chart-2: oklch(0.75 0.15 158);
   --chart-3: oklch(0.8 0.14 78);
-  --chart-4: oklch(0.68 0.15 300);
+  --chart-4: oklch(0.72 0.14 200);
   --chart-5: oklch(0.62 0.2 22);
-  --sidebar: oklch(0.19 0.03 244);
-  --sidebar-foreground: oklch(0.95 0.008 220);
-  --sidebar-primary: oklch(0.79 0.13 192);
-  --sidebar-primary-foreground: oklch(0.18 0.03 244);
-  --sidebar-accent: oklch(0.27 0.032 244);
-  --sidebar-accent-foreground: oklch(0.95 0.008 220);
-  --sidebar-border: oklch(0.31 0.03 244);
-  --sidebar-ring: oklch(0.79 0.13 192);
-  --glow: oklch(0.79 0.13 192 / 0.28);
+  --sidebar: oklch(0.15 0.035 285);
+  --sidebar-foreground: oklch(0.96 0.01 280);
+  --sidebar-primary: oklch(0.62 0.2 285);
+  --sidebar-primary-foreground: oklch(0.98 0.005 280);
+  --sidebar-accent: oklch(0.24 0.055 283);
+  --sidebar-accent-foreground: oklch(0.96 0.01 280);
+  --sidebar-border: oklch(0.28 0.065 284);
+  --sidebar-ring: oklch(0.62 0.2 285);
+
+  --glow: oklch(0.62 0.2 285 / 0.35);
+  --glow-primary: 0 0 0 1px oklch(0.62 0.2 285 / 0.35), 0 0 32px -8px oklch(0.62 0.2 285 / 0.55);
+  --gradient-primary: linear-gradient(135deg, oklch(0.55 0.22 285), oklch(0.72 0.16 292));
   --gradient-hero: radial-gradient(
-    120% 100% at 15% 0%,
-    oklch(0.32 0.08 200 / 0.55) 0%,
-    transparent 60%
-  );
+      110% 90% at 12% -10%,
+      oklch(0.45 0.2 285 / 0.5) 0%,
+      transparent 62%
+    ),
+    radial-gradient(90% 80% at 95% 0%, oklch(0.5 0.16 250 / 0.32) 0%, transparent 60%);
+  --shadow-elegant: 0 20px 50px -24px oklch(0.08 0.03 285 / 0.9);
+  --shadow-float: 0 32px 70px -28px oklch(0.62 0.2 285 / 0.4);
+  --border-subtle: oklch(0.96 0.01 280 / 0.08);
 }
 
 .dark {
@@ -128,5 +141,103 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
   }
 }
+
+/* Frosted raised surface used by hero panels, headers and premium cards. */
+@utility glass {
+  background: color-mix(in oklab, var(--card) 72%, transparent);
+  border: 1px solid var(--border-subtle);
+  backdrop-filter: blur(20px) saturate(140%);
+}
+
+/* Indigo halo for the primary artifact / focal elements. */
+@utility glow-ring {
+  box-shadow: var(--glow-primary);
+}
+
+@utility shadow-elegant {
+  box-shadow: var(--shadow-elegant);
+}
+
+@utility shadow-float {
+  box-shadow: var(--shadow-float);
+}
+
+@utility text-gradient {
+  background: var(--gradient-primary);
+  background-clip: text;
+  color: transparent;
+}
+
+@utility bg-gradient-primary {
+  background-image: var(--gradient-primary);
+}
+
+@utility bg-gradient-hero {
+  background-image: var(--gradient-hero);
+}
+
+/* Card hover lift, used across marketing and console cards. */
+@utility hover-lift {
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.35s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-float);
+    border-color: color-mix(in oklab, var(--primary) 45%, transparent);
+  }
+}
+
+@utility animate-rise {
+  animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@utility animate-sheen {
+  background-size: 200% 200%;
+  animation: sheen 9s ease-in-out infinite;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheen {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+

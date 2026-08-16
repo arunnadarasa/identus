@@ -153,8 +153,8 @@ function Docs() {
           <Badge variant="outline" className="mb-4 border-primary/40 text-primary">
             Primer
           </Badge>
-          <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight">
-            How Hyperledger Identus fits together
+          <h1 className="animate-rise text-3xl font-semibold sm:text-5xl">
+            How <span className="text-gradient">Hyperledger Identus</span> fits together
           </h1>
           <p className="mt-4 max-w-3xl text-muted-foreground">
             Identus is a set of components for building self-sovereign identity systems: agents that

@@ -48,8 +48,11 @@ export function AppShell({
   useEffect(() => setOpen(false), [pathname]);
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background text-foreground">
-      <header className="sticky top-0 z-20 border-b border-border/60 bg-background/90 backdrop-blur">
+    <div className="relative min-h-screen w-full max-w-full overflow-x-hidden bg-background text-foreground">
+      {/* Ambient indigo wash so console pages share the marketing depth. */}
+      <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-gradient-hero" />
+      <header className="glass sticky top-0 z-20 border-b border-border/60">
+
         <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6 lg:flex lg:gap-4">
           <Link
             to="/"
@@ -71,16 +74,17 @@ export function AppShell({
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "rounded-md px-3 py-1.5 text-sm transition-colors",
+                  "relative rounded-md px-3 py-1.5 text-sm transition-colors",
                   isActive(pathname, item.to)
-                    ? "bg-secondary text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-primary/12 text-foreground after:absolute after:inset-x-3 after:-bottom-px after:h-px after:bg-gradient-primary"
+                    : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
                 )}
               >
                 {item.label}
               </Link>
             ))}
           </nav>
+
 
           <div className="hidden items-center gap-3 lg:flex">
             {email ? (
@@ -162,7 +166,7 @@ export function AppShell({
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+      <main className="relative mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
     </div>
   );
 }

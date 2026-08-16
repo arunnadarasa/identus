@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Github, Menu } from "lucide-react";
@@ -38,6 +38,17 @@ export function MarketingHeader({ maxWidth = "5xl", linkHome = true }: Marketing
   const queryClient = useQueryClient();
   const signedIn = Boolean(session);
   const [menuOpen, setMenuOpen] = useState(false);
+  // The header floats over the hero and only earns its border + frost once the
+  // page has scrolled, so the top of the hero stays uninterrupted.
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
 
   async function handleSignOut() {
     await queryClient.cancelQueries();
@@ -53,12 +64,21 @@ export function MarketingHeader({ maxWidth = "5xl", linkHome = true }: Marketing
   );
 
   return (
-    <header className="border-b border-border/60">
+    <header
+      className={`sticky top-0 z-40 transition-all duration-300 ${
+        scrolled
+          ? "glass border-b border-border/60 shadow-elegant"
+          : "border-b border-transparent bg-transparent"
+      }`}
+    >
       <div
         className={`mx-auto grid ${
           maxWidth === "6xl" ? "max-w-6xl" : "max-w-5xl"
-        } grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 sm:flex sm:justify-between sm:px-6 sm:py-5`}
+        } grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 transition-all duration-300 sm:flex sm:justify-between sm:px-6 ${
+          scrolled ? "py-3 sm:py-3.5" : "py-4 sm:py-5"
+        }`}
       >
+
         {linkHome ? (
           <Link
             to="/"

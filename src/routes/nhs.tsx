@@ -47,10 +47,7 @@ function NhsPage() {
       <MarketingHeader />
 
       {/* Hero */}
-      <section
-        className="relative overflow-hidden border-b border-border/60"
-        style={{ backgroundImage: "var(--gradient-hero)" }}
-      >
+      <section className="relative overflow-hidden border-b border-border/60 bg-gradient-hero">
         <div className="mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-24">
           <Badge
             variant="outline"
@@ -58,8 +55,8 @@ function NhsPage() {
           >
             Health records · England
           </Badge>
-          <h1 className="font-display max-w-3xl text-3xl font-semibold leading-tight tracking-tight sm:text-6xl">
-            The Single Patient Record, with consent you can prove.
+          <h1 className="animate-rise max-w-3xl text-4xl font-semibold leading-[1.05] sm:text-6xl">
+            The Single Patient Record, with <span className="text-gradient">consent you can prove</span>.
           </h1>
           <p className="mt-5 max-w-2xl text-base text-muted-foreground sm:mt-6 sm:text-lg">
             NHS England is bringing a person's health information together into

@@ -454,14 +454,20 @@ export const resetStarterSnippets = createServerFn({ method: "POST" })
       if (id) {
         await context.supabase
           .from("sprite_snippets")
-          .update({ code: snippet.code })
+          .update({ code: snippet.code, template_version: snippet.version })
           .eq("id", id)
           .eq("user_id", context.userId);
         updated += 1;
       } else {
         await context.supabase
           .from("sprite_snippets")
-          .insert({ user_id: context.userId, name: snippet.name, code: snippet.code });
+          .insert({
+            user_id: context.userId,
+            name: snippet.name,
+            code: snippet.code,
+            template_version: snippet.version,
+          });
+
         inserted += 1;
       }
     }

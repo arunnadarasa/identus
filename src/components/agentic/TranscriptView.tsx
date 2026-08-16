@@ -2,16 +2,24 @@ import { Bot, Store, ShieldCheck, User } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { JsonBlock } from "@/components/agentic/JsonBlock";
+import { shortenId } from "@/components/MonoValue";
 
 export type TranscriptStep = {
   step: number;
   label: string;
   actor: "buyer" | "seller" | "human" | "verifier";
   detail: string;
+  /**
+   * Long machine identifiers (addresses, hashes, DIDs) belong here rather than
+   * inline in `detail` — they render as shortened mono rows so a 42-character
+   * hex string can never push the card past a phone's width.
+   */
+  values?: { label: string; value: string }[];
   envelope?: unknown;
   state?: string;
   simulated?: boolean;
 };
+
 
 const actorMeta = {
   buyer: { icon: Bot, label: "Buyer agent", tone: "text-primary" },

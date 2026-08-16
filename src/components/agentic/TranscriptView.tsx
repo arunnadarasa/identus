@@ -95,7 +95,6 @@ export function TranscriptView({ steps }: { steps: TranscriptStep[] }) {
             <JsonBlock value={s.envelope} />
           </li>
 
-          </li>
         );
       })}
     </ol>

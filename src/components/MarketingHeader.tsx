@@ -64,12 +64,21 @@ export function MarketingHeader({ maxWidth = "5xl", linkHome = true }: Marketing
   );
 
   return (
-    <header className="border-b border-border/60">
+    <header
+      className={`sticky top-0 z-40 transition-all duration-300 ${
+        scrolled
+          ? "glass border-b border-border/60 shadow-elegant"
+          : "border-b border-transparent bg-transparent"
+      }`}
+    >
       <div
         className={`mx-auto grid ${
           maxWidth === "6xl" ? "max-w-6xl" : "max-w-5xl"
-        } grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 sm:flex sm:justify-between sm:px-6 sm:py-5`}
+        } grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 transition-all duration-300 sm:flex sm:justify-between sm:px-6 ${
+          scrolled ? "py-3 sm:py-3.5" : "py-4 sm:py-5"
+        }`}
       >
+
         {linkHome ? (
           <Link
             to="/"

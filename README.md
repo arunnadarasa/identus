@@ -288,10 +288,10 @@ All tables live in `public`, have RLS enabled, explicit `GRANT`s, and policies s
 | `agent_connections` | Saved agents: label, mode, base URL, admin key, active flag, health state. |
 | `saved_dids` | Created DIDs: long-form and published DID, key purposes, publication status, `publish_error`. |
 | `credential_schemas` | Credential schema definitions. |
-| `credential_records` | Offers, issuance and acceptance state, including `invitation_url` for connectionless offers. |
+| `credential_records` | Offers, issuance and acceptance state, including `invitation_url` for connectionless offers and `jwt_source` (tracks whether the stored JWT came from the real agent or a simulated signature). |
 | `sim_connections`, `sim_presentations` | Backing store for simulated mode. |
 | `activity_log` | Append-only audit trail of agent requests and console actions. |
-| `sprite_boxes`, `sprite_snippets` | Per-user Sprites sandbox and saved SDK snippets. |
+| `sprite_boxes`, `sprite_snippets` | Per-user Sprites sandbox and saved SDK snippets. `sprite_snippets` carries `template_version` to drive stale detection against the current starter template. |
 | `compose_files` | Saved Compose Lab documents. |
 | `agentic_sessions` | A2A/AP2/UCP/x402 demo runs, mandates and signatures. |
 

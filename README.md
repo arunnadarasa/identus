@@ -344,7 +344,8 @@ Public endpoints validate their input and verify signatures inside the handler �
 
 ## Roadmap and known limitations
 
-- Credentials are JWT-VC; AnonCreds/BBS+ (and therefore credential-bound ZK presentations) are not wired into the console yet.
+- ZK proofs are bound to real credentials via a SHA-256 commitment, but the issuer's signature is not proven in-circuit — a native ZK credential format (AnonCreds/BBS+) would close that gap.
+- Sandbox starter snippets are version-tracked, but there is no auto-migration of custom edits when a template changes — stale copies are flagged and can be refreshed manually.
 - Mediator and DIDComm routing are not provisioned — connectionless offers via invitation URL are the supported path.
 - Sprites hosts SDK snippets and Compose authoring only; it does not run agents.
 - Fly provisioning is single-region and single-machine per role; no HA Postgres.

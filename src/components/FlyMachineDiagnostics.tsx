@@ -41,7 +41,9 @@ export function FlyMachineDiagnostics({
   const load = useServerFn(flyMachineDiagnostics);
   const allocate = useServerFn(flyAllocateIps);
   const repairAgent = useServerFn(flyRepairAgentMachine);
+  const repairEndpoints = useServerFn(flyRepairDidcomm);
   const query = useQuery({
+
     queryKey: ["fly-diagnostics", connectionId],
     queryFn: () => load({ data: { id: connectionId } }),
     refetchInterval: autoRefresh ? 20_000 : false,

@@ -131,6 +131,29 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
     }
   };
 
+  const staleStarters = useMemo(() => data.snippets.filter((s) => s.stale), [data.snippets]);
+
+  const refreshSelected = async () => {
+    if (!selectedId) return;
+    setRefreshing(true);
+    try {
+      const res = await doRefreshOne({ data: { id: selectedId } });
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      setCode(res.code);
+      invalidate();
+      toast.success("Snippet updated to the current starter");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not refresh the snippet");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+
+
   const remove = async (id: string) => {
     await doDelete({ data: { id } });
     if (id === selectedId) newSnippet();

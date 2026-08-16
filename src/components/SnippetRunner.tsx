@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Play, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, Loader2, Play, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import {
   getSandbox,
   runSnippet,
   saveSnippet,
   deleteSnippet,
   resetStarterSnippets,
+  refreshStarterSnippet,
 } from "@/lib/sprites/sandbox.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +30,10 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
   const doSave = useServerFn(saveSnippet);
   const doDelete = useServerFn(deleteSnippet);
   const doReset = useServerFn(resetStarterSnippets);
+  const doRefreshOne = useServerFn(refreshStarterSnippet);
   const [resetting, setResetting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
 
   const [selectedId, setSelectedId] = useState<string | null>(data.snippets[0]?.id ?? null);
   const [name, setName] = useState(data.snippets[0]?.name ?? "Untitled snippet");

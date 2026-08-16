@@ -16,6 +16,24 @@ export const SDK_PACKAGES = [
   "@hyperledger/identus-sdk",
 ];
 
+/**
+ * Prepended to every snippet that calls the agent's REST API. In simulated mode
+ * AGENT_BASE_URL is injected as an empty string, and `"" + "/path"` makes Node's
+ * fetch throw "Failed to parse URL" — so fail fast with a readable message instead.
+ */
+const REST_PRELUDE = `const base = (process.env.AGENT_BASE_URL ?? "").replace(/\\/+$/, "");
+if (!base) {
+  console.log(
+    "No REST agent configured. This snippet calls the Cloud Agent HTTP API, which the simulated agent does not expose — switch to a Docker local or Fly.io agent on the Agents page, then run it again.",
+  );
+  process.exit(0);
+}
+const headers = {
+  "Content-Type": "application/json",
+  ...(process.env.AGENT_API_KEY ? { apikey: process.env.AGENT_API_KEY } : {}),
+};
+`;
+
 export const STARTER_SNIPPETS: StarterSnippet[] = [
   {
     name: "Create a Peer DID",
@@ -83,13 +101,9 @@ console.log(JSON.stringify(resolved, null, 2).slice(0, 1500));
   {
     name: "Agent health & version",
     description: "Raw fetch against the active agent to confirm connectivity.",
-    version: "1",
-    code: `const base = process.env.AGENT_BASE_URL;
-const key = process.env.AGENT_API_KEY;
-
-const res = await fetch(base + "/_system/health", {
-  headers: key ? { apikey: key } : {},
-});
+    version: "2",
+    code: `${REST_PRELUDE}
+const res = await fetch(base + "/_system/health", { headers });
 console.log("status:", res.status);
 console.log("body:", await res.text());
 `,
@@ -97,12 +111,8 @@ console.log("body:", await res.text());
   {
     name: "Publish a PRISM DID",
     description: "Creates an unpublished did:prism through the DID registrar, then publishes it.",
-    version: "2",
-    code: `const base = process.env.AGENT_BASE_URL;
-const headers = {
-  "Content-Type": "application/json",
-  ...(process.env.AGENT_API_KEY ? { apikey: process.env.AGENT_API_KEY } : {}),
-};
+    version: "3",
+    code: `${REST_PRELUDE}
 
 const created = await fetch(base + "/did-registrar/dids", {
   method: "POST",
@@ -128,12 +138,8 @@ console.log("publication:", JSON.stringify(published, null, 2));
   {
     name: "Create a connection invitation",
     description: "Starts a DIDComm connection and prints the out-of-band invitation URL.",
-    version: "1",
-    code: `const base = process.env.AGENT_BASE_URL;
-const headers = {
-  "Content-Type": "application/json",
-  ...(process.env.AGENT_API_KEY ? { apikey: process.env.AGENT_API_KEY } : {}),
-};
+    version: "2",
+    code: `${REST_PRELUDE}
 
 const conn = await fetch(base + "/connections", {
   method: "POST",
@@ -149,12 +155,8 @@ console.log("invitation:", conn.invitation?.invitationUrl);
   {
     name: "Issue a credential offer",
     description: "Finds an established connection and a published issuer DID, then offers a JWT credential.",
-    version: "2",
-    code: `const base = process.env.AGENT_BASE_URL;
-const headers = {
-  "Content-Type": "application/json",
-  ...(process.env.AGENT_API_KEY ? { apikey: process.env.AGENT_API_KEY } : {}),
-};
+    version: "3",
+    code: `${REST_PRELUDE}
 
 // 1. Find an established connection (no placeholders — read it from the agent).
 const conns = await fetch(base + "/connections", { headers }).then((r) => r.json());
@@ -203,11 +205,8 @@ console.log(JSON.stringify(offer, null, 2));
   {
     name: "List presentation records",
     description: "Reads present-proof records from the agent to inspect verification state.",
-    version: "1",
-    code: `const base = process.env.AGENT_BASE_URL;
-const headers = {
-  ...(process.env.AGENT_API_KEY ? { apikey: process.env.AGENT_API_KEY } : {}),
-};
+    version: "2",
+    code: `${REST_PRELUDE}
 
 const records = await fetch(base + "/present-proof/presentations", { headers }).then((r) =>
   r.json(),

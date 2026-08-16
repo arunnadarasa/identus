@@ -248,6 +248,15 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {data.agent?.mode === "simulated" ? (
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                Your active agent is <span className="font-medium">simulated</span>, so{" "}
+                <code>AGENT_BASE_URL</code> is empty and REST snippets will stop with a “no REST
+                agent configured” notice. Pure SDK snippets (keys, peer DIDs) run fine. Switch to a
+                Docker local or Fly.io agent on the Agents page to call the real API.
+              </div>
+            ) : null}
+
             {selected?.stale ? (
               <div className="flex flex-col gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200 sm:flex-row sm:items-center sm:justify-between">
                 <span>

@@ -248,6 +248,29 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {selected?.stale ? (
+              <div className="flex flex-col gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200 sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                  This is an older copy of the “{selected.name}” starter
+                  {selected.starterVersion ? ` (template ${selected.starterVersion})` : ""}.
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={refreshSelected}
+                  disabled={refreshing}
+                  className="shrink-0"
+                >
+                  {refreshing ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  Use current version
+                </Button>
+              </div>
+            ) : null}
+
             <div className="space-y-2">
               <Label htmlFor="snippet-name">Name</Label>
               <Input

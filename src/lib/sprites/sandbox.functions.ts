@@ -69,9 +69,12 @@ export const getSandbox = createServerFn({ method: "GET" })
         : null,
       snippets: (snippets ?? []).map((s: any) => {
         const starter = STARTER_SNIPPETS.find((t) => t.name === s.name) ?? null;
-        // A starter is stale when its saved body differs from the current
-        // template — either it predates the version stamp or the template moved on.
-        const stale = Boolean(starter) && (s.code as string) !== starter!.code;
+        const version = (s.template_version as string | null) ?? null;
+        // Flag a starter only when it still carries an older (or missing) version
+        // stamp and its body differs from the template. Deliberate edits saved
+        // through the editor pick up the current stamp, so they are never nagged.
+        const stale =
+          Boolean(starter) && version !== starter!.version && (s.code as string) !== starter!.code;
         return {
           id: s.id as string,
           name: s.name as string,
@@ -79,12 +82,13 @@ export const getSandbox = createServerFn({ method: "GET" })
           lastOutput: (s.last_output as string | null) ?? null,
           lastExitCode: (s.last_exit_code as number | null) ?? null,
           lastRunAt: (s.last_run_at as string | null) ?? null,
-          templateVersion: (s.template_version as string | null) ?? null,
+          templateVersion: version,
           starterVersion: starter?.version ?? null,
           isStarter: Boolean(starter),
           stale,
         };
       }),
+
       agent,
       suggestedName: spriteNameFor(context.userId),
     };

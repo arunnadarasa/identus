@@ -319,7 +319,52 @@ export function prismNodeMachineConfig(region: string, pgHost: string, password:
 }
 
 
+/**
+ * Public DIDComm endpoint for a Fly-hosted agent.
+ *
+ * The agent copies this value into the `serviceEndpoint` of every peer DID it
+ * mints, so remote wallets and agents dial exactly this URL to deliver DIDComm
+ * messages. Fly's edge maps 443 to the REST port, so DIDComm gets its own
+ * published port instead of a path on 443.
+ *
+ * (The `https://my.domain.com/path?_oob=` prefix you see on `invitationUrl` is
+ * a hardcoded placeholder in the agent itself — only the endpoint inside the
+ * invitation's peer DID matters for delivery.)
+ */
+export function didcommServiceUrl(appName: string) {
+  return `https://${appName}.fly.dev:8090`;
+}
+
+/** REST on 80/443 plus a dedicated TLS port for DIDComm. */
+export function agentServices() {
+  return [
+    {
+      ports: [
+        { port: 80, handlers: ["http"] },
+        { port: 443, handlers: ["http", "tls"] },
+      ],
+      protocol: "tcp",
+      internal_port: 8085,
+    },
+    {
+      ports: [{ port: 8090, handlers: ["http", "tls"] }],
+      protocol: "tcp",
+      internal_port: 8090,
+    },
+  ];
+}
+
+/**
+ * True when a machine config publishes the DIDComm port. Agents deployed before
+ * that service existed accept invitations that nobody can answer.
+ */
+export function hasDidcommService(config: Record<string, any> | undefined | null) {
+  const services = (config?.["services"] ?? []) as any[];
+  return services.some((s) => Number(s?.internal_port) === 8090);
+}
+
 export function agentMachineConfig(
+
   region: string,
   pgHost: string,
   prismHost: string,

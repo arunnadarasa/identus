@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Github } from "lucide-react";
+import { Github, ShieldCheck, Bot, TerminalSquare, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { MarketingHeader } from "@/components/MarketingHeader";
 import { Button } from "@/components/ui/button";
@@ -9,21 +9,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Identus Companion — build with Hyperledger Identus" },
+      { title: "Identus Companion — Identus, ZK proofs and agentic demos" },
       {
         name: "description",
         content:
-          "A developer hub for Hyperledger Identus: simulated, Docker-local or Fly.io Cloud Agent, DID management, credential issuance and verification.",
+          "Developer hub for Hyperledger Identus: simulated, Docker-local or Fly.io Cloud Agent, credential issuance, browser zero-knowledge proofs and AI-agent commerce demos.",
       },
-      { property: "og:title", content: "Identus Companion — build with Hyperledger Identus" },
+      {
+        property: "og:title",
+        content: "Identus Companion — Identus, ZK proofs and agentic demos",
+      },
       {
         property: "og:description",
         content:
-          "Three agent modes, a full credential lifecycle demo and a docs portal for Hyperledger Identus.",
+          "Three agent modes, the full credential lifecycle, Noir zero-knowledge proofs in the browser and A2A/AP2/UCP/x402 demos for delegated AI agents.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://identus.lovable.app/" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://identus.lovable.app/" }],
   }),
   component: Landing,
 });
@@ -53,6 +58,18 @@ const capabilities = [
   ["Presentation & proof", "Request a presentation and inspect each verification check individually."],
   ["Schema registry", "Define credential schemas with versioned attribute sets."],
   ["Activity trail", "Every protocol step is logged so you can trace exactly what the agent did."],
+  [
+    "Delegation credentials",
+    "Issue a mandate that lets an AI agent act for a human, with scope and spend limits baked in.",
+  ],
+  [
+    "ZK-bound presentations",
+    "Commit to a real issued credential and prove a predicate about it without disclosing the claim.",
+  ],
+  [
+    "Snippet library",
+    "Runnable Identus TypeScript snippets and a Compose lab in your own sandbox, versioned as the SDK moves.",
+  ],
 ];
 
 function Landing() {
@@ -63,7 +80,6 @@ function Landing() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <MarketingHeader maxWidth="6xl" linkHome={false} />
-
 
       <section
         className="relative overflow-hidden border-b border-border/60"
@@ -77,11 +93,11 @@ function Landing() {
             Learn and operate Hyperledger Identus without the setup tax.
           </h1>
           <p className="mt-5 max-w-2xl text-base text-muted-foreground sm:mt-6 sm:text-lg">
-            Run the full decentralised identity lifecycle — DIDs, DIDComm connections, verifiable
-            credentials and proofs — against a simulated agent, your local Docker stack, or a real
-            Cloud Agent you deploy to Fly.io in a few clicks.
+            Run a real Cloud Agent — simulated, on Docker, or deployed to Fly.io in a few clicks.
+            Prove claims from issued credentials with zero-knowledge proofs in the browser. Let AI
+            agents transact under a delegation credential they have to earn.
           </p>
-          <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap">
+          <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap sm:items-center">
             <Button asChild size="lg" className="w-full sm:w-auto">
               <Link to={signedIn ? "/app" : "/auth"}>
                 {signedIn ? "Go to your console" : "Start with the simulated agent"}
@@ -90,34 +106,103 @@ function Landing() {
             <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
               <Link to="/docs">Read the primer</Link>
             </Button>
+            <Button asChild size="lg" variant="ghost" className="w-full sm:w-auto">
+              <Link to="/learn">New to SSI? Start here</Link>
+            </Button>
           </div>
         </div>
       </section>
 
-
-
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
-        <h2 className="font-display text-2xl font-semibold tracking-tight">Three agent modes</h2>
+        <h2 className="font-display text-2xl font-semibold tracking-tight">Beyond the basics</h2>
         <p className="mt-2 max-w-2xl text-muted-foreground">
-          Switch mode at any time — the console keeps the same workflows, only the backing agent
-          changes.
+          The console goes past DIDs and credentials — these three panels are where the newer work
+          lives.
         </p>
         <div className="mt-8 grid gap-5 md:grid-cols-3">
-          {modes.map((mode) => (
-            <Card key={mode.name} className="border-border/60 bg-card/60">
-              <CardHeader>
-                <Badge variant="secondary" className="w-fit font-mono text-xs">
-                  {mode.tag}
-                </Badge>
-                <CardTitle className="font-display pt-2">{mode.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">{mode.body}</CardContent>
-            </Card>
-          ))}
+          <Card className="border-border/60 bg-card/60">
+            <CardHeader>
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              <CardTitle className="font-display pt-2">Zero-knowledge proofs</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-muted-foreground">
+              <p>
+                Pick a credential you actually hold and prove “over 18” with a Noir circuit running
+                in your browser — the date of birth never leaves the page, only the proof does.
+              </p>
+              <Link
+                to={signedIn ? "/app/zk" : "/auth"}
+                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+              >
+                Open the ZK panel <ArrowRight className="h-4 w-4" />
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60 bg-card/60">
+            <CardHeader>
+              <Bot className="h-5 w-5 text-primary" />
+              <CardTitle className="font-display pt-2">Agentic commerce</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-muted-foreground">
+              <p>
+                A2A, AP2, UCP and x402 on Base Sepolia. The payment only settles when the agent's
+                delegation credential and its principal's identity both pass the Identus gate.
+              </p>
+              <Link
+                to={signedIn ? "/app/demos" : "/auth"}
+                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+              >
+                Run the demos <ArrowRight className="h-4 w-4" />
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60 bg-card/60">
+            <CardHeader>
+              <TerminalSquare className="h-5 w-5 text-primary" />
+              <CardTitle className="font-display pt-2">SDK sandbox</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-muted-foreground">
+              <p>
+                Your own scratch box with runnable Identus TypeScript snippets, a Docker Compose lab
+                and a quickstart for delegation credentials — no agent stack required.
+              </p>
+              <Link
+                to={signedIn ? "/app/sandbox" : "/auth"}
+                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+              >
+                Open the sandbox <ArrowRight className="h-4 w-4" />
+              </Link>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
       <section className="border-t border-border/60 bg-card/30">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+          <h2 className="font-display text-2xl font-semibold tracking-tight">Three agent modes</h2>
+          <p className="mt-2 max-w-2xl text-muted-foreground">
+            Switch mode at any time — the console keeps the same workflows, only the backing agent
+            changes.
+          </p>
+          <div className="mt-8 grid gap-5 md:grid-cols-3">
+            {modes.map((mode) => (
+              <Card key={mode.name} className="border-border/60 bg-card/60">
+                <CardHeader>
+                  <Badge variant="secondary" className="w-fit font-mono text-xs">
+                    {mode.tag}
+                  </Badge>
+                  <CardTitle className="font-display pt-2">{mode.name}</CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground">{mode.body}</CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-border/60">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
           <h2 className="font-display text-2xl font-semibold tracking-tight">
             What you can do in the console
@@ -133,13 +218,59 @@ function Landing() {
         </div>
       </section>
 
+      <section className="border-t border-border/60 bg-card/30">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+          <h2 className="font-display text-2xl font-semibold tracking-tight">Learn the concepts</h2>
+          <div className="mt-8 grid gap-5 md:grid-cols-2">
+            <Card className="border-border/60 bg-card/60">
+              <CardHeader>
+                <CardTitle className="font-display">Self-sovereign identity, explained</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm text-muted-foreground">
+                <p>
+                  No jargon: what changes for web2 and web3, how the trust triangle works, and
+                  interactive walkthroughs of credential issuance, AI-agent delegation and
+                  zero-knowledge proofs.
+                </p>
+                <Link
+                  to="/learn"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                >
+                  Read the guide <ArrowRight className="h-4 w-4" />
+                </Link>
+              </CardContent>
+            </Card>
+            <Card className="border-border/60 bg-card/60">
+              <CardHeader>
+                <CardTitle className="font-display">NHS single patient record</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm text-muted-foreground">
+                <p>
+                  A worked example of what NHS England's single patient record could look like when
+                  the patient holds verifiable credentials instead of every service holding a copy.
+                </p>
+                <Link
+                  to="/nhs"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                >
+                  See the scenario <ArrowRight className="h-4 w-4" />
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
       <footer className="border-t border-border/60">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-8 sm:px-6 sm:py-10 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <span>
             Community project — not affiliated with the Hyperledger Foundation or the Linux
             Foundation.
           </span>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <Link className="text-primary hover:underline" to="/learn">
+              Learn
+            </Link>
             <a
               className="text-primary hover:underline"
               href="https://identus.io/documentation/develop/"

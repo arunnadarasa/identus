@@ -66,7 +66,8 @@ Every account is isolated: all data is row-level-security scoped to the signed-i
 | `/app/dids` | Create PRISM DIDs (holder/issuer key purposes), auto-publish issuer DIDs with an `assertionMethod` key, poll publication status, and inspect long-form vs published DIDs. |
 | `/app/credentials` | Issue credentials against a real issuer DID (connection-based **or** connectionless via invitation URL), accept offers as a holder, and verify presentations. |
 | `/app/activity` | Chronological log of every agent request, provisioning step and credential event. |
-| `/app/sandbox` | Per-user **Sprites** scratch box for Identus SDK (TypeScript) snippets, plus a **Compose Lab** for authoring and validating Docker Compose stacks. |
+| `/app/sandbox` | Per-user **Sprites** scratch box for Identus SDK (TypeScript) snippets, plus a **Compose Lab** for authoring and validating Docker Compose stacks. Includes a **Quickstart — delegation credentials** panel with copy-paste Install/Issue/Verify/Gate snippets (WebCrypto ES256, runnable in-browser and in the sandbox). Starter SDK snippets are version-stamped with stale detection and per-snippet refresh. |
+| `/app/zk` | Live in-browser ZK proof. Pick a console-issued credential, prove an age threshold over its birth-year claim, bound to the credential's JWT via a SHA-256 commitment. Records the proof as a presentation. |
 | `/app/demos` | Hub for the four agentic demos below. |
 
 A **mode badge** in the navbar always shows which mode you're in (simulated / docker / fly) with a colour-coded status pill.
@@ -314,7 +315,7 @@ Alongside it, `ProofCompare` contrasts a standard credential (all fields visible
 | **A2A** | Agent-to-agent negotiation over JSON-RPC against `/api/public/a2a-seller`, with an agent card, DID-identified participants and LLM-written rationales. |
 | **AP2** | Agent Payments Protocol mandates: intent → cart → payment mandate, signed EIP-712 and verified server-side. |
 | **UCP** | Universal Commerce Protocol merchant flow against `/api/public/ucp-merchant`, with signed and verified payloads. |
-| **x402** | HTTP 402 payment-required flow on **Base Sepolia**: a wallet connected through Privy pays USDC, the proxy retries with the payment header, and the content unlocks. |
+| **x402** | HTTP 402 payment-required flow on **Base Sepolia**: a wallet connected through Privy pays USDC, the proxy retries with the payment header, and the content unlocks. The proxy enforces an **Identus gate** — a `StudentIDCredential` check plus an `AgentDelegationCredential` mandate scoped to `payment:x402`, with principal-vs-agent DID verification. The gate policy quote (list/member tiers in USDC) is the app's own; the amount settled on Base Sepolia is the facilitator's requirement. |
 
 Public endpoints validate their input and verify signatures inside the handler — the `/api/public/*` prefix bypasses site auth, so the handler is the only gate.
 

@@ -217,11 +217,8 @@ console.log(JSON.stringify(offer, null, 2));
   {
     name: "List presentation records",
     description: "Reads present-proof records from the agent to inspect verification state.",
-    version: "1",
-    code: `const base = process.env.AGENT_BASE_URL;
-const headers = {
-  ...(process.env.AGENT_API_KEY ? { apikey: process.env.AGENT_API_KEY } : {}),
-};
+    version: "2",
+    code: `${REST_PRELUDE}
 
 const records = await fetch(base + "/present-proof/presentations", { headers }).then((r) =>
   r.json(),

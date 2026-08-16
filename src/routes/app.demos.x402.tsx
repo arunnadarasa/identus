@@ -227,7 +227,12 @@ function X402Demo({ hasPrivy }: { hasPrivy: boolean }) {
             ? " The agent DID is a demo placeholder — create a DID with \u201Cagent\u201D in its alias on the DIDs page to bind a real one."
             : ""
         }`,
+        values: [
+          { label: "principal", value: mandate.humanDid },
+          { label: "agent", value: mandate.agentDid },
+        ],
         simulated: mandate.simulated,
+
         envelope: {
           roles: {
             issuedBy: mandate.issuerDid,

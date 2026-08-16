@@ -36,3 +36,16 @@ const stdout = new TextDecoder().decode(hasExit ? bytes.slice(0, -2) : bytes);
 ## Compose Lab
 
 Sprites cannot run Docker containers. The Compose Lab (`src/lib/sprites/compose.server.ts`) is for **authoring and linting** compose files only. `DEFAULT_COMPOSE` is the canonical Identus stack template with healthchecks, a named network, and `restart: unless-stopped`. A Python validator flags insecure passwords, missing healthchecks, and weak dependency conditions. Saved compose files live in the `compose_files` table.
+
+## Snippet versioning
+
+Starter snippets live in `src/lib/sprites/snippets.ts` (plus `delegation-snippets.ts`) and each carries a `version` string; `STARTER_VERSIONS` is derived from it.
+
+- Saved rows in `sprite_snippets` store `template_version`. `sandbox.functions.ts` flags a saved copy as stale when its version differs from the current starter **and** the code was not user-modified beyond the template.
+- Any breaking change (SDK API shift, new prelude, corrected payload) **must** bump the version, otherwise existing users keep running broken code with no signal. "Reset starter snippets" rewrites them.
+- REST snippets always start with `REST_PRELUDE`, which explains that a real docker/fly agent is required instead of throwing `Invalid URL` from an empty `AGENT_BASE_URL`.
+
+## SDK pinning
+
+The workspace pins `@hyperledger/identus-edge-agent-sdk@6.6.0` and installs its peer deps explicitly (notably `rxdb`) — a bare install leaves `Cannot find module 'rxdb'` at runtime. `workspace.server.ts` verifies the tree by importing the SDK and printing `SDK_VERSION=` / `RXDB_VERSION=`; treat a missing version as a broken workspace and reinstall. Snippets must read optional SDK shapes defensively (e.g. `coreProperties`) — undefined fields are normal across SDK versions.
+

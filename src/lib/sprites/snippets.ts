@@ -16,6 +16,24 @@ export const SDK_PACKAGES = [
   "@hyperledger/identus-sdk",
 ];
 
+/**
+ * Prepended to every snippet that calls the agent's REST API. In simulated mode
+ * AGENT_BASE_URL is injected as an empty string, and `"" + "/path"` makes Node's
+ * fetch throw "Failed to parse URL" — so fail fast with a readable message instead.
+ */
+const REST_PRELUDE = `const base = (process.env.AGENT_BASE_URL ?? "").replace(/\\/+$/, "");
+if (!base) {
+  console.log(
+    "No REST agent configured. This snippet calls the Cloud Agent HTTP API, which the simulated agent does not expose — switch to a Docker local or Fly.io agent on the Agents page, then run it again.",
+  );
+  process.exit(0);
+}
+const headers = {
+  "Content-Type": "application/json",
+  ...(process.env.AGENT_API_KEY ? { apikey: process.env.AGENT_API_KEY } : {}),
+};
+`;
+
 export const STARTER_SNIPPETS: StarterSnippet[] = [
   {
     name: "Create a Peer DID",

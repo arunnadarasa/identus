@@ -38,6 +38,17 @@ export function MarketingHeader({ maxWidth = "5xl", linkHome = true }: Marketing
   const queryClient = useQueryClient();
   const signedIn = Boolean(session);
   const [menuOpen, setMenuOpen] = useState(false);
+  // The header floats over the hero and only earns its border + frost once the
+  // page has scrolled, so the top of the hero stays uninterrupted.
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
 
   async function handleSignOut() {
     await queryClient.cancelQueries();

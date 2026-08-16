@@ -67,18 +67,29 @@ export const getSandbox = createServerFn({ method: "GET" })
             updatedAt: box.updated_at as string,
           }
         : null,
-      snippets: (snippets ?? []).map((s: any) => ({
-        id: s.id as string,
-        name: s.name as string,
-        code: s.code as string,
-        lastOutput: (s.last_output as string | null) ?? null,
-        lastExitCode: (s.last_exit_code as number | null) ?? null,
-        lastRunAt: (s.last_run_at as string | null) ?? null,
-      })),
+      snippets: (snippets ?? []).map((s: any) => {
+        const starter = STARTER_SNIPPETS.find((t) => t.name === s.name) ?? null;
+        // A starter is stale when its saved body differs from the current
+        // template — either it predates the version stamp or the template moved on.
+        const stale = Boolean(starter) && (s.code as string) !== starter!.code;
+        return {
+          id: s.id as string,
+          name: s.name as string,
+          code: s.code as string,
+          lastOutput: (s.last_output as string | null) ?? null,
+          lastExitCode: (s.last_exit_code as number | null) ?? null,
+          lastRunAt: (s.last_run_at as string | null) ?? null,
+          templateVersion: (s.template_version as string | null) ?? null,
+          starterVersion: starter?.version ?? null,
+          isStarter: Boolean(starter),
+          stale,
+        };
+      }),
       agent,
       suggestedName: spriteNameFor(context.userId),
     };
   });
+
 
 /** Creates the sprite if needed, lays down the workspace and installs the SDK. */
 export const ensureSandbox = createServerFn({ method: "POST" })

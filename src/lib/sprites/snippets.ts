@@ -101,13 +101,9 @@ console.log(JSON.stringify(resolved, null, 2).slice(0, 1500));
   {
     name: "Agent health & version",
     description: "Raw fetch against the active agent to confirm connectivity.",
-    version: "1",
-    code: `const base = process.env.AGENT_BASE_URL;
-const key = process.env.AGENT_API_KEY;
-
-const res = await fetch(base + "/_system/health", {
-  headers: key ? { apikey: key } : {},
-});
+    version: "2",
+    code: `${REST_PRELUDE}
+const res = await fetch(base + "/_system/health", { headers });
 console.log("status:", res.status);
 console.log("body:", await res.text());
 `,

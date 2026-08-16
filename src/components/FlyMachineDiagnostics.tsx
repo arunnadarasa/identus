@@ -74,8 +74,24 @@ export function FlyMachineDiagnostics({
       toast.error(error instanceof Error ? error.message : "Could not repair the machine."),
   });
 
+  const repairDidcomm = useMutation({
+    mutationFn: () => repairEndpoints({ data: { id: connectionId } }),
+    onSuccess: (result) => {
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.message);
+      query.refetch();
+      qc.invalidateQueries({ queryKey: ["connections"] });
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error ? error.message : "Could not repair the DIDComm endpoint.",
+      ),
+  });
+
   const machines = query.data?.machines ?? [];
   const ips: { address: string; type: string }[] = query.data?.ips ?? [];
+  const didcomm = query.data?.didcomm;
+
   const agent = machines.find((m) => m.name.includes("cloud-agent"));
   const agentNeedsRepair = Boolean(
     agent && (agent.state !== "started" || agent.events.some((e) => e.oomKilled)),

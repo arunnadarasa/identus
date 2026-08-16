@@ -142,12 +142,8 @@ console.log("publication:", JSON.stringify(published, null, 2));
   {
     name: "Create a connection invitation",
     description: "Starts a DIDComm connection and prints the out-of-band invitation URL.",
-    version: "1",
-    code: `const base = process.env.AGENT_BASE_URL;
-const headers = {
-  "Content-Type": "application/json",
-  ...(process.env.AGENT_API_KEY ? { apikey: process.env.AGENT_API_KEY } : {}),
-};
+    version: "2",
+    code: `${REST_PRELUDE}
 
 const conn = await fetch(base + "/connections", {
   method: "POST",

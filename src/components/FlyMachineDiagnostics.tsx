@@ -14,7 +14,9 @@ import {
   flyAllocateIps,
   flyMachineDiagnostics,
   flyRepairAgentMachine,
+  flyRepairDidcomm,
 } from "@/lib/identus/fly.functions";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {

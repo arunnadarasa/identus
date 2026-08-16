@@ -193,6 +193,15 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
               No snippets yet — create the sandbox to seed starters.
             </p>
           ) : null}
+          {staleStarters.length > 0 ? (
+            <p className="mx-2 mb-1 flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-2 text-xs text-amber-200">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                {staleStarters.length} saved starter{staleStarters.length > 1 ? "s" : ""} predate the
+                current templates and may fail. Reset or refresh them.
+              </span>
+            </p>
+          ) : null}
           {data.snippets.map((snippet) => (
             <div
               key={snippet.id}
@@ -204,10 +213,17 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
               <button
                 type="button"
                 onClick={() => pick(snippet)}
-                className="min-w-0 flex-1 truncate py-2.5 text-left text-sm"
+                className="flex min-w-0 flex-1 items-center gap-1.5 py-2.5 text-left text-sm"
               >
-                {snippet.name}
+                <span className="min-w-0 truncate">{snippet.name}</span>
+                {snippet.stale ? (
+                  <AlertTriangle
+                    className="h-3.5 w-3.5 shrink-0 text-amber-400"
+                    aria-label="Outdated starter copy"
+                  />
+                ) : null}
               </button>
+
               <Button
                 variant="ghost"
                 size="icon"

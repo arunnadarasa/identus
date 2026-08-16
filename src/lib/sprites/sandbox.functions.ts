@@ -405,22 +405,55 @@ export const saveSnippet = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    // A deliberate save against a starter name adopts the current template
+    // version, so the stale-copy notice does not nag about intentional edits.
+    const version = STARTER_VERSIONS[data.name] ?? null;
     if (data.id) {
       await context.supabase
         .from("sprite_snippets")
-        .update({ name: data.name, code: data.code })
+        .update({ name: data.name, code: data.code, template_version: version })
         .eq("id", data.id)
         .eq("user_id", context.userId);
       return { ok: true as const, id: data.id };
     }
     const { data: inserted, error } = await context.supabase
       .from("sprite_snippets")
-      .insert({ user_id: context.userId, name: data.name, code: data.code })
+      .insert({
+        user_id: context.userId,
+        name: data.name,
+        code: data.code,
+        template_version: version,
+      })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
     return { ok: true as const, id: inserted.id as string };
   });
+
+/** Restores a single starter snippet to its current template body. */
+export const refreshStarterSnippet = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("sprite_snippets")
+      .select("id, name")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const starter = STARTER_SNIPPETS.find((s) => s.name === row?.name);
+    if (!row || !starter) {
+      return { ok: false as const, message: "That snippet is not one of the starters." };
+    }
+    await context.supabase
+      .from("sprite_snippets")
+      .update({ code: starter.code, template_version: starter.version })
+      .eq("id", row.id)
+      .eq("user_id", context.userId);
+    return { ok: true as const, code: starter.code, message: "" };
+  });
+
 
 export const deleteSnippet = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

@@ -222,12 +222,17 @@ function X402Demo({ hasPrivy }: { hasPrivy: boolean }) {
       push({
         label: `${DELEGATION_CREDENTIAL_TYPE} issued`,
         actor: "human",
-        detail: `${mandate.claims.agentName} may spend up to ${cap} ${PRICE_TIERS.currency} on behalf of ${mandate.humanDid}, scope [${mandate.claims.scope.join(", ")}], until ${new Date(mandate.validUntil).toLocaleTimeString()}.${
+        detail: `${mandate.claims.agentName} may spend up to ${cap} ${PRICE_TIERS.currency} on behalf of its principal, scope [${mandate.claims.scope.join(", ")}], until ${new Date(mandate.validUntil).toLocaleTimeString()}.${
           mandate.agentDidIsPlaceholder
             ? " The agent DID is a demo placeholder — create a DID with \u201Cagent\u201D in its alias on the DIDs page to bind a real one."
             : ""
         }`,
+        values: [
+          { label: "principal", value: mandate.humanDid },
+          { label: "agent", value: mandate.agentDid },
+        ],
         simulated: mandate.simulated,
+
         envelope: {
           roles: {
             issuedBy: mandate.issuerDid,
@@ -306,8 +311,9 @@ function X402Demo({ hasPrivy }: { hasPrivy: boolean }) {
         label: "Settled on-chain",
         actor: "verifier",
         detail: hash
-          ? `Facilitator settled the transfer in transaction ${hash.slice(0, 12)}… on ${paid.receipt?.network ?? x402Cfg.chainName}.`
+          ? `Facilitator settled the transfer on ${paid.receipt?.network ?? x402Cfg.chainName}.`
           : "Resource unlocked, but the facilitator returned no transaction hash.",
+        ...(hash ? { values: [{ label: "tx", value: hash }] } : {}),
         state: "completed",
         envelope: { receipt: paid.receipt, body: paid.body.slice(0, 600) },
       });

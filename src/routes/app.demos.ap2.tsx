@@ -101,9 +101,10 @@ function Ap2Demo({ hasPrivy }: { hasPrivy: boolean }) {
       push({
         label: "IntentMandate signed",
         actor: "human",
-        detail: `Your wallet authorised a cap of ${maxPrice} EUR. Recovered signer ${
-          intentCheck.signer ?? "unknown"
-        } ${intentCheck.matches ? "matches" : "does NOT match"} the connected address.`,
+        detail: `Your wallet authorised a cap of ${maxPrice} EUR. The recovered signer ${
+          intentCheck.matches ? "matches" : "does NOT match"
+        } the connected address.`,
+        values: [{ label: "signer", value: intentCheck.signer ?? "unknown" }],
         envelope: { intent, typedData: intentTd, signature: intentSig, verification: intentCheck },
       });
 
@@ -185,9 +186,10 @@ function Ap2Demo({ hasPrivy }: { hasPrivy: boolean }) {
       push({
         label: "PaymentMandate signed",
         actor: "buyer",
-        detail: `The mandate is bound to the cart hash ${paymentMandate.cartHash.slice(0, 14)}… — change one line item and this signature stops verifying. Recovery ${
+        detail: `The mandate is bound to the cart hash below — change one line item and this signature stops verifying. Recovery ${
           payCheck.matches ? "matched" : "failed"
         }.`,
+        values: [{ label: "cart hash", value: paymentMandate.cartHash }],
         envelope: { paymentMandate, typedData: payTd, signature: paySig, verification: payCheck },
       });
 

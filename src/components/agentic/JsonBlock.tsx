@@ -19,7 +19,7 @@ export function JsonBlock({
   const text = JSON.stringify(value, null, 2);
 
   return (
-    <div className="mt-3 rounded-md border border-border/60 bg-muted/30">
+    <div className="mt-3 min-w-0 max-w-full overflow-hidden rounded-md border border-border/60 bg-muted/30">
       <div className="flex items-center justify-between gap-2 px-2 py-1.5">
         <button
           type="button"

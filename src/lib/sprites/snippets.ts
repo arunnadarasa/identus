@@ -111,12 +111,8 @@ console.log("body:", await res.text());
   {
     name: "Publish a PRISM DID",
     description: "Creates an unpublished did:prism through the DID registrar, then publishes it.",
-    version: "2",
-    code: `const base = process.env.AGENT_BASE_URL;
-const headers = {
-  "Content-Type": "application/json",
-  ...(process.env.AGENT_API_KEY ? { apikey: process.env.AGENT_API_KEY } : {}),
-};
+    version: "3",
+    code: `${REST_PRELUDE}
 
 const created = await fetch(base + "/did-registrar/dids", {
   method: "POST",

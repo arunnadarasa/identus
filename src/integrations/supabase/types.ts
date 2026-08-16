@@ -216,6 +216,7 @@ export type Database = {
           invitation_url: string | null
           issuer_did: string | null
           jwt: string | null
+          jwt_source: string | null
           protocol_state: string
           record_id: string
           schema_name: string | null
@@ -234,6 +235,7 @@ export type Database = {
           invitation_url?: string | null
           issuer_did?: string | null
           jwt?: string | null
+          jwt_source?: string | null
           protocol_state?: string
           record_id: string
           schema_name?: string | null
@@ -252,6 +254,7 @@ export type Database = {
           invitation_url?: string | null
           issuer_did?: string | null
           jwt?: string | null
+          jwt_source?: string | null
           protocol_state?: string
           record_id?: string
           schema_name?: string | null
@@ -525,6 +528,7 @@ export type Database = {
           last_output: string | null
           last_run_at: string | null
           name: string
+          template_version: string | null
           updated_at: string
           user_id: string
         }
@@ -536,6 +540,7 @@ export type Database = {
           last_output?: string | null
           last_run_at?: string | null
           name: string
+          template_version?: string | null
           updated_at?: string
           user_id: string
         }
@@ -547,6 +552,7 @@ export type Database = {
           last_output?: string | null
           last_run_at?: string | null
           name?: string
+          template_version?: string | null
           updated_at?: string
           user_id?: string
         }

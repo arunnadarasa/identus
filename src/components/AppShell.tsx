@@ -74,16 +74,17 @@ export function AppShell({
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "rounded-md px-3 py-1.5 text-sm transition-colors",
+                  "relative rounded-md px-3 py-1.5 text-sm transition-colors",
                   isActive(pathname, item.to)
-                    ? "bg-secondary text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-primary/12 text-foreground after:absolute after:inset-x-3 after:-bottom-px after:h-px after:bg-gradient-primary"
+                    : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
                 )}
               >
                 {item.label}
               </Link>
             ))}
           </nav>
+
 
           <div className="hidden items-center gap-3 lg:flex">
             {email ? (

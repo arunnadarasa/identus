@@ -139,11 +139,14 @@ src/
     app.credentials.tsx       issue / accept / verify
     app.activity.tsx          activity log
     app.sandbox.tsx           Sprites snippets + Compose Lab
+    app.zk.tsx                live in-browser ZK proof (Noir + Identus binding)
     app.demos.index.tsx       demo hub
     app.demos.a2a.tsx  .ap2.tsx  .ucp.tsx  .x402.tsx
     api/public/               unauthenticated HTTP endpoints
   lib/
     identus.functions.ts      connections, DIDs, credentials, schemas, readiness
+    zk.functions.ts            ZK credential listing + presentation recording
+    zk-claims.ts               browser-side claim extraction (birth year, etc.)
     identus/
       agent.server.ts         Identus REST client + simulated backend
       fly.server.ts           Fly Machines API, images, machine configs
@@ -151,17 +154,22 @@ src/
       types.ts
     agentic/
       types.ts  ap2.ts  ucp-sign.server.ts  ucp-verify.ts  x402.ts
+      x402-mandate.ts         Identus gate policy (credential + delegation mandate)
       aisa.server.ts          LLM rationales for agent negotiation
       a2a.functions.ts        negotiation, mandates, session log
       credentials.server.ts  negotiation.server.ts  hash.ts
     sprites/
       sprites.server.ts  workspace.server.ts
-      sandbox.functions.ts    per-user SDK scratch box
+      sandbox.functions.ts    per-user SDK scratch box + snippet versioning
+      snippets.ts             version-stamped starter SDK snippets
+      delegation-snippets.ts  copy-paste delegation credential quickstart
       compose.functions.ts  compose.server.ts   Compose Lab + YAML validation
   components/
     AppShell.tsx  ModeBadge.tsx  StickyActionBar.tsx  MonoValue.tsx
+    SdkQuickstartPanel.tsx     delegation credential quickstart tabs
     Agent*/Fly*                 health, diagnostics, deploy, logs, adopt, rotate
-    learn/                      diagrams, credential demo, ZK proof
+    zk/                        ZkProofLive, credential picker, progress UI
+    learn/                      diagrams, credential demo, ZK explainer
     nhs/                        SPR pillars, consent demo, credential map
     agentic/                    demo panels
     ui/                         shadcn primitives

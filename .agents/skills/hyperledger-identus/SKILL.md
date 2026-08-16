@@ -86,7 +86,7 @@ All RLS-scoped by `user_id` (service_role has full access): `profiles`, `user_ro
 - The ZK prover must report per-phase progress with per-phase timeouts and an explicit retry path. A stalled WASM/module download otherwise looks like a frozen page with no way out.
 - The ZK age proof needs a date-of-birth claim on the credential (`dob`, `dateOfBirth`, `birthDate`, `birthYear`, snake_case variants). Issuance templates include `dob` so the happy path stays provable.
 
-For deeper detail see the reference cards: [fly-machine-config](references/fly-machine-config.md), [agent-api-surface](references/agent-api-surface.md), [sprites-quirks](references/sprites-quirks.md), [failure-modes](references/failure-modes.md), [credential-issuance](references/credential-issuance.md), [zk-integration](references/zk-integration.md).
+For deeper detail see the reference cards: [fly-machine-config](references/fly-machine-config.md), [agent-api-surface](references/agent-api-surface.md), [sprites-quirks](references/sprites-quirks.md), [failure-modes](references/failure-modes.md), [credential-issuance](references/credential-issuance.md), [zk-integration](references/zk-integration.md), [mobile-and-design](references/mobile-and-design.md).
 
 ## UI conventions
 

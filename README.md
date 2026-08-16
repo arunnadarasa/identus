@@ -301,16 +301,18 @@ Migrations are in `supabase/migrations/` and are applied in filename order.
 
 ## Zero-knowledge proof demo
 
-`/learn#zk` contains a **real** zero-knowledge proof, generated and verified entirely in your browser:
+`/app/zk` (console) contains a **real** zero-knowledge proof, generated and verified entirely in your browser:
 
 - **Circuit** — `src/components/learn/zk-circuit.ts`: a Noir program with a private `dob_year` and a public `threshold_year`, asserting `dob_year <= threshold_year`.
+- **Identus binding** — the `dob_year` is extracted from a real console-issued credential's claims. A SHA-256 commitment to that credential's signed JWT is a public input, so a verifier can confirm which credential was used without ever seeing the JWT or the birth year.
 - **Prover** — compiled with `@noir-lang/noir_wasm`, executed with `@noir-lang/noir_js`, proved and verified with Aztec `@aztec/bb.js` UltraHonk (`threads: 1`, so no COOP/COEP headers are required).
-- **What you see** — a step log (compile → witness → prove → verify), the real proof size and public inputs (~14.6 KB, 1 public input), a **Tamper** button that flips a byte and shows verification fail, and an under-18 input that shows no proof can be produced at all (`Cannot satisfy constraint`).
+- **Recording** — `listZkCredentials` fetches real signed JWTs from `credential_records`; `recordZkPresentation` stores the completed proof against the credential in `sim_presentations` and surfaces it in the activity log.
+- **What you see** — a step log (compile → witness → prove → verify), the real proof size and public inputs, a **Tamper** button that flips a byte and shows verification fail, and an under-18 input that shows no proof can be produced at all (`Cannot satisfy constraint`).
 - **Loading** — everything sits behind `ClientOnly` + `lazy`, with the multi-megabyte WASM fetched only when you press the button.
 
-Alongside it, `ProofCompare` contrasts a standard credential (all fields visible) with a zero-knowledge presentation (`Over 18? = true` plus π).
+The `/learn#zk` page carries the plain-English explainer and a `ProofCompare` that contrasts a standard credential (all fields visible) with a zero-knowledge presentation (`Over 18? = true` plus π).
 
-**Honest framing, stated in the UI:** the proof above is genuinely zero-knowledge, but the live console issues **JWT-VC** credentials, which do selective disclosure rather than ZK. AnonCreds and BBS+ are the ZK-capable credential formats that let a proof like this be bound to an issued credential.
+**Honest framing, stated in the UI:** the proof above is genuinely zero-knowledge and now bound to a real Identus-issued JWT via a SHA-256 commitment. The binding is a hash commitment, not a native in-circuit signature proof — a verifier knows *which* credential was used, not the credential itself. A native ZK credential format such as AnonCreds or BBS+ would let the issuer's signature itself be proven in-circuit; until Identus ships one, the commitment binding is the practical join.
 
 ---
 

@@ -374,7 +374,10 @@ export function agentMachineConfig(
         AGENT_HTTP_PORT: "8085",
         AGENT_DIDCOMM_PORT: "8090",
         REST_SERVICE_URL: `https://${appName}.fly.dev`,
-        DIDCOMM_SERVICE_URL: `https://${appName}.fly.dev/didcomm`,
+        // The DIDComm endpoint is stamped into every peer DID the agent creates,
+        // so it MUST point at a port Fly actually publishes — see the services
+        // block below, which exposes 8090 in its own right.
+        DIDCOMM_SERVICE_URL: didcommServiceUrl(appName),
         SECRET_STORAGE_BACKEND: "postgres",
         // Fly's private network is IPv6-only, so the JVM must be told not to
         // prefer IPv4 or JDBC/gRPC never reach Postgres and the PRISM node.
@@ -384,16 +387,8 @@ export function agentMachineConfig(
           "-Djava.net.preferIPv6Addresses=true -Djava.net.preferIPv4Stack=false -XX:MaxRAMPercentage=70",
       },
       guest: { cpu_kind: "shared", cpus: guest.cpus, memory_mb: guest.memoryMb },
-      services: [
-        {
-          ports: [
-            { port: 80, handlers: ["http"] },
-            { port: 443, handlers: ["http", "tls"] },
-          ],
-          protocol: "tcp",
-          internal_port: 8085,
-        },
-      ],
+      services: agentServices(),
+
       checks: {
         http: {
           type: "http",

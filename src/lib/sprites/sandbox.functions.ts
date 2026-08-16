@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { STARTER_SNIPPETS } from "./snippets";
+import { STARTER_SNIPPETS, STARTER_VERSIONS } from "./snippets";
 import type { ProvisionStep } from "@/lib/identus/types";
 
 function spriteNameFor(userId: string) {
@@ -67,18 +67,33 @@ export const getSandbox = createServerFn({ method: "GET" })
             updatedAt: box.updated_at as string,
           }
         : null,
-      snippets: (snippets ?? []).map((s: any) => ({
-        id: s.id as string,
-        name: s.name as string,
-        code: s.code as string,
-        lastOutput: (s.last_output as string | null) ?? null,
-        lastExitCode: (s.last_exit_code as number | null) ?? null,
-        lastRunAt: (s.last_run_at as string | null) ?? null,
-      })),
+      snippets: (snippets ?? []).map((s: any) => {
+        const starter = STARTER_SNIPPETS.find((t) => t.name === s.name) ?? null;
+        const version = (s.template_version as string | null) ?? null;
+        // Flag a starter only when it still carries an older (or missing) version
+        // stamp and its body differs from the template. Deliberate edits saved
+        // through the editor pick up the current stamp, so they are never nagged.
+        const stale =
+          Boolean(starter) && version !== starter!.version && (s.code as string) !== starter!.code;
+        return {
+          id: s.id as string,
+          name: s.name as string,
+          code: s.code as string,
+          lastOutput: (s.last_output as string | null) ?? null,
+          lastExitCode: (s.last_exit_code as number | null) ?? null,
+          lastRunAt: (s.last_run_at as string | null) ?? null,
+          templateVersion: version,
+          starterVersion: starter?.version ?? null,
+          isStarter: Boolean(starter),
+          stale,
+        };
+      }),
+
       agent,
       suggestedName: spriteNameFor(context.userId),
     };
   });
+
 
 /** Creates the sprite if needed, lays down the workspace and installs the SDK. */
 export const ensureSandbox = createServerFn({ method: "POST" })
@@ -243,7 +258,9 @@ export const ensureSandbox = createServerFn({ method: "POST" })
             user_id: context.userId,
             name: s.name,
             code: s.code,
+            template_version: s.version,
           })),
+
         );
       }
 
@@ -388,22 +405,55 @@ export const saveSnippet = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    // A deliberate save against a starter name adopts the current template
+    // version, so the stale-copy notice does not nag about intentional edits.
+    const version = STARTER_VERSIONS[data.name] ?? null;
     if (data.id) {
       await context.supabase
         .from("sprite_snippets")
-        .update({ name: data.name, code: data.code })
+        .update({ name: data.name, code: data.code, template_version: version })
         .eq("id", data.id)
         .eq("user_id", context.userId);
       return { ok: true as const, id: data.id };
     }
     const { data: inserted, error } = await context.supabase
       .from("sprite_snippets")
-      .insert({ user_id: context.userId, name: data.name, code: data.code })
+      .insert({
+        user_id: context.userId,
+        name: data.name,
+        code: data.code,
+        template_version: version,
+      })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
     return { ok: true as const, id: inserted.id as string };
   });
+
+/** Restores a single starter snippet to its current template body. */
+export const refreshStarterSnippet = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("sprite_snippets")
+      .select("id, name")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const starter = STARTER_SNIPPETS.find((s) => s.name === row?.name);
+    if (!row || !starter) {
+      return { ok: false as const, message: "That snippet is not one of the starters." };
+    }
+    await context.supabase
+      .from("sprite_snippets")
+      .update({ code: starter.code, template_version: starter.version })
+      .eq("id", row.id)
+      .eq("user_id", context.userId);
+    return { ok: true as const, code: starter.code, message: "" };
+  });
+
 
 export const deleteSnippet = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -441,14 +491,20 @@ export const resetStarterSnippets = createServerFn({ method: "POST" })
       if (id) {
         await context.supabase
           .from("sprite_snippets")
-          .update({ code: snippet.code })
+          .update({ code: snippet.code, template_version: snippet.version })
           .eq("id", id)
           .eq("user_id", context.userId);
         updated += 1;
       } else {
         await context.supabase
           .from("sprite_snippets")
-          .insert({ user_id: context.userId, name: snippet.name, code: snippet.code });
+          .insert({
+            user_id: context.userId,
+            name: snippet.name,
+            code: snippet.code,
+            template_version: snippet.version,
+          });
+
         inserted += 1;
       }
     }

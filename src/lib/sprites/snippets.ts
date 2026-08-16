@@ -2,6 +2,12 @@
 export interface StarterSnippet {
   name: string;
   description: string;
+  /**
+   * Bumped whenever the template body changes. Saved snippets store the version
+   * they were seeded from, so the Sandbox can point out stale copies instead of
+   * letting an old snippet fail with a confusing runtime error.
+   */
+  version: string;
   code: string;
 }
 
@@ -14,6 +20,7 @@ export const STARTER_SNIPPETS: StarterSnippet[] = [
   {
     name: "Create a Peer DID",
     description: "Builds an in-memory Apollo/Castor stack and mints a did:peer.",
+    version: "3",
     code: `import SDK from "@hyperledger/identus-edge-agent-sdk";
 
 const apollo = new SDK.Apollo();
@@ -39,19 +46,44 @@ console.log("peer DID:", did.toString());
 // warning from the SDK, not an error.
 const resolved = await castor.resolveDID(did.toString());
 
-// A resolved document exposes its verification methods through coreProperties,
-// not a top-level verificationMethod array.
-const methods = (resolved.coreProperties ?? []).flatMap((prop) =>
-  Array.isArray(prop?.values) ? prop.values : [],
-);
+// The resolved document does NOT expose a top-level \`verificationMethod\` array.
+// Depending on the SDK build the methods live under \`verificationMethods\`, or
+// inside \`coreProperties\` entries that each carry a \`values\` array. Collect
+// from whichever shape is present instead of indexing into undefined.
+function collectMethods(doc) {
+  const out = [];
+  const push = (value) => {
+    if (!value) return;
+    for (const item of Array.isArray(value) ? value : [value]) {
+      if (item && typeof item === "object" && (item.id || item.type)) out.push(item);
+    }
+  };
+  push(doc?.verificationMethods?.values ?? doc?.verificationMethods);
+  push(doc?.verificationMethod);
+  for (const prop of doc?.coreProperties ?? []) {
+    push(prop?.values);
+    push(prop?.verificationMethods);
+  }
+  return out;
+}
+
+const methods = collectMethods(resolved);
+const byType = (needle) =>
+  methods.filter((m) => String(m.type ?? "").toLowerCase().includes(needle)).length;
+
 console.log("verification methods:", methods.length);
+console.log("authentication-ish:", byType("ed25519") || byType("authentication"));
+console.log("key agreement-ish:", byType("x25519") || byType("agreement"));
 console.log("first method id:", methods[0]?.id ?? "(none)");
-console.log(JSON.stringify(resolved, null, 2).slice(0, 1200));
+
+// Always print the document so the real shape is visible if the counts look odd.
+console.log(JSON.stringify(resolved, null, 2).slice(0, 1500));
 `,
   },
   {
     name: "Agent health & version",
     description: "Raw fetch against the active agent to confirm connectivity.",
+    version: "1",
     code: `const base = process.env.AGENT_BASE_URL;
 const key = process.env.AGENT_API_KEY;
 
@@ -65,6 +97,7 @@ console.log("body:", await res.text());
   {
     name: "Publish a PRISM DID",
     description: "Creates an unpublished did:prism through the DID registrar, then publishes it.",
+    version: "2",
     code: `const base = process.env.AGENT_BASE_URL;
 const headers = {
   "Content-Type": "application/json",
@@ -95,6 +128,7 @@ console.log("publication:", JSON.stringify(published, null, 2));
   {
     name: "Create a connection invitation",
     description: "Starts a DIDComm connection and prints the out-of-band invitation URL.",
+    version: "1",
     code: `const base = process.env.AGENT_BASE_URL;
 const headers = {
   "Content-Type": "application/json",
@@ -115,6 +149,7 @@ console.log("invitation:", conn.invitation?.invitationUrl);
   {
     name: "Issue a credential offer",
     description: "Finds an established connection and a published issuer DID, then offers a JWT credential.",
+    version: "2",
     code: `const base = process.env.AGENT_BASE_URL;
 const headers = {
   "Content-Type": "application/json",
@@ -158,7 +193,7 @@ const offer = await fetch(base + "/issue-credentials/credential-offers", {
     issuingDID,
     credentialFormat: "JWT",
     automaticIssuance: true,
-    claims: { name: "Alice", degree: "MSc Cryptography" },
+    claims: { name: "Alice", degree: "MSc Cryptography", dob: "2003-05-12" },
   }),
 }).then((r) => r.json());
 
@@ -168,6 +203,7 @@ console.log(JSON.stringify(offer, null, 2));
   {
     name: "List presentation records",
     description: "Reads present-proof records from the agent to inspect verification state.",
+    version: "1",
     code: `const base = process.env.AGENT_BASE_URL;
 const headers = {
   ...(process.env.AGENT_API_KEY ? { apikey: process.env.AGENT_API_KEY } : {}),
@@ -181,3 +217,8 @@ console.log(JSON.stringify(records, null, 2).slice(0, 2000));
 `,
   },
 ];
+
+/** Name → current template version, for stale-copy detection. */
+export const STARTER_VERSIONS: Record<string, string> = Object.fromEntries(
+  STARTER_SNIPPETS.map((s) => [s.name, s.version]),
+);

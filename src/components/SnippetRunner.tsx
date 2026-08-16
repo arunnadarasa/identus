@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Play, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, Loader2, Play, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import {
   getSandbox,
   runSnippet,
   saveSnippet,
   deleteSnippet,
   resetStarterSnippets,
+  refreshStarterSnippet,
 } from "@/lib/sprites/sandbox.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +30,10 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
   const doSave = useServerFn(saveSnippet);
   const doDelete = useServerFn(deleteSnippet);
   const doReset = useServerFn(resetStarterSnippets);
+  const doRefreshOne = useServerFn(refreshStarterSnippet);
   const [resetting, setResetting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
 
   const [selectedId, setSelectedId] = useState<string | null>(data.snippets[0]?.id ?? null);
   const [name, setName] = useState(data.snippets[0]?.name ?? "Untitled snippet");
@@ -127,6 +131,29 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
     }
   };
 
+  const staleStarters = useMemo(() => data.snippets.filter((s) => s.stale), [data.snippets]);
+
+  const refreshSelected = async () => {
+    if (!selectedId) return;
+    setRefreshing(true);
+    try {
+      const res = await doRefreshOne({ data: { id: selectedId } });
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      setCode(res.code);
+      invalidate();
+      toast.success("Snippet updated to the current starter");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not refresh the snippet");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+
+
   const remove = async (id: string) => {
     await doDelete({ data: { id } });
     if (id === selectedId) newSnippet();
@@ -166,6 +193,15 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
               No snippets yet — create the sandbox to seed starters.
             </p>
           ) : null}
+          {staleStarters.length > 0 ? (
+            <p className="mx-2 mb-1 flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-2 text-xs text-amber-200">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                {staleStarters.length} saved starter{staleStarters.length > 1 ? "s" : ""} predate the
+                current templates and may fail. Reset or refresh them.
+              </span>
+            </p>
+          ) : null}
           {data.snippets.map((snippet) => (
             <div
               key={snippet.id}
@@ -177,10 +213,17 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
               <button
                 type="button"
                 onClick={() => pick(snippet)}
-                className="min-w-0 flex-1 truncate py-2.5 text-left text-sm"
+                className="flex min-w-0 flex-1 items-center gap-1.5 py-2.5 text-left text-sm"
               >
-                {snippet.name}
+                <span className="min-w-0 truncate">{snippet.name}</span>
+                {snippet.stale ? (
+                  <AlertTriangle
+                    className="h-3.5 w-3.5 shrink-0 text-amber-400"
+                    aria-label="Outdated starter copy"
+                  />
+                ) : null}
               </button>
+
               <Button
                 variant="ghost"
                 size="icon"
@@ -205,6 +248,29 @@ export function SnippetRunner({ data, draft }: { data: Sandbox; draft?: SnippetD
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {selected?.stale ? (
+              <div className="flex flex-col gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200 sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                  This is an older copy of the “{selected.name}” starter
+                  {selected.starterVersion ? ` (template ${selected.starterVersion})` : ""}.
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={refreshSelected}
+                  disabled={refreshing}
+                  className="shrink-0"
+                >
+                  {refreshing ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  Use current version
+                </Button>
+              </div>
+            ) : null}
+
             <div className="space-y-2">
               <Label htmlFor="snippet-name">Name</Label>
               <Input

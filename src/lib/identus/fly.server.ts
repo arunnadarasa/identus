@@ -710,6 +710,53 @@ export async function updateMachineEnv(
 }
 
 /**
+ * Brings an already-deployed agent machine in line with the current endpoint
+ * config: publishes the DIDComm port and rewrites `DIDCOMM_SERVICE_URL` to the
+ * URL that port is reachable on. Without this an agent deployed earlier keeps
+ * minting peer DIDs with an endpoint nothing can dial, so connections never
+ * leave `InvitationGenerated`.
+ */
+export async function repairAgentEndpoints(appName: string) {
+  const machine = await findAgentMachine(appName);
+  if (!machine) return { ok: false as const, message: "No Cloud Agent machine in this app." };
+
+  const detail = await getMachine(appName, machine.id);
+  const env = (detail.config["env"] ?? {}) as Record<string, string>;
+  const wantUrl = didcommServiceUrl(appName);
+  const serviceMissing = !hasDidcommService(detail.config);
+  const urlWrong = env["DIDCOMM_SERVICE_URL"] !== wantUrl;
+
+  if (!serviceMissing && !urlWrong) {
+    return {
+      ok: true as const,
+      changed: false,
+      didcommServiceUrl: wantUrl,
+      message: "The DIDComm endpoint is already published and configured correctly.",
+    };
+  }
+
+  const config = {
+    ...detail.config,
+    env: { ...env, DIDCOMM_SERVICE_URL: wantUrl, AGENT_DIDCOMM_PORT: "8090" },
+    services: agentServices(),
+  };
+  await fly(`/apps/${appName}/machines/${machine.id}`, {
+    method: "POST",
+    body: JSON.stringify({ config }),
+  });
+  await waitForMachineState(appName, machine.id, "started", 120);
+
+  return {
+    ok: true as const,
+    changed: true,
+    didcommServiceUrl: wantUrl,
+    message: `DIDComm is now published on ${wantUrl} and the agent was restarted. Peer DIDs minted from now on carry that endpoint; invitations created earlier are stale, so create a new one.`,
+  };
+}
+
+
+
+/**
  * Blocks until the machine reaches `state`.
  *
  * Fly's wait endpoint only accepts a long-poll between 1s and 60s (and our own

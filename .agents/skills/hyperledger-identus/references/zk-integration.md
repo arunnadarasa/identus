@@ -43,3 +43,19 @@ The proof shows: "the holder knows a credential whose SHA-256 commits to C, and 
 at or before the threshold." It does **not** verify the issuer's signature inside the circuit — the
 JWT signature is checked outside it. Say so in the UI rather than implying full in-circuit
 credential verification.
+
+## Loading contract (progress, timeouts, retry)
+
+`src/components/zk/zk-proof-client-entry.tsx` treats prover loading as a first-class, failure-prone
+step:
+
+- Progress is `{ phase, assets, bytes }` — the phase name is shown to the user ("fetching modules",
+  "compiling circuit", "proving") and byte/asset counts come from the fetch hooks, so a multi-MB WASM
+  download reads as movement rather than a hang.
+- Each phase has its own timeout that throws `StageTimeoutError`. The failed stage is recorded as
+  `load` / `load-timeout` / `prove` / `prove-timeout` and drives a tailored message: network advice
+  for load failures, "try a desktop browser" for slow proving.
+- Every failure state offers "Reload the prover and retry" — never a dead end.
+- The Noir compiler is served as a verbatim vendor asset and imported with `@vite-ignore` to avoid a
+  temporal-dead-zone crash from bundler hoisting (see the `noir-zk-browser` skill).
+

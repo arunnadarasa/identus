@@ -25,6 +25,10 @@
 | Port bind already in use (docker) | Another process holds the host port | Change the host side in `.env` (e.g. `POSTGRES_PORT=5433`). |
 | `<app>.fly.dev` does not resolve at all (probes fail with a transport error, not 502) | App has no public IP; Fly only publishes DNS once one is allocated | `listIpAddresses(app)` returns empty -> run `flyAllocateIps` / `allocateSharedIpv4`, which now verifies the allocation instead of trusting the mutation. A deploy-scoped token cannot allocate IPs; use an organisation token. |
 | `no matching manifest for linux/arm64` | Image has no arm64 build | Add `platform: linux/amd64` to that service (emulation is slower). |
+| Invitations decode to a placeholder or port-less host; remote wallets never connect | `DIDCOMM_SERVICE_URL` wrong and/or internal port 8090 not published on the cloud-agent machine | Run `repairAgentEndpoints(app)` ("Repair DIDComm endpoint"): adds the 8090 `http`+`tls` service, sets `DIDCOMM_SERVICE_URL=https://<app>.fly.dev:8090`, restarts. No redeploy needed. |
+| Sandbox snippet dies with `TypeError: Invalid URL` | `AGENT_BASE_URL` is empty because the console is in simulated mode, and `"" + "/path"` is not a URL | Keep `REST_PRELUDE` at the top of every REST snippet — it exits with a plain message saying a real (docker/fly) agent is required. |
+| x402 / delegation gate rejects with "credential mismatch" although both credentials are valid | The human principal (credential subject) was compared against the agent DID (mandate subject) | Compare principal↔credential subject and agent↔mandate subject separately; the mandate links the two, they are never equal. |
+| ZK panel appears frozen with no error | WASM/module download stalled with no per-phase timeout | Track phase + bytes, apply a per-phase timeout, and surface a retry button (`zk-proof-client-entry.tsx` distinguishes `load-timeout` / `prove-timeout`). |
 
 ## Readiness vs health
 

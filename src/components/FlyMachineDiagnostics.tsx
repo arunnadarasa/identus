@@ -159,6 +159,29 @@ export function FlyMachineDiagnostics({
             </p>
           ) : null}
 
+          {didcomm?.message ? (
+            <div className="space-y-2 rounded-md border border-destructive/40 bg-destructive/10 p-2">
+              <p className="text-destructive">{didcomm.message}</p>
+              <p className="text-muted-foreground">
+                Advertised: <span className="font-mono break-all">{didcomm.configuredUrl || "—"}</span>
+                <br />
+                Reachable: <span className="font-mono break-all">{didcomm.expectedUrl}</span>
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                disabled={repairDidcomm.isPending}
+                onClick={() => repairDidcomm.mutate()}
+              >
+                <Wrench className="mr-2 h-3 w-3" />
+                {repairDidcomm.isPending ? "Repairing…" : "Repair DIDComm endpoint"}
+              </Button>
+            </div>
+          ) : null}
+
+
+
           {agentNeedsRepair && agent ? (
             <div className="space-y-2 rounded-md border border-destructive/40 bg-destructive/10 p-2">
               <p className="text-destructive">

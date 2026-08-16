@@ -163,12 +163,8 @@ console.log("invitation:", conn.invitation?.invitationUrl);
   {
     name: "Issue a credential offer",
     description: "Finds an established connection and a published issuer DID, then offers a JWT credential.",
-    version: "2",
-    code: `const base = process.env.AGENT_BASE_URL;
-const headers = {
-  "Content-Type": "application/json",
-  ...(process.env.AGENT_API_KEY ? { apikey: process.env.AGENT_API_KEY } : {}),
-};
+    version: "3",
+    code: `${REST_PRELUDE}
 
 // 1. Find an established connection (no placeholders — read it from the agent).
 const conns = await fetch(base + "/connections", { headers }).then((r) => r.json());

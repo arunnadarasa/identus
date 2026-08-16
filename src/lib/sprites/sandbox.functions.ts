@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { STARTER_SNIPPETS } from "./snippets";
+import { STARTER_SNIPPETS, STARTER_VERSIONS } from "./snippets";
 import type { ProvisionStep } from "@/lib/identus/types";
 
 function spriteNameFor(userId: string) {

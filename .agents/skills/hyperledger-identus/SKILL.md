@@ -38,6 +38,9 @@ Fly Machines hosts the full agent stack. Sprites.dev is only for per-user SDK sn
 | Marketing pages | `src/routes/index.tsx`, `learn.tsx`, `nhs.tsx`, `docs.tsx` + `src/components/MarketingHeader.tsx` |
 | Docs route | `src/routes/docs.tsx` |
 | UI components | `src/components/` (FlyDeployPanel, FlyMachineDiagnostics, AgentHealthPanel, AgentReadinessWatcher, ActiveAgentCard, FlyAgentPicker, RotateKeyDialog, ComposeLabPanel, SnippetRunner, ModeRecommendation) |
+| Design tokens | `src/styles.css` (oklch palette, Sora/Manrope, glass + glow utilities) |
+| Shared UI chrome | `src/components/` (`MarketingHeader`, `AppShell`, `ModeBadge`, `StickyActionBar`, `SectionHeading`, `PremiumCard`, `MonoValue`) |
+| Agentic UI | `src/components/agentic/` (`TranscriptView`, `JsonBlock`), `src/components/learn/DelegationDemo.tsx` |
 | DB migrations | `supabase/migrations/` |
 
 ## Server/client split rule
@@ -76,9 +79,23 @@ All RLS-scoped by `user_id` (service_role has full access): `profiles`, `user_ro
 - Cap any single Fly readiness poll at 60s. Longer `timeout` values are rejected by the Machines API with a 400.
 - Fly resources can vanish outside the console. Treat 404 from `destroyFlyApp`/machine reads as "already gone" and mark the stored connection orphaned instead of erroring.
 - Only a **published** `did:prism` carrying an `assertionMethod` key can sign a credential offer — see [credential-issuance](references/credential-issuance.md).
+- DIDComm invitations must advertise a reachable host. The cloud-agent machine publishes port 8090 (`http`+`tls`) and `DIDCOMM_SERVICE_URL` must be `https://<app>.fly.dev:8090` — a placeholder host makes every invitation undeliverable. Fix existing apps with `repairAgentEndpoints` (exposed as the "Repair DIDComm endpoint" action), not a redeploy.
+- Sandbox starter snippets are **versioned** (`STARTER_SNIPPETS[].version` in `src/lib/sprites/snippets.ts`). A breaking SDK/API change requires bumping that version so saved copies are flagged stale and offered a reset; silently editing the template leaves existing users on broken code.
+- REST snippets begin with `REST_PRELUDE`, which fails fast with a plain-English "configure a real agent" message. Without it an empty `AGENT_BASE_URL` surfaces as a bare `TypeError: Invalid URL` in simulated mode.
+- In the delegation / x402 gate the **human principal** (credential subject) and the **AI agent** (mandate subject) are different DIDs. Compare principal↔credential-subject and agent↔mandate-subject; cross-comparing them is the classic false "credential mismatch" rejection.
+- The ZK prover must report per-phase progress with per-phase timeouts and an explicit retry path. A stalled WASM/module download otherwise looks like a frozen page with no way out.
 - The ZK age proof needs a date-of-birth claim on the credential (`dob`, `dateOfBirth`, `birthDate`, `birthYear`, snake_case variants). Issuance templates include `dob` so the happy path stays provable.
 
 For deeper detail see the reference cards: [fly-machine-config](references/fly-machine-config.md), [agent-api-surface](references/agent-api-surface.md), [sprites-quirks](references/sprites-quirks.md), [failure-modes](references/failure-modes.md), [credential-issuance](references/credential-issuance.md), [zk-integration](references/zk-integration.md).
+
+## UI conventions
+
+- Colors, gradients, and shadows come from the semantic tokens in `src/styles.css`. Never hardcode `text-white`, `bg-black`, or hex utilities in components.
+- Long machine identifiers (DIDs, 0x addresses, hashes, JWTs) never sit inline in prose. Render them with `shortenId`/`TruncatedMono` from `src/components/MonoValue.tsx`, or as a `values: [{ label, value }]` row on a `TranscriptStep`; the full value stays available in the raw envelope / JSON block.
+- Header rows that mix text with fixed-size widgets use `grid-cols-[minmax(0,1fr)_auto]` on mobile promoted to `flex` at `sm:`, with `min-w-0` on text containers and `shrink-0` on icons.
+- Marketing pages (`/`, `/learn`, `/nhs`, `/docs`) share `MarketingHeader` — a session-aware burger menu on mobile. The console shows the active agent mode via `ModeBadge`, and mobile forms pin their primary action with `StickyActionBar`.
+- The project uses `exactOptionalPropertyTypes`: pass optional props with `...(x ? { prop: x } : {})` rather than `prop: x ?? undefined`.
+- Details in [mobile-and-design](references/mobile-and-design.md).
 
 ## Workflows
 
@@ -141,3 +158,19 @@ For deeper detail see the reference cards: [fly-machine-config](references/fly-m
 4. `recordZkPresentation` stores the commitment, public inputs, and timing into `sim_presentations` and writes an activity entry.
    **Success:** `verified === true` and a `presentation.zk_verified` activity row.
    For the prover mechanics see the `noir-zk-browser` skill and [zk-integration](references/zk-integration.md).
+
+### 9. Repair a Fly agent's DIDComm endpoint
+
+1. Symptom: invitations produced by the agent carry a placeholder or port-less host, so no remote wallet can answer them.
+2. `flyMachineDiagnostics` reports the machine's `DIDCOMM_SERVICE_URL` and whether internal port 8090 is published.
+3. Run the repair function (`repairAgentEndpoints` via `fly.functions.ts`) — it adds the 8090 service, rewrites `DIDCOMM_SERVICE_URL` to `https://<app>.fly.dev:8090`, and restarts the machine.
+   **Success:** a freshly created invitation decodes to a `serviceEndpoint` on the real app host, and re-running diagnostics shows no endpoint warning.
+
+### 10. Ship a breaking change to sandbox snippets
+
+1. Edit the template in `src/lib/sprites/snippets.ts` (or `delegation-snippets.ts`).
+2. Bump that entry's `version` string — `STARTER_VERSIONS` is derived from it and drives stale-copy detection in `sandbox.functions.ts`.
+3. The Sandbox UI flags saved snippets whose `template_version` is older and offers "Reset starter snippets".
+4. Any REST snippet must keep `REST_PRELUDE` at the top so simulated mode explains itself instead of throwing `Invalid URL`.
+   **Success:** a user with an old saved copy sees the stale badge and gets working code after resetting.
+

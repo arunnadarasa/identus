@@ -2,9 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Github, ShieldCheck, Bot, TerminalSquare, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { MarketingHeader } from "@/components/MarketingHeader";
+import { HeroArtifact } from "@/components/marketing/HeroArtifact";
+import { PremiumCard } from "@/components/marketing/PremiumCard";
+import { SectionHeading } from "@/components/marketing/SectionHeading";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({

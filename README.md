@@ -66,7 +66,8 @@ Every account is isolated: all data is row-level-security scoped to the signed-i
 | `/app/dids` | Create PRISM DIDs (holder/issuer key purposes), auto-publish issuer DIDs with an `assertionMethod` key, poll publication status, and inspect long-form vs published DIDs. |
 | `/app/credentials` | Issue credentials against a real issuer DID (connection-based **or** connectionless via invitation URL), accept offers as a holder, and verify presentations. |
 | `/app/activity` | Chronological log of every agent request, provisioning step and credential event. |
-| `/app/sandbox` | Per-user **Sprites** scratch box for Identus SDK (TypeScript) snippets, plus a **Compose Lab** for authoring and validating Docker Compose stacks. |
+| `/app/sandbox` | Per-user **Sprites** scratch box for Identus SDK (TypeScript) snippets, plus a **Compose Lab** for authoring and validating Docker Compose stacks. Includes a **Quickstart — delegation credentials** panel with copy-paste Install/Issue/Verify/Gate snippets (WebCrypto ES256, runnable in-browser and in the sandbox). Starter SDK snippets are version-stamped with stale detection and per-snippet refresh. |
+| `/app/zk` | Live in-browser ZK proof. Pick a console-issued credential, prove an age threshold over its birth-year claim, bound to the credential's JWT via a SHA-256 commitment. Records the proof as a presentation. |
 | `/app/demos` | Hub for the four agentic demos below. |
 
 A **mode badge** in the navbar always shows which mode you're in (simulated / docker / fly) with a colour-coded status pill.
@@ -138,11 +139,14 @@ src/
     app.credentials.tsx       issue / accept / verify
     app.activity.tsx          activity log
     app.sandbox.tsx           Sprites snippets + Compose Lab
+    app.zk.tsx                live in-browser ZK proof (Noir + Identus binding)
     app.demos.index.tsx       demo hub
     app.demos.a2a.tsx  .ap2.tsx  .ucp.tsx  .x402.tsx
     api/public/               unauthenticated HTTP endpoints
   lib/
     identus.functions.ts      connections, DIDs, credentials, schemas, readiness
+    zk.functions.ts            ZK credential listing + presentation recording
+    zk-claims.ts               browser-side claim extraction (birth year, etc.)
     identus/
       agent.server.ts         Identus REST client + simulated backend
       fly.server.ts           Fly Machines API, images, machine configs
@@ -150,17 +154,22 @@ src/
       types.ts
     agentic/
       types.ts  ap2.ts  ucp-sign.server.ts  ucp-verify.ts  x402.ts
+      x402-mandate.ts         Identus gate policy (credential + delegation mandate)
       aisa.server.ts          LLM rationales for agent negotiation
       a2a.functions.ts        negotiation, mandates, session log
       credentials.server.ts  negotiation.server.ts  hash.ts
     sprites/
       sprites.server.ts  workspace.server.ts
-      sandbox.functions.ts    per-user SDK scratch box
+      sandbox.functions.ts    per-user SDK scratch box + snippet versioning
+      snippets.ts             version-stamped starter SDK snippets
+      delegation-snippets.ts  copy-paste delegation credential quickstart
       compose.functions.ts  compose.server.ts   Compose Lab + YAML validation
   components/
     AppShell.tsx  ModeBadge.tsx  StickyActionBar.tsx  MonoValue.tsx
+    SdkQuickstartPanel.tsx     delegation credential quickstart tabs
     Agent*/Fly*                 health, diagnostics, deploy, logs, adopt, rotate
-    learn/                      diagrams, credential demo, ZK proof
+    zk/                        ZkProofLive, credential picker, progress UI
+    learn/                      diagrams, credential demo, ZK explainer
     nhs/                        SPR pillars, consent demo, credential map
     agentic/                    demo panels
     ui/                         shadcn primitives
@@ -279,10 +288,10 @@ All tables live in `public`, have RLS enabled, explicit `GRANT`s, and policies s
 | `agent_connections` | Saved agents: label, mode, base URL, admin key, active flag, health state. |
 | `saved_dids` | Created DIDs: long-form and published DID, key purposes, publication status, `publish_error`. |
 | `credential_schemas` | Credential schema definitions. |
-| `credential_records` | Offers, issuance and acceptance state, including `invitation_url` for connectionless offers. |
+| `credential_records` | Offers, issuance and acceptance state, including `invitation_url` for connectionless offers and `jwt_source` (tracks whether the stored JWT came from the real agent or a simulated signature). |
 | `sim_connections`, `sim_presentations` | Backing store for simulated mode. |
 | `activity_log` | Append-only audit trail of agent requests and console actions. |
-| `sprite_boxes`, `sprite_snippets` | Per-user Sprites sandbox and saved SDK snippets. |
+| `sprite_boxes`, `sprite_snippets` | Per-user Sprites sandbox and saved SDK snippets. `sprite_snippets` carries `template_version` to drive stale detection against the current starter template. |
 | `compose_files` | Saved Compose Lab documents. |
 | `agentic_sessions` | A2A/AP2/UCP/x402 demo runs, mandates and signatures. |
 
@@ -292,16 +301,18 @@ Migrations are in `supabase/migrations/` and are applied in filename order.
 
 ## Zero-knowledge proof demo
 
-`/learn#zk` contains a **real** zero-knowledge proof, generated and verified entirely in your browser:
+`/app/zk` (console) contains a **real** zero-knowledge proof, generated and verified entirely in your browser:
 
 - **Circuit** — `src/components/learn/zk-circuit.ts`: a Noir program with a private `dob_year` and a public `threshold_year`, asserting `dob_year <= threshold_year`.
+- **Identus binding** — the `dob_year` is extracted from a real console-issued credential's claims. A SHA-256 commitment to that credential's signed JWT is a public input, so a verifier can confirm which credential was used without ever seeing the JWT or the birth year.
 - **Prover** — compiled with `@noir-lang/noir_wasm`, executed with `@noir-lang/noir_js`, proved and verified with Aztec `@aztec/bb.js` UltraHonk (`threads: 1`, so no COOP/COEP headers are required).
-- **What you see** — a step log (compile → witness → prove → verify), the real proof size and public inputs (~14.6 KB, 1 public input), a **Tamper** button that flips a byte and shows verification fail, and an under-18 input that shows no proof can be produced at all (`Cannot satisfy constraint`).
+- **Recording** — `listZkCredentials` fetches real signed JWTs from `credential_records`; `recordZkPresentation` stores the completed proof against the credential in `sim_presentations` and surfaces it in the activity log.
+- **What you see** — a step log (compile → witness → prove → verify), the real proof size and public inputs, a **Tamper** button that flips a byte and shows verification fail, and an under-18 input that shows no proof can be produced at all (`Cannot satisfy constraint`).
 - **Loading** — everything sits behind `ClientOnly` + `lazy`, with the multi-megabyte WASM fetched only when you press the button.
 
-Alongside it, `ProofCompare` contrasts a standard credential (all fields visible) with a zero-knowledge presentation (`Over 18? = true` plus π).
+The `/learn#zk` page carries the plain-English explainer and a `ProofCompare` that contrasts a standard credential (all fields visible) with a zero-knowledge presentation (`Over 18? = true` plus π).
 
-**Honest framing, stated in the UI:** the proof above is genuinely zero-knowledge, but the live console issues **JWT-VC** credentials, which do selective disclosure rather than ZK. AnonCreds and BBS+ are the ZK-capable credential formats that let a proof like this be bound to an issued credential.
+**Honest framing, stated in the UI:** the proof above is genuinely zero-knowledge and now bound to a real Identus-issued JWT via a SHA-256 commitment. The binding is a hash commitment, not a native in-circuit signature proof — a verifier knows *which* credential was used, not the credential itself. A native ZK credential format such as AnonCreds or BBS+ would let the issuer's signature itself be proven in-circuit; until Identus ships one, the commitment binding is the practical join.
 
 ---
 
@@ -314,7 +325,7 @@ Alongside it, `ProofCompare` contrasts a standard credential (all fields visible
 | **A2A** | Agent-to-agent negotiation over JSON-RPC against `/api/public/a2a-seller`, with an agent card, DID-identified participants and LLM-written rationales. |
 | **AP2** | Agent Payments Protocol mandates: intent → cart → payment mandate, signed EIP-712 and verified server-side. |
 | **UCP** | Universal Commerce Protocol merchant flow against `/api/public/ucp-merchant`, with signed and verified payloads. |
-| **x402** | HTTP 402 payment-required flow on **Base Sepolia**: a wallet connected through Privy pays USDC, the proxy retries with the payment header, and the content unlocks. |
+| **x402** | HTTP 402 payment-required flow on **Base Sepolia**: a wallet connected through Privy pays USDC, the proxy retries with the payment header, and the content unlocks. The proxy enforces an **Identus gate** — a `StudentIDCredential` check plus an `AgentDelegationCredential` mandate scoped to `payment:x402`, with principal-vs-agent DID verification. The gate policy quote (list/member tiers in USDC) is the app's own; the amount settled on Base Sepolia is the facilitator's requirement. |
 
 Public endpoints validate their input and verify signatures inside the handler — the `/api/public/*` prefix bypasses site auth, so the handler is the only gate.
 
@@ -333,7 +344,8 @@ Public endpoints validate their input and verify signatures inside the handler �
 
 ## Roadmap and known limitations
 
-- Credentials are JWT-VC; AnonCreds/BBS+ (and therefore credential-bound ZK presentations) are not wired into the console yet.
+- ZK proofs are bound to real credentials via a SHA-256 commitment, but the issuer's signature is not proven in-circuit — a native ZK credential format (AnonCreds/BBS+) would close that gap.
+- Sandbox starter snippets are version-tracked, but there is no auto-migration of custom edits when a template changes — stale copies are flagged and can be refreshed manually.
 - Mediator and DIDComm routing are not provisioned — connectionless offers via invitation URL are the supported path.
 - Sprites hosts SDK snippets and Compose authoring only; it does not run agents.
 - Fly provisioning is single-region and single-machine per role; no HA Postgres.

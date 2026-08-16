@@ -313,7 +313,7 @@ function X402Demo({ hasPrivy }: { hasPrivy: boolean }) {
         detail: hash
           ? `Facilitator settled the transfer on ${paid.receipt?.network ?? x402Cfg.chainName}.`
           : "Resource unlocked, but the facilitator returned no transaction hash.",
-        values: hash ? [{ label: "tx", value: hash }] : undefined,
+        ...(hash ? { values: [{ label: "tx", value: hash }] } : {}),
         state: "completed",
         envelope: { receipt: paid.receipt, body: paid.body.slice(0, 600) },
       });

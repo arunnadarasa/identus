@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
+import { CloudStatusBanner } from "@/components/CloudStatusBanner";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 
@@ -137,6 +138,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <CloudStatusBanner />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       <Toaster position={isMobile ? "bottom-center" : "top-right"} />
